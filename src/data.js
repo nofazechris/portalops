@@ -16,7 +16,7 @@ export const tourSteps = [
 ];
 
 export const navGroups = [
-  { label: null, items: [{ id: "overview", label: "Overview", icon: "◫" }, { id: "setup", label: "Guided setup", icon: "▸" }] },
+  { label: null, items: [{ id: "overview", label: "Overview", icon: "◫" }] },
   { label: "Workspace", items: [
     { id: "events", label: "Events", icon: "⇥" },
     { id: "webhooks", label: "Webhooks", icon: "↗" },

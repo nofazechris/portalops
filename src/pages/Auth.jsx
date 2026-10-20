@@ -55,7 +55,7 @@ export default function Auth() {
     }
     setBusy(true);
     try {
-      if (signupMode) { await signup(email.trim(), password); navigate("/app#tour"); }
+      if (signupMode) { await signup(email.trim(), password); navigate("/app"); }
       else { await login(email.trim(), password); navigate("/app"); }
     } catch (err) {
       setBusy(false);

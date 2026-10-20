@@ -18,13 +18,12 @@ const readHash = () => (location.hash || "").replace("#", "");
 
 function initialState() {
   const h = readHash();
+  // The product tour only runs when asked for (#tour): onboarding is the one-time guided setup after the first project.
   // The tour spotlights sidebar items, which are off-canvas on narrow screens: skip it there.
   const wide = window.innerWidth >= 900;
   if (h === "tour") return { screen: "overview", tour: wide };
   if (validScreens.includes(h)) return { screen: h, tour: false };
-  let done = false;
-  try { done = !!localStorage.getItem(TOUR_KEY); } catch { /* storage unavailable */ }
-  return { screen: "overview", tour: !done && wide };
+  return { screen: "overview", tour: false };
 }
 
 const CONN = { connected: ["green", "Connected"], disconnected: ["red", "Disconnected"], wrong_chain: ["amber", "Wrong chain"] };
@@ -40,7 +39,7 @@ function useOutsideClose(open, close) {
   return ref;
 }
 
-function NewProjectModal({ onClose, onCreated }) {
+function NewProjectModal({ onClose, onCreated, isFirst }) {
   const { createProject } = useSession();
   const [name, setName] = useState("");
   const [desc, setDesc] = useState("");
@@ -51,7 +50,8 @@ function NewProjectModal({ onClose, onCreated }) {
     try { await createProject(name.trim(), desc.trim()); onClose(); onCreated?.(); } catch (x) { setErr(x); setBusy(false); }
   }
   return (
-    <Modal title="Create project" onClose={onClose}>
+    <Modal title={isFirst ? "Create your first project" : "Create project"} onClose={onClose}>
+      {isFirst && <p style={{ fontSize: 13.5, color: "var(--muted)", lineHeight: 1.55, margin: "0 0 16px" }}>A project holds your contracts, events and webhooks. Right after you create it, a short guided setup takes you to your first delivered event.</p>}
       <form noValidate onSubmit={submit}>
         <Field label="Project name" error={err?.details?.find((d) => d.path === "name")?.message}><input className="input" autoFocus value={name} onChange={(e) => setName(e.target.value)} required maxLength={80} /></Field>
         <Field label="Description (optional)"><input className="input" value={desc} onChange={(e) => setDesc(e.target.value)} maxLength={500} /></Field>
@@ -63,6 +63,26 @@ function NewProjectModal({ onClose, onCreated }) {
         </div>
       </form>
     </Modal>
+  );
+}
+
+/** Shown on every project screen until the signed-in user has created a project. */
+function FirstProject({ onCreate }) {
+  return (
+    <div className="first-project">
+      <div className="first-project-mark" aria-hidden="true"><span /></div>
+      <h1 className="h1" style={{ textAlign: "center" }}>Create your first project</h1>
+      <p className="sub" style={{ textAlign: "center", maxWidth: 460, margin: "10px auto 0", lineHeight: 1.6 }}>
+        A project is your workspace on the Portaldot testnet: its contracts, captured events, webhooks and API keys live in it.
+        You can create as many as you like and switch between them from the menu at the top.
+      </p>
+      <button className="btn primary" style={{ marginTop: 26, padding: "12px 26px", fontSize: 14.5 }} onClick={onCreate}>Create project</button>
+      <div className="first-project-steps">
+        {["Create the project", "Guided setup: contract, webhook, test delivery", "Watch real events arrive"].map((t, i) => (
+          <div key={t}><span className="mono">{i + 1}</span>{t}</div>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -147,7 +167,12 @@ export default function Dashboard() {
             </button>
             {menu === "project" && (
               <div className="dropdown" role="menu">
-                {projects.map((p) => <button key={p.id} className={"item" + (project?.id === p.id ? " active" : "")} onClick={() => { setProjectId(p.id); go("overview"); }}>{p.name}</button>)}
+                {projects.length > 0 && <div className="dropdown-label">Your projects</div>}
+                {projects.map((p) => (
+                  <button key={p.id} role="menuitemradio" aria-checked={project?.id === p.id} className={"item project-item" + (project?.id === p.id ? " active" : "")} onClick={() => { setProjectId(p.id); go("overview"); }}>
+                    <span>{p.name}</span>{project?.id === p.id && <span className="project-check" aria-hidden="true">✓</span>}
+                  </button>
+                ))}
                 {projects.length > 0 && <div className="sep" />}
                 {user ? <button className="item" onClick={() => { setMenu(null); setCreating(true); }}>+ New project</button>
                   : <Link className="item" href="/auth#signup" style={{ color: "var(--accent)" }}>Sign up to create a project</Link>}
@@ -179,6 +204,7 @@ export default function Dashboard() {
           <div className="content-inner">
             {session.bootError && <ErrorBox error={session.bootError} />}
             <ErrorBoundary resetKey={screen + (params.id ?? "") + (projectId ?? "")}>
+            {user && projects.length === 0 ? <FirstProject onCreate={() => setCreating(true)} /> : <>
             {screen === "overview" && <Overview openEvent={openEvent} go={go} />}
             {screen === "setup" && <Setup go={go} />}
             {screen === "events" && <Events openEvent={openEvent} />}
@@ -193,13 +219,14 @@ export default function Dashboard() {
             {screen === "apisdk" && <ApiSdk />}
             {screen === "aisetup" && <AiSetup />}
             {screen === "settings" && <Settings key={project?.id} />}
+            </>}
             </ErrorBoundary>
           </div>
         </main>
       </div>
 
       {tour && <Tour step={tourStep} onNext={nextTour} onSkip={endTour} />}
-      {creating && <NewProjectModal onClose={() => setCreating(false)} onCreated={() => go("setup")} />}
+      {creating && <NewProjectModal isFirst={projects.length === 0} onClose={() => setCreating(false)} onCreated={() => go(projects.length === 0 ? "setup" : "overview")} />}
     </div>
   );
 }
