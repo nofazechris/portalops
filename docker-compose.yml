@@ -1,0 +1,50 @@
+# PortalOps on one host: API (+ web app) and worker sharing a SQLite volume.
+#
+#   create .env.production yourself (git-ignored; variables: docs/reference/environment.md). Do NOT reuse a dev .env:
+#   it holds deploy-script private keys the services must never receive.
+#   docker compose up -d --build
+#
+# Put a TLS-terminating reverse proxy (see docs/operations/deployment.md) in front of 127.0.0.1:8787.
+# SQLite needs both services on the SAME host and a local volume (not a network filesystem).
+
+x-service: &service
+  build: .
+  image: portalops:latest
+  restart: unless-stopped
+  env_file: ${PORTALOPS_ENV_FILE:-.env.production}
+  environment:
+    PORTALOPS_DB_PATH: /data/portalops.sqlite
+  volumes:
+    - portalops-data:/data
+  # least privilege: no extra capabilities, no privilege escalation, read-only root filesystem
+  read_only: true
+  tmpfs: [/tmp]
+  cap_drop: [ALL]
+  security_opt: ["no-new-privileges:true"]
+
+services:
+  api:
+    <<: *service
+    ports:
+      - "127.0.0.1:8787:8787"   # loopback only: the reverse proxy is the public entry point
+    environment:
+      PORTALOPS_DB_PATH: /data/portalops.sqlite
+      PORTALOPS_PUBLIC_URL: ${PORTALOPS_PUBLIC_URL:?set PORTALOPS_PUBLIC_URL to the https URL users visit}
+      # where the WORKER reaches the API (used by the built-in test receiver). Inside the compose network:
+      PORTALOPS_API_PUBLIC_URL: ${PORTALOPS_API_PUBLIC_URL:-http://api:8787}
+      PORTALOPS_TRUSTED_PROXY_HOPS: ${PORTALOPS_TRUSTED_PROXY_HOPS:-1}
+
+  worker:
+    <<: *service
+    command: ["node", "--no-warnings=ExperimentalWarning", "apps/worker/main.ts"]
+    depends_on: [api]
+    healthcheck:
+      # the worker has no port: it is healthy if the API reports a fresh heartbeat
+      test: ["CMD", "node", "-e", "fetch('http://api:8787/api/v1/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+
+volumes:
+  portalops-data:

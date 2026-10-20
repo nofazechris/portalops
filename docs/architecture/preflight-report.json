@@ -1,0 +1,398 @@
+{
+  "ranAt": "2026-10-19T06:48:48.034Z",
+  "evmUrl": "https://test-evm-rpc-v3.portaldot.dev",
+  "nativeUrl": "wss://test-node-v3.portaldot.dev",
+  "expectedChainId": "420420777",
+  "results": [
+    {
+      "group": "evm",
+      "name": "client version",
+      "status": "pass",
+      "detail": "eth-rpc/main-fddd431/x86_64-unknown-linux-gnu/rustc1.98.0"
+    },
+    {
+      "group": "evm",
+      "name": "chain id",
+      "status": "pass",
+      "detail": "420420777 (matches expected)"
+    },
+    {
+      "group": "evm",
+      "name": "net_version",
+      "status": "pass",
+      "detail": "420420777"
+    },
+    {
+      "group": "evm",
+      "name": "syncing",
+      "status": "pass",
+      "detail": "node reports fully synced"
+    },
+    {
+      "group": "evm",
+      "name": "latest block number",
+      "status": "pass",
+      "detail": "#99545"
+    },
+    {
+      "group": "evm",
+      "name": "latest block (with hash/timestamp)",
+      "status": "pass",
+      "detail": "hash 0x4d64635b7c0b… ts 1792392510 txs 0",
+      "data": {
+        "hash": "0x4d64635b7c0b0dfeb21805df2ed477ec4b7e4c8815c02f37e5927645eb436d4f"
+      }
+    },
+    {
+      "group": "evm",
+      "name": "account balance",
+      "status": "pass",
+      "detail": "zero-address balance 0 wei"
+    },
+    {
+      "group": "evm",
+      "name": "code lookup",
+      "status": "pass",
+      "detail": "returns 0x"
+    },
+    {
+      "group": "evm",
+      "name": "gas price",
+      "status": "pass",
+      "detail": "38980 wei"
+    },
+    {
+      "group": "evm",
+      "name": "priority fee (EIP-1559)",
+      "status": "pass",
+      "detail": "0 wei"
+    },
+    {
+      "group": "evm",
+      "name": "fee history",
+      "status": "pass",
+      "detail": "baseFee 38980"
+    },
+    {
+      "group": "evm",
+      "name": "gas estimation (plain transfer)",
+      "status": "pass",
+      "detail": "320793673674 gas"
+    },
+    {
+      "group": "evm",
+      "name": "transaction count",
+      "status": "pass",
+      "detail": "nonce 0"
+    },
+    {
+      "group": "evm",
+      "name": "eth_getLogs over last 1 block(s)",
+      "status": "pass",
+      "detail": "0 log(s) across all contracts"
+    },
+    {
+      "group": "evm",
+      "name": "eth_getLogs over last 100 block(s)",
+      "status": "pass",
+      "detail": "0 log(s) across all contracts"
+    },
+    {
+      "group": "evm",
+      "name": "eth_getLogs over last 1000 block(s)",
+      "status": "pass",
+      "detail": "0 log(s) across all contracts"
+    },
+    {
+      "group": "evm",
+      "name": "eth_getLogs over last 10000 block(s)",
+      "status": "pass",
+      "detail": "22 log(s) across all contracts"
+    },
+    {
+      "group": "evm",
+      "name": "eth_subscribe (logs/newHeads)",
+      "status": "skip",
+      "detail": "no EVM WebSocket URL was provided in the announcement; ingestion must poll unless one is found"
+    },
+    {
+      "group": "native",
+      "name": "websocket connect",
+      "status": "pass",
+      "detail": "connected"
+    },
+    {
+      "group": "native",
+      "name": "chain name",
+      "status": "pass",
+      "detail": "PortaldotV3 Test"
+    },
+    {
+      "group": "native",
+      "name": "node name/version",
+      "status": "pass",
+      "detail": "PortaldotV3 Node"
+    },
+    {
+      "group": "native",
+      "name": "node version",
+      "status": "pass",
+      "detail": "3.0.0-dev-fddd43141f2"
+    },
+    {
+      "group": "native",
+      "name": "health",
+      "status": "pass",
+      "detail": "{\"peers\":2,\"isSyncing\":false,\"shouldHavePeers\":false}"
+    },
+    {
+      "group": "native",
+      "name": "properties (ss58 / token)",
+      "status": "pass",
+      "detail": "{\"ss58Format\":42,\"tokenDecimals\":14,\"tokenSymbol\":\"tPOT\"}"
+    },
+    {
+      "group": "native",
+      "name": "latest header",
+      "status": "pass",
+      "detail": "#99546"
+    },
+    {
+      "group": "native",
+      "name": "finalized head",
+      "status": "pass",
+      "detail": "0xef4099a4abc6b414…"
+    },
+    {
+      "group": "native",
+      "name": "historical block hash (#1)",
+      "status": "pass",
+      "detail": "0x1187e9c6e9788c96…"
+    },
+    {
+      "group": "native",
+      "name": "runtime version",
+      "status": "pass",
+      "detail": "portaldot-v3 spec 3002 / impl 0",
+      "data": {
+        "specName": "portaldot-v3",
+        "specVersion": 3002
+      }
+    },
+    {
+      "group": "native",
+      "name": "rpc_methods",
+      "status": "pass",
+      "detail": "135 methods",
+      "data": {
+        "methods": [
+          "account_nextIndex",
+          "archive_v1_body",
+          "archive_v1_call",
+          "archive_v1_finalizedHeight",
+          "archive_v1_genesisHash",
+          "archive_v1_hashByHeight",
+          "archive_v1_header",
+          "archive_v1_stopStorage",
+          "archive_v1_storage",
+          "archive_v1_storageDiff",
+          "archive_v1_storageDiff_stopStorageDiff",
+          "author_hasKey",
+          "author_hasSessionKeys",
+          "author_insertKey",
+          "author_pendingExtrinsics",
+          "author_removeExtrinsic",
+          "author_rotateKeys",
+          "author_rotateKeysWithOwner",
+          "author_submitAndWatchExtrinsic",
+          "author_submitExtrinsic",
+          "author_unwatchExtrinsic",
+          "babe_epochAuthorship",
+          "beefy_getFinalizedHead",
+          "beefy_subscribeJustifications",
+          "beefy_unsubscribeJustifications",
+          "bitswap_v1_get",
+          "chainHead_v1_body",
+          "chainHead_v1_call",
+          "chainHead_v1_continue",
+          "chainHead_v1_follow",
+          "chainHead_v1_header",
+          "chainHead_v1_stopOperation",
+          "chainHead_v1_storage",
+          "chainHead_v1_unfollow",
+          "chainHead_v1_unpin",
+          "chainSpec_v1_chainName",
+          "chainSpec_v1_genesisHash",
+          "chainSpec_v1_properties",
+          "chain_getBlock",
+          "chain_getBlockHash",
+          "chain_getFinalisedHead",
+          "chain_getFinalizedHead",
+          "chain_getHead",
+          "chain_getHeader",
+          "chain_getRuntimeVersion",
+          "chain_subscribeAllHeads",
+          "chain_subscribeFinalisedHeads",
+          "chain_subscribeFinalizedHeads",
+          "chain_subscribeNewHead",
+          "chain_subscribeNewHeads",
+          "chain_subscribeRuntimeVersion",
+          "chain_unsubscribeAllHeads",
+          "chain_unsubscribeFinalisedHeads",
+          "chain_unsubscribeFinalizedHeads",
+          "chain_unsubscribeNewHead",
+          "chain_unsubscribeNewHeads",
+          "chain_unsubscribeRuntimeVersion",
+          "childstate_getKeys",
+          "childstate_getKeysPaged",
+          "childstate_getKeysPagedAt",
+          "childstate_getStorage",
+          "childstate_getStorageEntries",
+          "childstate_getStorageHash",
+          "childstate_getStorageSize",
+          "dev_getBlockStats",
+          "grandpa_proveFinality",
+          "grandpa_roundState",
+          "grandpa_subscribeJustifications",
+          "grandpa_unsubscribeJustifications",
+          "mmr_generateAncestryProof",
+          "mmr_generateProof",
+          "mmr_root",
+          "mmr_verifyProof",
+          "mmr_verifyProofStateless",
+          "offchain_localStorageClear",
+          "offchain_localStorageGet",
+          "offchain_localStorageSet",
+          "payment_queryFeeDetails",
+          "payment_queryInfo",
+          "rpc_methods",
+          "state_call",
+          "state_callAt",
+          "state_callRecorded",
+          "state_getChildReadProof",
+          "state_getKeys",
+          "state_getKeysPaged",
+          "state_getKeysPagedAt",
+          "state_getMetadata",
+          "state_getPairs",
+          "state_getReadProof",
+          "state_getRuntimeVersion",
+          "state_getStorage",
+          "state_getStorageAt",
+          "state_getStorageHash",
+          "state_getStorageHashAt",
+          "state_getStorageSize",
+          "state_getStorageSizeAt",
+          "state_queryStorage",
+          "state_queryStorageAt",
+          "state_subscribeRuntimeVersion",
+          "state_subscribeStorage",
+          "state_traceBlock",
+          "state_trieMigrationStatus",
+          "state_unsubscribeRuntimeVersion",
+          "state_unsubscribeStorage",
+          "statement_submit",
+          "statement_subscribeStatement",
+          "statement_unsubscribeStatement",
+          "subscribe_newHead",
+          "sync_state_genSyncSpec",
+          "system_accountNextIndex",
+          "system_addLogFilter",
+          "system_addReservedPeer",
+          "system_chain",
+          "system_chainType",
+          "system_dryRun",
+          "system_dryRunAt",
+          "system_health",
+          "system_localListenAddresses",
+          "system_localPeerId",
+          "system_name",
+          "system_nodeRoles",
+          "system_peers",
+          "system_properties",
+          "system_removeReservedPeer",
+          "system_reservedPeers",
+          "system_resetLogFilter",
+          "system_syncState",
+          "system_unstable_networkState",
+          "system_version",
+          "transactionWatch_v1_submitAndWatch",
+          "transactionWatch_v1_unwatch",
+          "transaction_v1_broadcast",
+          "transaction_v1_stop",
+          "unsubscribe_newHead"
+        ]
+      }
+    },
+    {
+      "group": "native",
+      "name": "metadata fetch",
+      "status": "pass",
+      "detail": "549 KiB"
+    },
+    {
+      "group": "native",
+      "name": "contract-capable pallets in runtime metadata",
+      "status": "pass",
+      "detail": "Contracts, Revive, EVM, Ethereum, Assets, Balances",
+      "data": {
+        "found": [
+          "Contracts",
+          "Revive",
+          "EVM",
+          "Ethereum",
+          "Assets",
+          "Balances"
+        ]
+      }
+    },
+    {
+      "group": "native",
+      "name": "subscribe new heads",
+      "status": "pass",
+      "detail": "received #99548"
+    },
+    {
+      "group": "needs-funded-account",
+      "name": "transaction submission",
+      "status": "skip",
+      "detail": "requires a funded test account; PortalOps never asks for seed phrases — use a throwaway testnet key via local env var"
+    },
+    {
+      "group": "needs-funded-account",
+      "name": "transaction receipt retrieval",
+      "status": "skip",
+      "detail": "requires a funded test account; PortalOps never asks for seed phrases — use a throwaway testnet key via local env var"
+    },
+    {
+      "group": "needs-funded-account",
+      "name": "contract deployment",
+      "status": "skip",
+      "detail": "requires a funded test account; PortalOps never asks for seed phrases — use a throwaway testnet key via local env var"
+    },
+    {
+      "group": "needs-funded-account",
+      "name": "contract invocation",
+      "status": "skip",
+      "detail": "requires a funded test account; PortalOps never asks for seed phrases — use a throwaway testnet key via local env var"
+    },
+    {
+      "group": "needs-funded-account",
+      "name": "event log retrieval for a deployed contract",
+      "status": "skip",
+      "detail": "requires a funded test account; PortalOps never asks for seed phrases — use a throwaway testnet key via local env var"
+    },
+    {
+      "group": "needs-funded-account",
+      "name": "native event retrieval for a deployed contract",
+      "status": "skip",
+      "detail": "requires a funded test account; PortalOps never asks for seed phrases — use a throwaway testnet key via local env var"
+    },
+    {
+      "group": "needs-funded-account",
+      "name": "fee behaviour on a real transaction",
+      "status": "skip",
+      "detail": "requires a funded test account; PortalOps never asks for seed phrases — use a throwaway testnet key via local env var"
+    }
+  ]
+}

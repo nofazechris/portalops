@@ -1,0 +1,101 @@
+// Long-running worker: ingest new blocks for every project, then deliver anything due.
+// Independent of the web UI and the API (PRD §9.1).   npm run worker
+//
+// Which logs each project ingests:
+//   - public demo project: every log on the chain, undecoded (read-only exploration before signup)
+//   - user projects: only their registered contracts, decoded when an ABI was supplied; no contracts => nothing
+//
+// Limitation: a contract registered AFTER a project's cursor was created is captured from the cursor forward.
+// Back-filling its earlier history is not implemented yet.
+import { mkdirSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import type { Abi } from "viem";
+import { EvmAdapter } from "../../packages/chain-adapters/evm.ts";
+import { describeDatabase, openStore, type ProjectRecord } from "../../packages/database/store.ts";
+import { parseKey } from "../../packages/database/secrets.ts";
+import { runDueDeliveries } from "../../packages/webhook-engine/runner.ts";
+import { ingestOnce } from "./ingest.ts";
+import { loadServiceEnv } from "../../packages/config/env.ts";
+import { installProcessDiagnostics } from "../../packages/config/diagnostics.ts";
+
+const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
+loadServiceEnv(ROOT); // also drops the deploy-script private keys: this process never needs them
+
+const RPC = process.env.PORTALDOT_EVM_RPC_URL || "https://test-evm-rpc-v3.portaldot.dev";
+const CHAIN_ID = Number(process.env.PORTALDOT_EVM_CHAIN_ID || 420420777);
+const DB = process.env.PORTALOPS_DB_PATH || resolve(ROOT, "data/portalops.sqlite");
+const NETWORK = "portaldot-v3-testnet";
+const POLL_MS = Number(process.env.PORTALOPS_POLL_MS || 6_000);
+const ALLOW_PRIVATE = process.env.PORTALOPS_ALLOW_PRIVATE_WEBHOOK_TARGETS === "1";
+const DEMO_LOOKBACK = Number(process.env.PORTALOPS_DEMO_LOOKBACK_BLOCKS || 120_000); // covers the whole testnet so far
+const DEFAULT_LOOKBACK = 1_000;
+
+const DATABASE = process.env.DATABASE_URL || DB;
+if (!/^postgres(ql)?:\/\//i.test(DATABASE)) mkdirSync(dirname(DB), { recursive: true });
+const store = await openStore(DATABASE);
+const encryptionKey = parseKey(process.env.WEBHOOK_ENCRYPTION_KEY);
+const chain = new EvmAdapter(RPC, CHAIN_ID);
+await chain.assertChain();
+
+console.log(`PortalOps worker · ${RPC} · chain ${CHAIN_ID} · db ${describeDatabase(DATABASE)}`);
+
+let stopping = false;
+let markStopped: () => void = () => {};
+const stopped = new Promise<void>((r) => { markStopped = r; });
+// On a stop signal: finish the current pass, close the database, then exit (but never hang more than 15s).
+installProcessDiagnostics("worker", () => { stopping = true; return Promise.race([stopped, new Promise<void>((r) => setTimeout(r, 15_000).unref())]); });
+
+/** Liveness signal. Also emitted per batch during ingestion, so a long first backfill is not mistaken for a dead worker. */
+const beat = async (detail: Record<string, unknown>) => { try { await store.beat("worker", detail); } catch { /* a missed heartbeat must never stop ingestion */ } };
+
+async function ingestProject(p: ProjectRecord, headNumber: number): Promise<number> {
+  const contracts = (await store.listContracts(p.id)).filter((c) => c.status === "active");
+  if (p.kind !== "public_demo" && contracts.length === 0) return 0;
+
+  const abis = new Map<string, Abi>();
+  for (const c of contracts) if (c.abi) abis.set(c.address, c.abi as Abi);
+  const starts = contracts.map((c) => c.startBlock).filter((n): n is number => n !== null);
+  const lookback = p.kind === "public_demo" ? DEMO_LOOKBACK : DEFAULT_LOOKBACK;
+  const startBlock = Math.max(1, starts.length ? Math.min(...starts) : headNumber - lookback);
+
+  const r = await ingestOnce({
+    projectId: p.id, networkId: NETWORK, chain, store, startBlock, abis,
+    addresses: p.kind === "public_demo" ? undefined : contracts.map((c) => c.address),
+    enqueueDeliveries: true,
+    onBatch: ({ block, head }) => beat({ phase: "ingesting", project: p.id, block, head }),
+  });
+  if (r.newEvents || r.reorgDetected) console.log(`${new Date().toISOString()} ${p.id} head #${r.head} +${r.newEvents} events${r.reorgDetected ? ", REORG handled" : ""}`);
+  return r.newEvents;
+}
+
+let failures = 0;
+while (!stopping) {
+  try {
+    const head = await chain.getHead();
+    await beat({ phase: "pass", head: head.number });
+    for (const p of await store.listAllProjects()) {
+      try {
+        await ingestProject(p, head.number);
+      } catch (e) {
+        // One project's failure must not stall the others.
+        const msg = e instanceof Error ? e.message : String(e);
+        await store.log("error", "ingest", `Ingestion failed: ${msg}`, undefined, p.id);
+        console.error(`${new Date().toISOString()} ${p.id} ingestion failed: ${msg}`);
+      }
+    }
+    await beat({ phase: "delivering", head: head.number });
+    const attempts = await runDueDeliveries({ store, encryptionKey, guard: { allowPrivate: ALLOW_PRIVATE } }, 50);
+    if (attempts) console.log(`${new Date().toISOString()} ${attempts} delivery attempt(s)`);
+    failures = 0;
+  } catch (e) {
+    failures++;
+    console.error(`${new Date().toISOString()} pass failed (${failures}): ${e instanceof Error ? e.message : e}`);
+  }
+  // Adaptive backoff on repeated RPC failures, capped at 60s.
+  const wait = Math.min(60_000, POLL_MS * 2 ** Math.min(failures, 4));
+  for (let waited = 0; waited < wait && !stopping; waited += 250) await new Promise((r) => setTimeout(r, 250));
+}
+await store.close();
+console.log("Worker stopped.");
+markStopped();

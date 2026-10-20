@@ -1,0 +1,44 @@
+# PostgreSQL instead of the shared SQLite volume. Use together with docker-compose.yml:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.postgres.yml up -d --build
+#
+# Put POSTGRES_PASSWORD in .env.production (or export it). The database port is NOT published to the host.
+# Back up with pg_dump (e.g. `docker compose exec db pg_dump -U portalops portalops > backup.sql`) in addition to the encryption key.
+
+x-database: &database
+  DATABASE_URL: postgres://portalops:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@db:5432/portalops
+
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: portalops
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_DB: portalops
+    volumes:
+      - portalops-pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U portalops -d portalops"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    cap_drop: [ALL]
+    cap_add: [CHOWN, DAC_OVERRIDE, FOWNER, SETGID, SETUID]
+    security_opt: ["no-new-privileges:true"]
+
+  api:
+    environment:
+      <<: *database
+    depends_on:
+      db: { condition: service_healthy }
+
+  worker:
+    environment:
+      <<: *database
+    depends_on:
+      db: { condition: service_healthy }
+      api: { condition: service_started }
+
+volumes:
+  portalops-pg:

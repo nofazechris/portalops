@@ -1,0 +1,93 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # the security scan reads the whole history
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Security scan (no env files, keys, databases or secrets anywhere in the repo or its history)
+        run: node scripts/security-scan.mjs --history
+      - run: npm ci
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Tests (engine, store, API, SDK, receiver, security, ingestion, delivery)
+        run: npm test
+      - name: Build web app
+        run: npm run build
+      - name: Build SDK
+        run: npm run sdk:build
+      - name: Dependency audit (production dependencies)
+        # The dev-only `solc → tmp` advisory is documented in docs/security/review.md and excluded by --omit=dev.
+        run: npm audit --omit=dev --audit-level=high
+
+  test-postgres:
+    # The same suite against a real PostgreSQL server (each test gets its own schema).
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: pops
+          POSTGRES_PASSWORD: ci-only-password
+          POSTGRES_DB: pops_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U pops -d pops_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgres://pops:ci-only-password@127.0.0.1:5432/pops_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Tests against PostgreSQL
+        run: npm run test:pg
+
+  docker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build image
+        run: docker build -t portalops:ci .
+      - name: Smoke test: the container starts, serves the app and reports health
+        run: |
+          docker run -d --name pops -p 8787:8787 \
+            -e WEBHOOK_ENCRYPTION_KEY=$(node -e "console.log(require('crypto').randomBytes(32).toString('hex'))") \
+            -e PORTALOPS_PUBLIC_URL=http://localhost:8787 \
+            portalops:ci
+          for i in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:8787/api/v1/health && break
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:8787/api/v1/health | grep '"ok":true'
+          curl -fsS http://127.0.0.1:8787/ | grep -i "<title>PortalOps"
+          curl -fsSI http://127.0.0.1:8787/ | grep -i "frame-ancestors 'none'"
+          # the worker is not running in this smoke test, so readiness must say so
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8787/api/v1/ready)" = "503"
+          docker logs pops
+          docker rm -f pops

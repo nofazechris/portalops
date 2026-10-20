@@ -1,0 +1,37 @@
+# Render Blueprint: one web service running the API (+ web app) and the worker together, with a managed Neon/Postgres database.
+# Walkthrough: docs/operations/live-deploy.md
+#
+# Render > New > Blueprint > pick this repository. It asks for the three values marked `sync: false`.
+# The free plan sleeps after ~15 minutes without traffic (the worker sleeps with it and catches up from its cursor on wake);
+# use a paid plan for an always-on demo.
+services:
+  - type: web
+    name: portalops
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerCommand: node --no-warnings=ExperimentalWarning scripts/start-all.mjs
+    plan: free
+    healthCheckPath: /api/v1/health
+    autoDeploy: true
+    envVars:
+      # Your Neon connection string (the DIRECT one is preferred). Paste it in the Render dashboard, never in this file.
+      - key: DATABASE_URL
+        sync: false
+      # The https URL of this service, e.g. https://portalops.onrender.com. Enables Secure cookies, HSTS and the allowed origin.
+      - key: PORTALOPS_PUBLIC_URL
+        sync: false
+      # Where the worker reaches the API for the built-in test receiver. On a single service this is the same public URL.
+      - key: PORTALOPS_API_PUBLIC_URL
+        sync: false
+      # Random 256-bit key that encrypts webhook secrets at rest. Generated once by Render.
+      # COPY IT somewhere safe after the first deploy: if it is lost, stored webhook secrets cannot be decrypted.
+      - key: WEBHOOK_ENCRYPTION_KEY
+        generateValue: true
+      - key: PORT
+        value: "8787"
+      - key: PORTALOPS_TRUSTED_PROXY_HOPS
+        value: "1"
+      - key: PORTALDOT_EVM_RPC_URL
+        value: https://test-evm-rpc-v3.portaldot.dev
+      - key: PORTALDOT_EVM_CHAIN_ID
+        value: "420420777"

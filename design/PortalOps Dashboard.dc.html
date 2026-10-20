@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap">
+<style>
+  * { box-sizing: border-box; }
+  body { margin:0; background:#080808; color:#F5F3EE; font-family:'Geist','Inter',system-ui,sans-serif; -webkit-font-smoothing:antialiased; }
+  a { color:#B9A7FF; text-decoration:none; }
+  a:hover { color:#CDBFFF; }
+  ::selection { background:rgba(185,167,255,0.3); color:#F5F3EE; }
+  .pops-scroll::-webkit-scrollbar { width:10px; height:10px; }
+  .pops-scroll::-webkit-scrollbar-thumb { background:#242424; border-radius:8px; border:2px solid #080808; }
+  @keyframes blink { 0%,100%{opacity:1;} 50%{opacity:0.25;} }
+  @keyframes rowin { 0%{opacity:0; transform:translateY(6px);} 100%{opacity:1; transform:translateY(0);} }
+  @keyframes pulsering { 0%{transform:scale(0.95); opacity:0.5;} 70%{transform:scale(1.5); opacity:0;} 100%{opacity:0;} }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  @keyframes pop { 0%{transform:scale(0.8); opacity:0;} 60%{transform:scale(1.05);} 100%{transform:scale(1); opacity:1;} }
+</style>
+</helmet>
+
+<div style="display:grid; grid-template-columns:240px minmax(0,1fr); min-height:100vh;">
+
+  <!-- SIDEBAR -->
+  <aside style="background:#0b0b0b; border-right:1px solid #1b1b1b; display:flex; flex-direction:column; padding:18px 14px; position:sticky; top:0; height:100vh;">
+    <a href="PortalOps%20Landing.dc.html" style="display:flex; align-items:center; gap:10px; padding:4px 8px 18px; text-decoration:none; color:#F5F3EE;">
+      <span style="width:24px; height:24px; border-radius:7px; background:linear-gradient(140deg,#B9A7FF,#6f5fb0); display:inline-flex; align-items:center; justify-content:center;"><span style="width:8px; height:8px; border-radius:2px; background:#080808;"></span></span>
+      <span style="font-weight:600; font-size:15px; letter-spacing:-0.01em;">PortalOps</span>
+    </a>
+    <nav class="pops-scroll" style="display:flex; flex-direction:column; gap:14px; overflow-y:auto; flex:1;">
+      <sc-for list="{{ navGroups }}" as="group" hint-placeholder-count="5">
+        <div>
+          <sc-if value="{{ group.label }}" hint-placeholder-val="x">
+            <div style="font-family:'Geist Mono',monospace; font-size:10.5px; letter-spacing:0.08em; text-transform:uppercase; color:#5e5b55; padding:6px 10px 6px;">{{ group.label }}</div>
+          </sc-if>
+          <sc-for list="{{ group.items }}" as="item" hint-placeholder-count="3">
+            <div onClick="{{ item.onClick }}" data-tour="{{ item.tour }}" style="{{ item.rowStyle }}" style-hover="background:rgba(255,255,255,0.035);">
+              <span style="width:2px; height:15px; border-radius:2px; background:#B9A7FF; opacity:{{ item.barOpacity }};"></span>
+              <span style="font-family:'Geist Mono',monospace; font-size:13px; width:16px; text-align:center; white-space:nowrap; color:{{ item.glyphColor }};">{{ item.icon }}</span>
+              <span style="font-size:13.5px; color:{{ item.labelColor }};">{{ item.label }}</span>
+            </div>
+          </sc-for>
+        </div>
+      </sc-for>
+    </nav>
+    <div style="margin-top:12px; padding:10px; border:1px solid #1d1d1d; border-radius:10px; display:flex; align-items:center; gap:9px;">
+      <span style="width:7px; height:7px; border-radius:50%; background:#6ee7a8; box-shadow:0 0 7px #6ee7a8; animation:blink 2.4s infinite;"></span>
+      <div style="font-family:'Geist Mono',monospace; font-size:11px; line-height:1.4;"><div style="color:#C9C4BB;">API operational</div><div style="color:#6f6c66;">99.98% uptime</div></div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <div style="display:flex; flex-direction:column; min-width:0;">
+    <!-- TOPBAR -->
+    <header style="position:sticky; top:0; z-index:40; display:flex; align-items:center; justify-content:space-between; height:60px; padding:0 26px; background:rgba(8,8,8,0.86); backdrop-filter:blur(12px); border-bottom:1px solid #1b1b1b;">
+      <button style="display:inline-flex; align-items:center; gap:9px; background:#121212; border:1px solid #242424; border-radius:9px; padding:8px 12px; color:#F5F3EE; font-size:13.5px; font-family:inherit; cursor:pointer;" style-hover="border-color:#333;">
+        <span style="width:16px; height:16px; border-radius:5px; background:linear-gradient(140deg,#B9A7FF,#6f5fb0);"></span>
+        PortalOps Demo
+        <span style="color:#6f6c66; font-size:11px;">▾</span>
+      </button>
+      <div style="display:flex; align-items:center; gap:16px;">
+        <span style="display:inline-flex; align-items:center; gap:8px; font-family:'Geist Mono',monospace; font-size:12px; color:#A8A49C; border:1px solid #1f1f1f; border-radius:999px; padding:6px 12px;">
+          <span style="width:7px; height:7px; border-radius:50%; background:#6ee7a8; box-shadow:0 0 7px #6ee7a8; animation:blink 2s infinite;"></span>
+          Portaldot Testnet
+        </span>
+        <span style="width:1px; height:22px; background:#242424;"></span>
+        <span style="width:34px; height:34px; border-radius:9px; border:1px solid #242424; display:inline-flex; align-items:center; justify-content:center; color:#9a968e; cursor:pointer;" style-hover="border-color:#333;">⌾</span>
+        <span style="width:34px; height:34px; border-radius:9px; background:linear-gradient(140deg,#2a2740,#151515); border:1px solid #2a2740; display:inline-flex; align-items:center; justify-content:center; color:#B9A7FF; font-size:13px; font-weight:600; cursor:pointer;">D</span>
+      </div>
+    </header>
+
+    <main class="pops-scroll" style="flex:1; overflow-y:auto; padding:34px 40px 64px;">
+      <div style="max-width:1080px; margin:0 auto;">
+
+        <!-- OVERVIEW -->
+        <sc-if value="{{ isOverview }}" hint-placeholder-val="{{ true }}">
+          <div>
+            <h1 style="font-size:26px; font-weight:600; letter-spacing:-0.02em; margin:0;">Overview</h1>
+            <p style="font-size:15px; color:#8d8980; margin:7px 0 0;">Monitor your Portaldot application infrastructure.</p>
+
+            <div style="display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px; margin-top:26px;">
+              <div style="background:linear-gradient(160deg,#17142010,#121212); position:relative; border:1px solid #2a2740; border-radius:14px; padding:18px;">
+                <div style="font-size:12.5px; color:#8d8980;">Events Received</div>
+                <div style="font-size:32px; font-weight:600; letter-spacing:-0.02em; color:#B9A7FF; margin-top:8px;">12,482</div>
+                <div style="font-family:'Geist Mono',monospace; font-size:11px; color:#6ee7a8; margin-top:6px;">+8.2% 24h</div>
+              </div>
+              <div style="background:#121212; border:1px solid #1f1f1f; border-radius:14px; padding:18px;">
+                <div style="font-size:12.5px; color:#8d8980;">Delivered</div>
+                <div style="font-size:32px; font-weight:600; letter-spacing:-0.02em; margin-top:8px;">11,934</div>
+                <div style="font-family:'Geist Mono',monospace; font-size:11px; color:#6f6c66; margin-top:6px;">95.6% rate</div>
+              </div>
+              <div style="background:#121212; border:1px solid #1f1f1f; border-radius:14px; padding:18px;">
+                <div style="font-size:12.5px; color:#8d8980;">Failed</div>
+                <div style="font-size:32px; font-weight:600; letter-spacing:-0.02em; margin-top:8px;">43</div>
+                <div style="font-family:'Geist Mono',monospace; font-size:11px; color:#f08a86; margin-top:6px;">needs replay</div>
+              </div>
+              <div style="background:#121212; border:1px solid #1f1f1f; border-radius:14px; padding:18px;">
+                <div style="font-size:12.5px; color:#8d8980;">Active Webhooks</div>
+                <div style="font-size:32px; font-weight:600; letter-spacing:-0.02em; margin-top:8px;">6</div>
+                <div style="font-family:'Geist Mono',monospace; font-size:11px; color:#6f6c66; margin-top:6px;">all healthy</div>
+              </div>
+            </div>
+
+            <div style="display:grid; grid-template-columns:minmax(0,1.6fr) minmax(0,1fr); gap:16px; margin-top:16px;">
+              <div style="background:#0f0f0f; border:1px solid #1f1f1f; border-radius:14px; padding:20px;">
+                <div style="display:flex; align-items:center; justify-content:space-between;">
+                  <h2 style="font-size:15px; font-weight:600; margin:0;">Recent Activity</h2>
+                  <span style="display:inline-flex; align-items:center; gap:7px; font-family:'Geist Mono',monospace; font-size:11px; color:#6ee7a8;"><span style="width:6px; height:6px; border-radius:50%; background:#6ee7a8; animation:blink 1.6s infinite;"></span>live</span>
+                </div>
+                <div style="display:flex; flex-direction:column; margin-top:14px;">
+                  <sc-for list="{{ events }}" as="e" hint-placeholder-count="5">
+                    <div onClick="{{ e.onClick }}" style="display:grid; grid-template-columns:1fr auto auto; align-items:center; gap:14px; padding:12px 8px; border-top:1px solid #1a1a1a; cursor:pointer; animation:rowin 0.5s ease both;" style-hover="background:rgba(255,255,255,0.025);">
+                      <div>
+                        <div style="font-size:13.5px; font-weight:500;">{{ e.name }}</div>
+                        <div style="font-family:'Geist Mono',monospace; font-size:11px; color:#6f6c66; margin-top:2px;">{{ e.contract }} · {{ e.time }}</div>
+                      </div>
+                      <span style="font-family:'Geist Mono',monospace; font-size:11px; color:#6f6c66;">{{ e.tx }}</span>
+                      <span style="font-size:12px; color:{{ e.statusColor }}; display:inline-flex; align-items:center; gap:6px; justify-content:flex-end; min-width:120px;">{{ e.statusIcon }} {{ e.status }}</span>
+                    </div>
+                  </sc-for>
+                </div>
+              </div>
+              <div style="display:flex; flex-direction:column; gap:16px;">
+                <div style="background:#0f0f0f; border:1px solid #1f1f1f; border-radius:14px; padding:18px;">
+                  <h2 style="font-size:14px; font-weight:600; margin:0 0 12px;">Delivery health</h2>
+                  <sc-for list="{{ webhooks }}" as="w" hint-placeholder-count="3">
+                    <div style="display:flex; align-items:center; justify-content:space-between; padding:8px 0; border-top:1px solid #1a1a1a;">
+                      <span style="font-size:13px; color:#C9C4BB;">{{ w.name }}</span>
+                      <span style="font-family:'Geist Mono',monospace; font-size:12px; color:{{ w.rateColor }};">{{ w.success }}</span>
+                    </div>
+                  </sc-for>
+                </div>
+                <div style="background:linear-gradient(160deg,#121016,#0e0e0e); border:1px solid #201d2b; border-radius:14px; padding:18px;">
+                  <div style="font-family:'Geist Mono',monospace; font-size:11px; color:#B9A7FF;">// ingestion engine</div>
+                  <div style="font-size:13.5px; color:#C9C4BB; margin-top:10px; line-height:1.5;">Rust block tracker is <span style="color:#6ee7a8;">in sync</span> at block <span style="font-family:'Geist Mono',monospace;">#18,923</span>, 1.2s behind head.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </sc-if>
+
+        <!-- EVENTS -->
+        <sc-if value="{{ isEvents }}" hint-placeholder-val="x">
+          <div>
+            <h1 style="font-size:26px; font-weight:600; letter-spacing:-0.02em; margin:0;">Events</h1>
+            <p style="font-size:15px; color:#8d8980; margin:7px 0 0;">Every normalized event ingested from your contracts.</p>
+            <div style="display:flex; gap:8px; margin-top:22px; flex-wrap:wrap;">
+              <span style="font-family:'Geist Mono',monospace; font-size:12px; color:#080808; background:#B9A7FF; border-radius:8px; padding:7px 12px;">All</span>
+              <span style="font-family:'Geist Mono',monospace; font-size:12px; color:#9a968e; border:1px solid #242424; border-radius:8px; padding:7px 12px;">Delivered</span>
+              <span style="font-family:'Geist Mono',monospace; font-size:12px; color:#9a968e; border:1px solid #242424; border-radius:8px; padding:7px 12px;">Failed</span>
+              <span style="font-family:'Geist Mono',monospace; font-size:12px; color:#9a968e; border:1px solid #242424; border-radius:8px; padding:7px 12px;">Retrying</span>
+            </div>
+            <div style="margin-top:16px; background:#0f0f0f; border:1px solid #1f1f1f; border-radius:14px; overflow:hidden;">
+              <div style="display:grid; grid-template-columns:1.4fr 1fr 1fr 0.8fr 1fr; gap:14px; padding:12px 18px; font-family:'Geist Mono',monospace; font-size:11px; letter-spacing:0.04em; text-transform:uppercase; color:#5e5b55; border-bottom:1px solid #1a1a1a;">
+                <span>Event</span><span>Contract</span><span>Transaction</span><span>Block</span><span style="text-align:right;">Status</span>
+              </div>
+              <sc-for list="{{ events }}" as="e" hint-placeholder-count="6">
+                <div onClick="{{ e.onClick }}" style="display:grid; grid-template-columns:1.4fr 1fr 1fr 0.8fr 1fr; gap:14px; align-items:center; padding:14px 18px; border-bottom:1px solid #161616; cursor:pointer;" style-hover="background:rgba(255,255,255,0.025);">
+                  <div><div style="font-size:13.5px; font-weight:500;">{{ e.name }}</div><div style="font-family:'Geist Mono',monospace; font-size:11px; color:#6f6c66;">{{ e.time }}</div></div>
+                  <span style="font-size:13px; color:#C9C4BB;">{{ e.contract }}</span>
+                  <span style="font-family:'Geist Mono',monospace; font-size:12px; color:#8d8980;">{{ e.tx }}</span>
+                  <span style="font-family:'Geist Mono',monospace; font-size:12px; color:#8d8980;">{{ e.block }}</span>
+                  <span style="font-size:12px; color:{{ e.statusColor }}; text-align:right;">{{ e.statusIcon }} {{ e.status }}</span>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </sc-if>
+
+        <!-- EVENT DETAIL -->
+        <sc-if value="{{ isEventDetail }}" hint-placeholder-val="x">
+          <div>
+            <div onClick="{{ goEvents }}" style="font-family:'Geist Mono',monospace; font-size:12px; color:#8d8980; cursor:pointer; display:inline-flex; align-items:center; gap:6px;" style-hover="color:#B9A7FF;">← Events</div>
+            <div style="display:flex; align-items:center; gap:12px; margin-top:14px;">
+              <h1 style="font-size:26px; font-weight:600; letter-spacing:-0.02em; margin:0;">{{ sel.name }}</h1>
+              <span style="font-size:12px; color:{{ sel.statusColor }}; border:1px solid #242424; border-radius:999px; padding:4px 10px;">{{ sel.statusIcon }} {{ sel.status }}</span>
+            </div>
+            <div style="display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:1px; background:#1a1a1a; border:1px solid #1f1f1f; border-radius:14px; overflow:hidden; margin-top:22px;">
+              <div style="background:#0f0f0f; padding:16px 18px;"><div style="font-size:11px; color:#6f6c66;">Event ID</div><div style="font-family:'Geist Mono',monospace; font-size:13px; margin-top:5px; color:#C9C4BB;">evt_01H9…8f2</div></div>
+              <div style="background:#0f0f0f; padding:16px 18px;"><div style="font-size:11px; color:#6f6c66;">Contract</div><div style="font-family:'Geist Mono',monospace; font-size:13px; margin-top:5px; color:#C9C4BB;">0x8A…c19f</div></div>
+              <div style="background:#0f0f0f; padding:16px 18px;"><div style="font-size:11px; color:#6f6c66;">Transaction</div><div style="font-family:'Geist Mono',monospace; font-size:13px; margin-top:5px; color:#B9A7FF;">0x72…a4d</div></div>
+              <div style="background:#0f0f0f; padding:16px 18px;"><div style="font-size:11px; color:#6f6c66;">Block</div><div style="font-family:'Geist Mono',monospace; font-size:13px; margin-top:5px; color:#C9C4BB;">#18,923</div></div>
+              <div style="background:#0f0f0f; padding:16px 18px;"><div style="font-size:11px; color:#6f6c66;">Timestamp</div><div style="font-family:'Geist Mono',monospace; font-size:13px; margin-top:5px; color:#C9C4BB;">21:04:32</div></div>
+              <div style="background:#0f0f0f; padding:16px 18px;"><div style="font-size:11px; color:#6f6c66;">Network</div><div style="font-family:'Geist Mono',monospace; font-size:13px; margin-top:5px; color:#C9C4BB;">Testnet</div></div>
+            </div>
+
+            <div style="display:grid; grid-template-columns:minmax(0,1.5fr) minmax(0,1fr); gap:16px; margin-top:16px;">
+              <div style="background:#0d0d0d; border:1px solid #1f1f1f; border-radius:14px; overflow:hidden;">
+                <div style="display:flex; justify-content:space-between; padding:12px 16px; border-bottom:1px solid #1a1a1a; font-family:'Geist Mono',monospace; font-size:11px; color:#6f6c66;"><span>payload.json</span><span style="color:#B9A7FF; cursor:pointer;">Copy</span></div>
+                <pre style="margin:0; padding:18px; font-family:'Geist Mono',monospace; font-size:12.5px; line-height:1.7; color:#C9C4BB; overflow-x:auto;">{
+  <span style="color:#8F82C9;">"questId"</span>: <span style="color:#B9A7FF;">7</span>,
+  <span style="color:#8F82C9;">"user"</span>: <span style="color:#6ee7a8;">"0x8A…c19f"</span>,
+  <span style="color:#8F82C9;">"reward"</span>: <span style="color:#B9A7FF;">50</span>,
+  <span style="color:#8F82C9;">"timestamp"</span>: <span style="color:#B9A7FF;">1793042672</span>
+}</pre>
+              </div>
+              <div style="display:flex; flex-direction:column; gap:9px;">
+                <div onClick="{{ goReplay }}" style="background:#B9A7FF; color:#080808; font-weight:600; font-size:13.5px; text-align:center; padding:12px; border-radius:10px; cursor:pointer;" style-hover="background:#CDBFFF;">Replay Event</div>
+                <div style="background:#151515; border:1px solid #242424; font-size:13.5px; text-align:center; padding:12px; border-radius:10px; cursor:pointer;" style-hover="border-color:#333;">Test Webhook</div>
+                <div style="background:#151515; border:1px solid #242424; font-size:13.5px; text-align:center; padding:12px; border-radius:10px; cursor:pointer;" style-hover="border-color:#333;">View Transaction</div>
+                <div style="background:#151515; border:1px solid #242424; font-size:13.5px; text-align:center; padding:12px; border-radius:10px; cursor:pointer;" style-hover="border-color:#333;">View Delivery</div>
+                <div onClick="{{ goDiagnostics }}" style="background:#151515; border:1px solid #242424; font-size:13.5px; text-align:center; padding:12px; border-radius:10px; cursor:pointer; color:#B9A7FF;" style-hover="border-color:#333;">Diagnose with AI</div>
+              </div>
+            </div>
+          </div>
+        </sc-if>
+
+        <!-- WEBHOOKS -->
+        <sc-if value="{{ isWebhooks }}" hint-placeholder-val="x">
+          <div>
+            <div style="display:flex; align-items:center; justify-content:space-between;">
+              <div><h1 style="font-size:26px; font-weight:600; letter-spacing:-0.02em; margin:0;">Webhooks</h1><p style="font-size:15px; color:#8d8980; margin:7px 0 0;">Deliver events to your endpoints with retries and history.</p></div>
+              <span style="background:#B9A7FF; color:#080808; font-weight:600; font-size:13px; padding:10px 16px; border-radius:9px; cursor:pointer;">Create Webhook</span>
+            </div>
+            <div style="margin-top:22px; background:#0f0f0f; border:1px solid #1f1f1f; border-radius:14px; overflow:hidden;">
+              <div style="display:grid; grid-template-columns:1.2fr 2fr 0.8fr 0.9fr 1fr; gap:14px; padding:12px 18px; font-family:'Geist Mono',monospace; font-size:11px; letter-spacing:0.04em; text-transform:uppercase; color:#5e5b55; border-bottom:1px solid #1a1a1a;">
+                <span>Name</span><span>Endpoint</span><span>Events</span><span>Success</span><span style="text-align:right;">Last delivery</span>
+              </div>
+              <sc-for list="{{ webhooks }}" as="w" hint-placeholder-count="3">
+                <div onClick="{{ w.onClick }}" style="display:grid; grid-template-columns:1.2fr 2fr 0.8fr 0.9fr 1fr; gap:14px; align-items:center; padding:14px 18px; border-bottom:1px solid #161616; cursor:pointer;" style-hover="background:rgba(255,255,255,0.025);">
+                  <span style="display:inline-flex; align-items:center; gap:8px; font-size:13.5px; font-weight:500;"><span style="width:7px; height:7px; border-radius:50%; background:{{ w.dotColor }};"></span>{{ w.name }}</span>
+                  <span style="font-family:'Geist Mono',monospace; font-size:12px; color:#8d8980; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ w.url }}</span>
+                  <span style="font-size:13px; color:#C9C4BB;">{{ w.events }}</span>
+                  <span style="font-family:'Geist Mono',monospace; font-size:12px; color:{{ w.rateColor }};">{{ w.success }}</span>
+                  <span style="font-family:'Geist Mono',monospace; font-size:12px; color:#8d8980; text-align:right;">{{ w.last }}</span>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </sc-if>
+
+        <!-- WEBHOOK DETAIL + FAILURE -->
+        <sc-if value="{{ isWebhookDetail }}" hint-placeholder-val="x">
+          <div>
+            <div onClick="{{ goWebhooks }}" style="font-family:'Geist Mono',monospace; font-size:12px; color:#8d8980; cursor:pointer;" style-hover="color:#B9A7FF;">← Webhooks</div>
+            <div style="display:flex; align-items:center; gap:12px; margin-top:14px;">
+              <h1 style="font-size:24px; font-weight:600; letter-spacing:-0.02em; margin:0;">Production Webhook</h1>
+              <span style="font-size:12px; color:#f08a86; border:1px solid #3a1f22; background:#160f10; border-radius:999px; padding:4px 10px;">● Degraded</span>
+            </div>
+            <div style="font-family:'Geist Mono',monospace; font-size:13px; color:#B9A7FF; margin-top:8px;">https://api.example.com/portal-events</div>
+
+            <!-- FAILURE BANNER -->
+            <div style="margin-top:20px; background:#160f10; border:1px solid #3a1f22; border-radius:14px; padding:18px 20px; display:grid; grid-template-columns:1fr auto; gap:18px; align-items:center;">
+              <div>
+                <div style="display:flex; align-items:center; gap:10px;"><span style="font-size:14px; font-weight:600; color:#f08a86;">Webhook Failed</span><span style="font-family:'Geist Mono',monospace; font-size:11px; color:#f08a86; border:1px solid #3a1f22; border-radius:6px; padding:2px 8px;">HTTP 500 · attempt 3 of 5</span></div>
+                <div style="font-size:13.5px; color:#C9C4BB; margin-top:8px;">The destination server returned an internal error. Next retry in <span style="color:#F5F3EE; font-family:'Geist Mono',monospace;">28s</span>.</div>
+              </div>
+              <div style="display:flex; gap:9px;">
+                <span onClick="{{ goReplay }}" style="background:#B9A7FF; color:#080808; font-weight:600; font-size:13px; padding:10px 15px; border-radius:9px; cursor:pointer;">Retry Now</span>
+                <span onClick="{{ goDiagnostics }}" style="background:#151515; border:1px solid #242424; font-size:13px; padding:10px 15px; border-radius:9px; cursor:pointer; color:#B9A7FF;">Inspect</span>
+              </div>
+            </div>
+
+            <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-top:16px;">
+              <div style="background:#121212; border:1px solid #1f1f1f; border-radius:12px; padding:16px;"><div style="font-size:12px; color:#8d8980;">Success rate</div><div style="font-size:24px; font-weight:600; margin-top:6px;">99.8%</div></div>
+              <div style="background:#121212; border:1px solid #1f1f1f; border-radius:12px; padding:16px;"><div style="font-size:12px; color:#8d8980;">Avg response</div><div style="font-size:24px; font-weight:600; margin-top:6px;">182ms</div></div>
+              <div style="background:#121212; border:1px solid #1f1f1f; border-radius:12px; padding:16px;"><div style="font-size:12px; color:#8d8980;">Subscribed</div><div style="font-size:24px; font-weight:600; margin-top:6px;">3 events</div></div>
+            </div>
+
+            <div style="margin-top:16px; background:#0d0d0d; border:1px solid #1f1f1f; border-radius:14px; padding:18px;">
+              <h2 style="font-size:14px; font-weight:600; margin:0 0 12px;">Recent deliveries</h2>
+              <sc-for list="{{ deliveries }}" as="d" hint-placeholder-count="4">
+                <div style="display:grid; grid-template-columns:auto 1fr auto; gap:14px; align-items:center; padding:10px 0; border-top:1px solid #1a1a1a; font-family:'Geist Mono',monospace; font-size:12.5px;">
+                  <span style="color:{{ d.color }}; width:60px;">{{ d.code }}</span>
+                  <span style="color:#8d8980;">{{ d.time }}</span>
+                  <span style="color:#A8A49C;">{{ d.ms }}</span>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </sc-if>
+
+        <!-- REPLAY -->
+        <sc-if value="{{ isReplay }}" hint-placeholder-val="x">
+          <div>
+            <h1 style="font-size:26px; font-weight:600; letter-spacing:-0.02em; margin:0;">Replay Center</h1>
+            <p style="font-size:15px; color:#8d8980; margin:7px 0 0;">Recover failed deliveries without reconstructing blockchain events.</p>
+            <div style="display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.3fr); gap:16px; margin-top:24px;">
+              <div style="background:#0f0f0f; border:1px solid #1f1f1f; border-radius:14px; padding:16px;">
+                <div style="font-family:'Geist Mono',monospace; font-size:11px; letter-spacing:0.04em; text-transform:uppercase; color:#5e5b55; padding:0 4px 8px;">Failed events</div>
+                <sc-for list="{{ replayItems }}" as="r" hint-placeholder-count="3">
+                  <div onClick="{{ r.onClick }}" style="{{ r.rowStyle }}" style-hover="background:rgba(255,255,255,0.03);">
+                    <div><div style="font-size:13.5px; font-weight:500;">{{ r.name }}</div><div style="font-family:'Geist Mono',monospace; font-size:11px; color:#6f6c66; margin-top:2px;">{{ r.reason }}</div></div>
+                    <span style="font-family:'Geist Mono',monospace; font-size:11px; color:#f08a86;">{{ r.fails }}</span>
+                  </div>
+                </sc-for>
+              </div>
+
+              <div style="background:linear-gradient(170deg,#121016,#0d0d0d); border:1px solid #201d2b; border-radius:14px; padding:24px;">
+                <div style="font-family:'Geist Mono',monospace; font-size:11px; color:#8d8980;">Selected event</div>
+                <div style="font-size:20px; font-weight:600; margin-top:6px;">{{ replaySel.name }}</div>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:20px;">
+                  <div style="background:#0d0d0d; border:1px solid #1f1f1f; border-radius:10px; padding:13px;"><div style="font-size:11px; color:#6f6c66;">Original delivery</div><div style="font-size:14px; color:#f08a86; margin-top:4px;">Failed</div></div>
+                  <div style="background:#0d0d0d; border:1px solid #1f1f1f; border-radius:10px; padding:13px;"><div style="font-size:11px; color:#6f6c66;">Reason</div><div style="font-family:'Geist Mono',monospace; font-size:13px; margin-top:4px;">HTTP 500</div></div>
+                </div>
+
+                <sc-if value="{{ replayIdle }}" hint-placeholder-val="{{ true }}">
+                  <div onClick="{{ doReplay }}" style="margin-top:22px; background:#B9A7FF; color:#080808; font-weight:600; font-size:14px; text-align:center; padding:14px; border-radius:11px; cursor:pointer;" style-hover="background:#CDBFFF;">Replay Event</div>
+                </sc-if>
+                <sc-if value="{{ replayRunning }}" hint-placeholder-val="x">
+                  <div style="margin-top:22px; background:#151515; border:1px solid #2a2740; color:#B9A7FF; font-weight:600; font-size:14px; text-align:center; padding:14px; border-radius:11px; display:flex; align-items:center; justify-content:center; gap:10px;">
+                    <span style="width:14px; height:14px; border:2px solid #37325a; border-top-color:#B9A7FF; border-radius:50%; display:inline-block; animation:spin 0.7s linear infinite;"></span>
+                    Re-delivering…
+                  </div>
+                </sc-if>
+                <sc-if value="{{ replayDone }}" hint-placeholder-val="x">
+                  <div style="margin-top:22px; background:#0e1611; border:1px solid #1f3a2a; border-radius:12px; padding:18px; text-align:center; animation:pop 0.4s ease both;">
+                    <div style="font-size:16px; font-weight:600; color:#6ee7a8;">✓ Replay Successful</div>
+                    <div style="font-size:13.5px; color:#C9C4BB; margin-top:6px;">Event successfully delivered.</div>
+                    <div style="font-family:'Geist Mono',monospace; font-size:13px; color:#6ee7a8; margin-top:10px;">HTTP 200 · 184ms</div>
+                  </div>
+                </sc-if>
+              </div>
+            </div>
+          </div>
+        </sc-if>
+
+        <!-- LOGS -->
+        <sc-if value="{{ isLogs }}" hint-placeholder-val="x">
+          <div>
+            <h1 style="font-size:26px; font-weight:600; letter-spacing:-0.02em; margin:0;">Logs</h1>
+            <p style="font-size:15px; color:#8d8980; margin:7px 0 0;">Real-time infrastructure log stream.</p>
+            <div style="display:flex; gap:8px; margin-top:22px; flex-wrap:wrap;">
+              <span style="font-family:'Geist Mono',monospace; font-size:12px; color:#9a968e; border:1px solid #242424; border-radius:8px; padding:7px 12px;">Event ▾</span>
+              <span style="font-family:'Geist Mono',monospace; font-size:12px; color:#9a968e; border:1px solid #242424; border-radius:8px; padding:7px 12px;">Contract ▾</span>
+              <span style="font-family:'Geist Mono',monospace; font-size:12px; color:#9a968e; border:1px solid #242424; border-radius:8px; padding:7px 12px;">Status ▾</span>
+              <span style="font-family:'Geist Mono',monospace; font-size:12px; color:#9a968e; border:1px solid #242424; border-radius:8px; padding:7px 12px;">Error type ▾</span>
+            </div>
+            <div style="margin-top:16px; background:#0a0a0a; border:1px solid #1f1f1f; border-radius:14px; padding:16px 18px; font-family:'Geist Mono',monospace; font-size:12.5px;">
+              <sc-for list="{{ logs }}" as="l" hint-placeholder-count="6">
+                <div style="display:grid; grid-template-columns:auto 180px 1fr; gap:14px; padding:7px 0; border-bottom:1px solid #141414; animation:rowin 0.4s ease both;">
+                  <span style="color:#5e5b55;">{{ l.time }}</span>
+                  <span style="color:{{ l.color }};">{{ l.type }}</span>
+                  <span style="color:#8d8980;">{{ l.detail }}</span>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </sc-if>
+
+        <!-- CONTRACTS -->
+        <sc-if value="{{ isContracts }}" hint-placeholder-val="x">
+          <div>
+            <h1 style="font-size:26px; font-weight:600; letter-spacing:-0.02em; margin:0;">Contracts</h1>
+            <p style="font-size:15px; color:#8d8980; margin:7px 0 0;">Portaldot contracts PortalOps is monitoring.</p>
+            <div style="display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; margin-top:24px;">
+              <sc-for list="{{ contracts }}" as="c" hint-placeholder-count="3">
+                <div style="background:#121212; border:1px solid #1f1f1f; border-radius:14px; padding:18px;">
+                  <div style="display:flex; align-items:center; justify-content:space-between;"><span style="font-size:15px; font-weight:600;">{{ c.name }}</span><span style="font-size:11px; color:#6ee7a8; border:1px solid #1f3a2a; border-radius:999px; padding:3px 9px;">{{ c.status }}</span></div>
+                  <div style="font-family:'Geist Mono',monospace; font-size:12px; color:#8d8980; margin-top:10px;">{{ c.addr }}</div>
+                  <div style="display:flex; gap:18px; margin-top:16px; padding-top:14px; border-top:1px solid #1a1a1a;">
+                    <div><div style="font-size:11px; color:#6f6c66;">Events</div><div style="font-size:16px; font-weight:600; margin-top:3px;">{{ c.events }}</div></div>
+                    <div><div style="font-size:11px; color:#6f6c66;">Deployed</div><div style="font-family:'Geist Mono',monospace; font-size:14px; margin-top:3px;">{{ c.block }}</div></div>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </sc-if>
+
+        <!-- AUTOMATIONS -->
+        <sc-if value="{{ isAutomations }}" hint-placeholder-val="x">
+          <div>
+            <h1 style="font-size:26px; font-weight:600; letter-spacing:-0.02em; margin:0;">Automations</h1>
+            <p style="font-size:15px; color:#8d8980; margin:7px 0 0;">Trigger actions when events match your conditions.</p>
+            <div style="margin-top:28px; max-width:420px; display:flex; flex-direction:column; align-items:stretch; gap:0;">
+              <div style="background:#0f0f0f; border:1px solid #1f1f1f; border-radius:12px; padding:16px 18px;"><div style="font-family:'Geist Mono',monospace; font-size:11px; color:#B9A7FF;">WHEN</div><div style="font-size:15px; font-weight:500; margin-top:6px;">QuestCompleted</div><div style="font-family:'Geist Mono',monospace; font-size:11px; color:#6f6c66; margin-top:3px;">on PortalQuest</div></div>
+              <div style="height:24px; width:2px; background:#2a2740; margin:0 auto;"></div>
+              <div style="background:#0f0f0f; border:1px solid #1f1f1f; border-radius:12px; padding:16px 18px;"><div style="font-family:'Geist Mono',monospace; font-size:11px; color:#8F82C9;">IF</div><div style="font-size:15px; font-weight:500; margin-top:6px;">questId = 7</div></div>
+              <div style="height:24px; width:2px; background:#2a2740; margin:0 auto;"></div>
+              <div style="background:linear-gradient(160deg,#17142010,#121212); border:1px solid #2a2740; border-radius:12px; padding:16px 18px;"><div style="font-family:'Geist Mono',monospace; font-size:11px; color:#B9A7FF;">THEN</div><div style="font-size:15px; font-weight:500; margin-top:6px;">Send Webhook → Rewards</div></div>
+            </div>
+            <div style="margin-top:22px; display:inline-flex;"><span style="background:#151515; border:1px solid #242424; font-size:13px; padding:10px 16px; border-radius:9px; cursor:pointer; color:#B9A7FF;">+ Add action</span></div>
+          </div>
+        </sc-if>
+
+        <!-- DIAGNOSTICS -->
+        <sc-if value="{{ isDiagnostics }}" hint-placeholder-val="x">
+          <div>
+            <h1 style="font-size:26px; font-weight:600; letter-spacing:-0.02em; margin:0;">Diagnostics</h1>
+            <p style="font-size:15px; color:#8d8980; margin:7px 0 0;">Contextual failure analysis across your infrastructure.</p>
+            <div style="margin-top:24px; max-width:640px; background:linear-gradient(170deg,#121016,#0d0d0d); border:1px solid #201d2b; border-radius:16px; padding:24px;">
+              <div style="display:flex; align-items:center; gap:10px;"><span style="width:26px; height:26px; border-radius:8px; background:rgba(185,167,255,0.1); border:1px solid #2a2740; display:inline-flex; align-items:center; justify-content:center; color:#B9A7FF; font-size:13px;">✦</span><span style="font-size:15px; font-weight:600;">Why did this webhook fail?</span></div>
+              <div style="margin-top:16px; font-size:11px; letter-spacing:0.04em; text-transform:uppercase; color:#6f6c66;">PortalOps detected</div>
+              <div style="display:flex; flex-direction:column; gap:8px; margin-top:10px; font-size:14px; color:#C9C4BB;">
+                <div style="display:flex; gap:10px;"><span style="color:#B9A7FF;">•</span>HTTP 500 response on 3 consecutive attempts</div>
+                <div style="display:flex; gap:10px;"><span style="color:#B9A7FF;">•</span>Failures started after event <span style="font-family:'Geist Mono',monospace;">#9178</span></div>
+                <div style="display:flex; gap:10px;"><span style="color:#B9A7FF;">•</span>Destination response time increased 4.2×</div>
+              </div>
+              <div style="margin-top:18px; background:#0d0d0d; border:1px solid #1f1f1f; border-radius:10px; padding:14px 16px;"><div style="font-size:11px; letter-spacing:0.04em; text-transform:uppercase; color:#6f6c66;">Likely cause</div><div style="font-size:14px; color:#F5F3EE; margin-top:7px; line-height:1.5;">The destination API may be failing while processing the <span style="font-family:'Geist Mono',monospace; color:#B9A7FF;">reward</span> field.</div></div>
+              <div style="display:flex; gap:9px; margin-top:18px;">
+                <span onClick="{{ goLogs }}" style="background:#151515; border:1px solid #242424; font-size:13px; padding:9px 14px; border-radius:9px; cursor:pointer;">View Logs</span>
+                <span onClick="{{ goReplay }}" style="background:#B9A7FF; color:#080808; font-weight:600; font-size:13px; padding:9px 14px; border-radius:9px; cursor:pointer;">Replay</span>
+              </div>
+            </div>
+          </div>
+        </sc-if>
+
+        <!-- API -->
+        <sc-if value="{{ isApiSdk }}" hint-placeholder-val="x">
+          <div>
+            <h1 style="font-size:26px; font-weight:600; letter-spacing:-0.02em; margin:0;">API / SDK</h1>
+            <p style="font-size:15px; color:#8d8980; margin:7px 0 0;">Programmatic access and a typed client for the full event pipeline.</p>
+
+            <div style="font-family:'Geist Mono',monospace; font-size:10.5px; letter-spacing:0.08em; text-transform:uppercase; color:#5e5b55; margin:28px 0 12px;">REST API</div>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">
+              <div style="background:#121212; border:1px solid #1f1f1f; border-radius:12px; padding:18px;"><div style="font-size:12px; color:#8d8980;">Base URL</div><div style="font-family:'Geist Mono',monospace; font-size:13.5px; margin-top:8px; color:#C9C4BB;">https://api.portalops.dev</div></div>
+              <div style="background:#121212; border:1px solid #1f1f1f; border-radius:12px; padding:18px;"><div style="font-size:12px; color:#8d8980;">API Key</div><div style="display:flex; align-items:center; justify-content:space-between; margin-top:8px;"><span style="font-family:'Geist Mono',monospace; font-size:13.5px; color:#C9C4BB;">••••••••••••••••</span><span style="font-size:12px; color:#B9A7FF; cursor:pointer;">Regenerate</span></div></div>
+            </div>
+            <div style="margin-top:16px; background:#0f0f0f; border:1px solid #1f1f1f; border-radius:14px; padding:18px;">
+              <h2 style="font-size:14px; font-weight:600; margin:0 0 14px;">Endpoints</h2>
+              <sc-for list="{{ endpoints }}" as="ep" hint-placeholder-count="5">
+                <div style="display:grid; grid-template-columns:70px 1fr; gap:14px; align-items:center; padding:9px 0; border-top:1px solid #1a1a1a; font-family:'Geist Mono',monospace; font-size:13px;">
+                  <span style="color:{{ ep.color }}; font-weight:500;">{{ ep.method }}</span><span style="color:#C9C4BB;">{{ ep.path }}</span>
+                </div>
+              </sc-for>
+            </div>
+
+            <div style="font-family:'Geist Mono',monospace; font-size:10.5px; letter-spacing:0.08em; text-transform:uppercase; color:#5e5b55; margin:28px 0 12px;">TypeScript SDK</div>
+            <div style="background:#0d0d0d; border:1px solid #1f1f1f; border-radius:14px; overflow:hidden; max-width:680px;">
+              <div style="padding:12px 16px; border-bottom:1px solid #1a1a1a; font-family:'Geist Mono',monospace; font-size:11px; color:#6f6c66;">index.ts</div>
+              <pre style="margin:0; padding:20px; font-family:'Geist Mono',monospace; font-size:13px; line-height:1.7; color:#C9C4BB; overflow-x:auto;"><span style="color:#8F82C9;">portal</span>.events.<span style="color:#B9A7FF;">subscribe</span>({
+  event: <span style="color:#6ee7a8;">"QuestCompleted"</span>,
+  handler: <span style="color:#B9A7FF;">async</span> (event) => {
+    <span style="color:#8F82C9;">console</span>.log(event);
+  }
+});
+
+<span style="color:#8F82C9;">portal</span>.events.<span style="color:#B9A7FF;">replay</span>(id);
+<span style="color:#8F82C9;">portal</span>.webhooks.<span style="color:#B9A7FF;">create</span>({ url, events });</pre>
+            </div>
+          </div>
+        </sc-if>
+
+        <!-- SETTINGS -->
+        <sc-if value="{{ isSettings }}" hint-placeholder-val="x">
+          <div>
+            <h1 style="font-size:26px; font-weight:600; letter-spacing:-0.02em; margin:0;">Settings</h1>
+            <p style="font-size:15px; color:#8d8980; margin:7px 0 0;">Project configuration.</p>
+            <div style="margin-top:24px; max-width:560px; display:flex; flex-direction:column; gap:14px;">
+              <div style="background:#121212; border:1px solid #1f1f1f; border-radius:12px; padding:18px;"><div style="font-size:12px; color:#8d8980;">Project name</div><div style="font-size:15px; margin-top:7px;">PortalOps Demo</div></div>
+              <div style="background:#121212; border:1px solid #1f1f1f; border-radius:12px; padding:18px;"><div style="font-size:12px; color:#8d8980;">Environment</div><div style="font-size:15px; margin-top:7px; display:inline-flex; align-items:center; gap:8px;"><span style="width:7px; height:7px; border-radius:50%; background:#6ee7a8;"></span>Portaldot Testnet</div></div>
+              <div style="background:#121212; border:1px solid #1f1f1f; border-radius:12px; padding:18px;"><div style="font-size:12px; color:#8d8980;">Event retention</div><div style="font-size:15px; margin-top:7px;">30 days</div></div>
+            </div>
+          </div>
+        </sc-if>
+
+        <!-- AI SETUP -->
+        <sc-if value="{{ isAiSetup }}" hint-placeholder-val="x">
+          <div>
+            <h1 style="font-size:26px; font-weight:600; letter-spacing:-0.02em; margin:0;">Let your coding agent set up PortalOps.</h1>
+            <p style="font-size:15px; color:#8d8980; margin:7px 0 0; max-width:620px; line-height:1.5;">Connect PortalOps to your AI coding environment. Your agent can configure the project, generate integration code, register event subscriptions, and verify the setup.</p>
+
+            <div style="display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; margin-top:26px;">
+              <sc-for list="{{ aiAgents }}" as="a" hint-placeholder-count="3">
+                <div onClick="{{ a.onClick }}" style="{{ a.cardStyle }}" style-hover="border-color:#333;">
+                  <div style="display:flex; align-items:center; justify-content:space-between;">
+                    <span style="font-size:14.5px; font-weight:600;">{{ a.name }}</span>
+                    <span style="font-family:'Geist Mono',monospace; font-size:11px; color:{{ a.statusColor }};">{{ a.status }}</span>
+                  </div>
+                  <div style="font-size:12.5px; color:#8d8980; margin-top:8px; line-height:1.45;">{{ a.desc }}</div>
+                </div>
+              </sc-for>
+            </div>
+
+            <div style="display:grid; grid-template-columns:minmax(0,1.5fr) minmax(0,1fr); gap:16px; margin-top:16px; align-items:start;">
+              <div style="display:flex; flex-direction:column; gap:16px;">
+                <div style="background:#0f0f0f; border:1px solid #1f1f1f; border-radius:14px; padding:20px;">
+                  <h2 style="font-size:15px; font-weight:600; margin:0;">{{ agentName }} setup</h2>
+                  <p style="font-size:13px; color:#8d8980; margin:6px 0 4px; line-height:1.5;">{{ agentDesc }}</p>
+                  <sc-for list="{{ aiSteps }}" as="st" hint-placeholder-count="5">
+                    <div style="display:grid; grid-template-columns:28px 1fr; gap:14px; padding:14px 0; border-top:1px solid #1a1a1a;">
+                      <span style="width:28px; height:28px; border-radius:8px; background:rgba(185,167,255,0.1); border:1px solid #2a2740; color:#B9A7FF; font-family:'Geist Mono',monospace; font-size:13px; display:inline-flex; align-items:center; justify-content:center;">{{ st.n }}</span>
+                      <div>
+                        <div style="font-size:14px; font-weight:600;">{{ st.title }}</div>
+                        <div style="font-size:13px; color:#8d8980; margin-top:4px; line-height:1.5;">{{ st.body }}</div>
+                        <sc-if value="{{ st.code }}" hint-placeholder-val="">
+                          <div style="margin-top:9px; font-family:'Geist Mono',monospace; font-size:12px; color:#C9C4BB; background:#0a0a0a; border:1px solid #1f1f1f; border-radius:8px; padding:9px 12px; white-space:pre-wrap; overflow-x:auto;">{{ st.code }}</div>
+                        </sc-if>
+                      </div>
+                    </div>
+                  </sc-for>
+                </div>
+
+                <sc-if value="{{ showPrompt }}" hint-placeholder-val="{{ true }}">
+                  <div style="background:linear-gradient(160deg,#121016,#0e0e0e); border:1px solid #201d2b; border-radius:14px; padding:20px;">
+                    <div style="display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap;">
+                      <div>
+                        <div style="font-size:14px; font-weight:600;">Generated setup prompt</div>
+                        <div style="font-size:12px; color:#8d8980; margin-top:3px;">Tailored to PortalOps Demo · Portaldot Testnet</div>
+                      </div>
+                      <button onClick="{{ copyPrompt }}" style="display:inline-flex; align-items:center; gap:7px; background:#B9A7FF; color:#080808; border:none; border-radius:9px; padding:9px 14px; font-size:13px; font-weight:600; font-family:inherit; cursor:pointer;" style-hover="background:#CDBFFF;">{{ copyLabel }}</button>
+                    </div>
+                    <pre style="margin:14px 0 0; font-family:'Geist Mono',monospace; font-size:12px; line-height:1.6; color:#C9C4BB; background:#0a0a0a; border:1px solid #1f1f1f; border-radius:10px; padding:16px; overflow-x:auto; white-space:pre-wrap;">{{ promptText }}</pre>
+                    <div style="font-size:12px; color:#6f6c66; margin-top:12px; line-height:1.5;">The prompt is a starting point. A copied prompt is <span style="color:#C9C4BB;">not</span> a verified connection — use Verify to confirm the agent can reach your project.</div>
+                  </div>
+                </sc-if>
+              </div>
+
+              <div style="display:flex; flex-direction:column; gap:16px;">
+                <div style="background:#0f0f0f; border:1px solid #1f1f1f; border-radius:14px; padding:18px;">
+                  <h2 style="font-size:14px; font-weight:600; margin:0 0 12px;">Connection status</h2>
+                  <div style="display:flex; align-items:center; gap:10px; padding:12px; border:1px solid #1f1f1f; border-radius:10px; background:#0a0a0a;">
+                    <span style="width:9px; height:9px; border-radius:50%; background:{{ connBadge.dot }}; flex-shrink:0;"></span>
+                    <div>
+                      <div style="font-size:13.5px; font-weight:600; color:{{ connBadge.color }};">{{ connBadge.text }}</div>
+                      <div style="font-size:12px; color:#6f6c66; margin-top:2px;">{{ connBadge.sub }}</div>
+                    </div>
+                  </div>
+                  <sc-if value="{{ canVerify }}" hint-placeholder-val="{{ true }}">
+                    <button onClick="{{ runVerify }}" style="width:100%; margin-top:12px; background:#121212; color:#F5F3EE; border:1px solid #2a2740; border-radius:9px; padding:10px; font-size:13px; font-weight:500; font-family:inherit; cursor:pointer;" style-hover="border-color:#3a3658;">{{ verifyLabel }}</button>
+                  </sc-if>
+                  <sc-if value="{{ showVerifyNote }}" hint-placeholder-val="">
+                    <div style="font-size:12px; color:#6f6c66; margin-top:12px; line-height:1.5;">Verified connection is available for Claude Code. {{ agentName }} uses copyable instructions only.</div>
+                  </sc-if>
+                </div>
+
+                <div style="background:#0f0f0f; border:1px solid #1f1f1f; border-radius:14px; padding:18px;">
+                  <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+                    <h2 style="font-size:14px; font-weight:600; margin:0;">Agent permissions</h2>
+                    <span style="font-family:'Geist Mono',monospace; font-size:10.5px; letter-spacing:0.04em; text-transform:uppercase; color:#5e5b55;">Least privilege</span>
+                  </div>
+                  <sc-for list="{{ permissions }}" as="p" hint-placeholder-count="5">
+                    <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 0; border-top:1px solid #1a1a1a;">
+                      <span style="font-size:13px; color:#C9C4BB;">{{ p.name }}</span>
+                      <span style="font-family:'Geist Mono',monospace; font-size:11.5px; color:{{ p.color }}; text-align:right;">{{ p.level }}</span>
+                    </div>
+                  </sc-for>
+                  <button onClick="{{ revoke }}" style="width:100%; margin-top:14px; background:transparent; color:#f08a86; border:1px solid #3a2020; border-radius:9px; padding:9px; font-size:12.5px; font-weight:500; font-family:inherit; cursor:pointer;" style-hover="background:rgba(240,138,134,0.08);">Revoke agent access</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </sc-if>
+
+      </div>
+    </main>
+  </div>
+</div>
+
+
+<sc-if value="{{ tourActive }}" hint-placeholder-val="">
+  <div>
+    <div style="position:fixed; inset:0; z-index:200;"></div>
+    <div style="{{ tourRingStyle }}"></div>
+    <div style="{{ tourPopStyle }}">
+      <div style="position:absolute; left:-7px; top:18px; width:12px; height:12px; background:#171320; border-left:1px solid #2a2740; border-bottom:1px solid #2a2740; transform:rotate(45deg);"></div>
+      <div style="font-size:15px; font-weight:600; letter-spacing:-0.01em;">{{ tourTitle }}</div>
+      <p style="font-size:13.5px; color:#A8A49C; margin:8px 0 0; line-height:1.5;">{{ tourBody }}</p>
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-top:18px;">
+        <span style="font-family:'Geist Mono',monospace; font-size:12px; color:#6f6c66;">{{ tourCount }}</span>
+        <div style="display:flex; gap:8px;">
+          <button onClick="{{ tourSkip }}" style="background:transparent; color:#9a968e; border:1px solid #242424; border-radius:8px; padding:8px 14px; font-size:13px; font-family:inherit; cursor:pointer;" style-hover="border-color:#333;">Skip</button>
+          <button onClick="{{ tourNext }}" style="background:#B9A7FF; color:#080808; border:none; border-radius:8px; padding:8px 16px; font-size:13px; font-weight:600; font-family:inherit; cursor:pointer;" style-hover="background:#CDBFFF;">{{ tourNextLabel }}</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</sc-if></x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = { screen: "overview", replay: "idle", aiAgent: "claude", copied: false, aiVerify: "idle", tour: false, tourStep: 0, tourRect: null };
+
+  tourSteps = [
+    { target: "overview", title: "Your infrastructure at a glance", body: "Overview tracks events received, delivered and failed, with live activity across your project." },
+    { target: "events", title: "Every event, decoded and stored", body: "Browse normalized events and open any one to inspect its payload and delivery history." },
+    { target: "webhooks", title: "Deliver events anywhere", body: "Point webhooks at your backend, with signing, retries and a full delivery history." },
+    { target: "replay", title: "Recover failed deliveries", body: "When a destination fails, replay the stored event exactly as it happened — no state to rebuild." },
+    { target: "automations", title: "Automate on your conditions", body: "Trigger webhooks and actions when events match the when / if / then rules you define." },
+    { target: "logs", title: "Follow the pipeline live", body: "A real-time stream of every ingestion, dispatch, failure and retry across the engine." },
+    { target: "apisdk", title: "Build on the API & SDK", body: "A typed client and REST endpoints over the whole pipeline — TypeScript, Python or plain HTTP." },
+    { target: "aisetup", title: "Or let your coding agent set it up", body: "Connect Claude Code or Codex from AI Setup and configure the whole integration from your editor." }
+  ];
+
+  promptText = `Set up PortalOps in this project.
+
+1. Read the PortalOps integration documentation.
+2. Inspect the existing application architecture.
+3. Identify the appropriate location for event handling.
+4. Install the required SDK or client dependencies.
+5. Configure the Portaldot network and PortalOps project.
+6. Implement event subscriptions or webhook handling.
+7. Add environment variables using the documented names.
+8. Never hardcode secrets or commit credentials.
+9. Run the relevant tests and type checks.
+10. Report what was implemented, what passed, and what still requires manual action.
+
+Do not invent SDK methods, endpoints, or configuration values.
+Use only the official integration documentation and verified project settings.`;
+
+  go(screen) { this.setState({ screen, replay: "idle" }); }
+
+  componentDidMount() {
+    const h = (location.hash || "").replace("#", "");
+    const valid = ["overview","events","webhooks","replay","logs","contracts","automations","diagnostics","apisdk","aisetup","settings"];
+    if (h === "tour") { this.startTour(); }
+    else if (valid.includes(h)) { this.setState({ screen: h }); }
+    else {
+      let done = false; try { done = !!localStorage.getItem("pops_tour_done"); } catch (e) {}
+      if (!done) this.startTour();
+    }
+    this._onResize = () => this.measureTour();
+    window.addEventListener("resize", this._onResize);
+  }
+
+  componentWillUnmount() { window.removeEventListener("resize", this._onResize); }
+
+  startTour() {
+    this.setState({ screen: "overview", tour: true, tourStep: 0, tourRect: null },
+      () => requestAnimationFrame(() => this.measureTour()));
+  }
+
+  measureTour() {
+    if (!this.state.tour) return;
+    const st = this.tourSteps[this.state.tourStep];
+    const el = document.querySelector('[data-tour="' + st.target + '"]');
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    this.setState({ tourRect: { top: r.top, left: r.left, width: r.width, height: r.height, right: r.right, bottom: r.bottom } });
+  }
+
+  tourNext() {
+    const n = this.state.tourStep + 1;
+    if (n >= this.tourSteps.length) { this.endTour(); return; }
+    this.setState({ tourStep: n, tourRect: null }, () => requestAnimationFrame(() => this.measureTour()));
+  }
+
+  endTour() {
+    try { localStorage.setItem("pops_tour_done", "1"); } catch (e) {}
+    this.setState({ tour: false, tourRect: null });
+  }
+
+  doReplay() {
+    this.setState({ replay: "running" });
+    setTimeout(() => this.setState({ replay: "done" }), 1600);
+  }
+
+  setAgent(id) { this.setState({ aiAgent: id, aiVerify: "idle" }); }
+
+  copyPrompt() {
+    try { navigator.clipboard && navigator.clipboard.writeText(this.promptText); } catch (e) {}
+    this.setState({ copied: true });
+    clearTimeout(this._cpT);
+    this._cpT = setTimeout(() => this.setState({ copied: false }), 1800);
+  }
+
+  runVerify() {
+    this.setState({ aiVerify: "checking" });
+    clearTimeout(this._vT);
+    this._vT = setTimeout(() => this.setState({ aiVerify: "verified" }), 1500);
+  }
+
+  linkItem(label, icon, href) {
+    return {
+      id: label, label, icon,
+      onClick: () => { window.location.href = href; },
+      active: false, barOpacity: "0", glyphColor: "#5e5b55", labelColor: "#9a968e",
+      rowStyle: "display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:9px; cursor:pointer; margin-bottom:1px; background:transparent;"
+    };
+  }
+
+  navItem(id, label, icon) {
+    const active = this.state.screen === id ||
+      (id === "events" && this.state.screen === "eventDetail") ||
+      (id === "webhooks" && this.state.screen === "webhookDetail");
+    return {
+      id, label, icon, tour: id,
+      onClick: () => this.go(id),
+      active,
+      barOpacity: active ? "1" : "0",
+      glyphColor: active ? "#B9A7FF" : "#5e5b55",
+      labelColor: active ? "#F5F3EE" : "#9a968e",
+      rowStyle: "display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:9px; cursor:pointer; margin-bottom:1px; background:" + (active ? "rgba(185,167,255,0.08)" : "transparent") + ";"
+    };
+  }
+
+  renderVals() {
+    const s = this.state.screen;
+    const openEvent = () => this.setState({ screen: "eventDetail" });
+
+    const events = [
+      { name: "QuestCompleted", contract: "PortalQuest", time: "2s ago", tx: "0x72…a4d", block: "#18,923", status: "Delivered", statusIcon: "✓", statusColor: "#6ee7a8" },
+      { name: "RewardMinted", contract: "RewardContract", time: "18s ago", tx: "0x91…e07", block: "#18,922", status: "Delivered", statusIcon: "✓", statusColor: "#6ee7a8" },
+      { name: "AccessGranted", contract: "AccessManager", time: "31s ago", tx: "0x3c…b18", block: "#18,920", status: "Retry scheduled", statusIcon: "⚠", statusColor: "#e9c46a" },
+      { name: "QuestCreated", contract: "PortalQuest", time: "1m ago", tx: "0x5a…f29", block: "#18,917", status: "Delivered", statusIcon: "✓", statusColor: "#6ee7a8" },
+      { name: "RewardMinted", contract: "RewardContract", time: "2m ago", tx: "0xa2…77c", block: "#18,913", status: "Failed", statusIcon: "✕", statusColor: "#f08a86" }
+    ].map(e => ({ ...e, onClick: openEvent }));
+
+    const webhooks = [
+      { name: "Production", url: "https://api.example.com/portal-events", events: "4", success: "99.8%", last: "12s ago", dotColor: "#e9c46a", rateColor: "#e9c46a", onClick: () => this.setState({ screen: "webhookDetail" }) },
+      { name: "Analytics", url: "https://hooks.analytics.io/ingest", events: "2", success: "98.4%", last: "1m ago", dotColor: "#6ee7a8", rateColor: "#6ee7a8", onClick: () => this.setState({ screen: "webhookDetail" }) },
+      { name: "Rewards", url: "https://rewards.internal/events", events: "1", success: "100%", last: "4m ago", dotColor: "#6ee7a8", rateColor: "#6ee7a8", onClick: () => this.setState({ screen: "webhookDetail" }) }
+    ];
+
+    const deliveries = [
+      { code: "200", color: "#6ee7a8", time: "21:04:18", ms: "182ms" },
+      { code: "200", color: "#6ee7a8", time: "21:04:02", ms: "194ms" },
+      { code: "500", color: "#f08a86", time: "21:03:51", ms: "431ms" },
+      { code: "200", color: "#6ee7a8", time: "21:03:40", ms: "176ms" }
+    ];
+
+    const contracts = [
+      { name: "PortalQuest", addr: "0x82a4…c19f", events: "12", block: "#18,204", status: "Healthy" },
+      { name: "RewardContract", addr: "0x91b7…e073", events: "4", block: "#18,210", status: "Healthy" },
+      { name: "AccessManager", addr: "0x71c3…b184", events: "6", block: "#18,219", status: "Healthy" }
+    ];
+
+    const logs = [
+      { time: "21:04:31", type: "EVENT_RECEIVED", color: "#6ee7a8", detail: "QuestCompleted" },
+      { time: "21:04:31", type: "EVENT_DECODED", color: "#C9C4BB", detail: "contract=0x82…c19f" },
+      { time: "21:04:31", type: "EVENT_STORED", color: "#B9A7FF", detail: "event_id=evt_9182" },
+      { time: "21:04:31", type: "WEBHOOK_DISPATCHED", color: "#B9A7FF", detail: "webhook=production" },
+      { time: "21:04:32", type: "WEBHOOK_FAILED", color: "#f08a86", detail: "status=500" },
+      { time: "21:04:32", type: "RETRY_SCHEDULED", color: "#e9c46a", detail: "attempt=2 next=28s" }
+    ];
+
+    const endpoints = [
+      { method: "GET", color: "#6ee7a8", path: "/v1/events" },
+      { method: "GET", color: "#6ee7a8", path: "/v1/events/:id" },
+      { method: "GET", color: "#6ee7a8", path: "/v1/contracts" },
+      { method: "GET", color: "#6ee7a8", path: "/v1/webhooks" },
+      { method: "POST", color: "#B9A7FF", path: "/v1/events/:id/replay" }
+    ];
+
+    const replayDefs = [
+      { name: "QuestCompleted", reason: "HTTP 500", fails: "×3" },
+      { name: "RewardMinted", reason: "HTTP 500", fails: "×1" },
+      { name: "AccessGranted", reason: "timeout", fails: "×2" }
+    ];
+    const replaySelName = this.state.replaySel || "QuestCompleted";
+    const replayItems = replayDefs.map(r => {
+      const active = r.name === replaySelName;
+      return { ...r, onClick: () => this.setState({ replaySel: r.name, replay: "idle" }),
+        rowStyle: "display:flex; align-items:center; justify-content:space-between; padding:12px 12px; border-radius:10px; cursor:pointer; margin-bottom:4px; background:" + (active ? "rgba(185,167,255,0.08)" : "#0d0d0d") + "; border:1px solid " + (active ? "#2a2740" : "#1a1a1a") + ";" };
+    });
+
+    const aiAgent = this.state.aiAgent;
+    const aiAgents = [
+      { id: "claude", name: "Claude Code", status: "Supported", statusColor: "#6ee7a8", desc: "MCP server with scoped project access and verifiable connection." },
+      { id: "codex", name: "Codex", status: "Beta", statusColor: "#e9c46a", desc: "CLI setup with copyable instructions. No verified connection yet." },
+      { id: "manual", name: "Manual Setup", status: "Available", statusColor: "#8d8980", desc: "Install the SDK and wire event handling yourself." }
+    ].map(a => ({ ...a, active: a.id === aiAgent, onClick: () => this.setAgent(a.id),
+      cardStyle: "background:" + (a.id === aiAgent ? "rgba(185,167,255,0.07)" : "#0f0f0f") + "; border:1px solid " + (a.id === aiAgent ? "#2a2740" : "#1f1f1f") + "; border-radius:12px; padding:16px; cursor:pointer;" }));
+
+    const stepsByAgent = {
+      claude: [
+        { n: "1", title: "Connect PortalOps", body: "Register PortalOps as an MCP server inside your Claude Code environment. Authentication uses a scoped project token — never your signing secret." },
+        { n: "2", title: "Install the integration", body: "Run the command below in your project root.", code: "claude mcp add portalops https://mcp.portalops.dev/sse" },
+        { n: "3", title: "Authorize the project", body: "Select PortalOps Demo and grant the least-privilege permissions listed on the right." },
+        { n: "4", title: "Ask Claude to configure it", body: "Paste the generated prompt below. Claude inspects your codebase, installs the SDK, and wires event handling." },
+        { n: "5", title: "Verify", body: "Run the connection checks to confirm the agent is actually linked — not just holding instructions." }
+      ],
+      codex: [
+        { n: "1", title: "Install the Codex CLI", body: "Codex integration is in beta. Setup is instruction-based — there is no verified connection yet.", code: "npm i -g @portalops/codex-setup" },
+        { n: "2", title: "Authenticate", body: "Generate a scoped project token in Settings and export it.", code: "export PORTALOPS_TOKEN=pops_sk_…" },
+        { n: "3", title: "Run setup", body: "Codex reads the integration docs and scaffolds the handler.", code: "portalops codex init" },
+        { n: "4", title: "Review changes", body: "Codex cannot self-verify in beta — review the diff and run your tests." }
+      ],
+      manual: [
+        { n: "1", title: "Install the SDK", body: "Add the PortalOps client to your backend.", code: "npm i @portalops/sdk" },
+        { n: "2", title: "Add environment variables", body: "Use the documented names. Never hardcode secrets.", code: "PORTALOPS_PROJECT=pops_demo\nPORTALOPS_TOKEN=pops_sk_…" },
+        { n: "3", title: "Subscribe to events", body: "Initialize the client and register a handler for your selected events." },
+        { n: "4", title: "Send a test event", body: "Trigger the demo contract and confirm delivery in the Events screen." }
+      ]
+    };
+    const curAgent = aiAgents.find(a => a.id === aiAgent);
+    const aiSteps = stepsByAgent[aiAgent];
+
+    const permissions = [
+      { name: "Read event data", level: "Allowed", color: "#6ee7a8" },
+      { name: "Create or modify webhooks", level: "Requires approval", color: "#e9c46a" },
+      { name: "Trigger a replay", level: "Allowed", color: "#6ee7a8" },
+      { name: "Change production config", level: "Requires approval", color: "#e9c46a" },
+      { name: "Access signing secrets", level: "Never · scoped token only", color: "#f08a86" }
+    ];
+
+    const v = this.state.aiVerify;
+    let connBadge;
+    if (aiAgent === "claude" && v === "verified") connBadge = { text: "Verified agent connection", color: "#6ee7a8", dot: "#6ee7a8", sub: "Scoped to PortalOps Demo · revocable" };
+    else if (aiAgent === "claude" && v === "checking") connBadge = { text: "Checking connection…", color: "#e9c46a", dot: "#e9c46a", sub: "Contacting MCP server" };
+    else connBadge = { text: "Instructions only", color: "#8d8980", dot: "#5e5b55", sub: "No verified agent connection yet" };
+    const verifyLabel = v === "verified" ? "Re-check connection" : v === "checking" ? "Checking…" : "Verify connection";
+
+    const tr = this.state.tourRect;
+    const tStep = this.tourSteps[this.state.tourStep];
+    const tourActive = this.state.tour && !!tr;
+    let tourRingStyle = "", tourPopStyle = "";
+    if (tr) {
+      tourRingStyle = "position:fixed; top:" + (tr.top - 6) + "px; left:" + (tr.left - 6) + "px; width:" + (tr.width + 12) + "px; height:" + (tr.height + 12) + "px; border:2px solid #B9A7FF; border-radius:11px; box-shadow:0 0 0 9999px rgba(5,5,5,0.66); pointer-events:none; z-index:201;";
+      tourPopStyle = "position:fixed; top:" + Math.max(16, tr.top - 8) + "px; left:" + (tr.right + 22) + "px; width:300px; background:linear-gradient(160deg,#171320,#121016); border:1px solid #2a2740; border-radius:14px; padding:18px; z-index:202; box-shadow:0 26px 70px -24px rgba(0,0,0,0.85);";
+    }
+
+    return {
+      tourActive, tourRingStyle, tourPopStyle,
+      tourTitle: tStep.title, tourBody: tStep.body,
+      tourCount: (this.state.tourStep + 1) + " of " + this.tourSteps.length,
+      tourNextLabel: this.state.tourStep + 1 >= this.tourSteps.length ? "Done" : "Next",
+      tourNext: () => this.tourNext(), tourSkip: () => this.endTour(),
+      aiAgents, aiSteps, permissions, connBadge, verifyLabel,
+      agentName: curAgent.name, agentDesc: curAgent.desc,
+      copyLabel: this.state.copied ? "Copied ✓" : "Copy prompt",
+      promptText: this.promptText,
+      showPrompt: aiAgent !== "manual",
+      canVerify: aiAgent === "claude",
+      showVerifyNote: aiAgent !== "claude",
+      copyPrompt: () => this.copyPrompt(),
+      runVerify: () => this.runVerify(),
+      revoke: () => this.setState({ aiVerify: "idle" }),
+      navGroups: [
+        { label: null, items: [this.navItem("overview", "Overview", "◫")] },
+        { label: "Workspace", items: [this.navItem("events", "Events", "⇥"), this.navItem("webhooks", "Webhooks", "↗"), this.navItem("automations", "Automations", "⌁"), this.navItem("contracts", "Contracts", "◈")] },
+        { label: "Operations", items: [this.navItem("replay", "Replay", "↺"), this.navItem("logs", "Logs", "≣"), this.navItem("diagnostics", "Diagnostics", "✦")] },
+        { label: "Developer", items: [this.navItem("aisetup", "AI Setup", "✧"), this.navItem("apisdk", "API/SDK", "{ }"), this.linkItem("Documentation", "⧉", "PortalOps%20Docs.dc.html")] },
+        { label: "Project", items: [this.navItem("settings", "Settings", "⚙")] }
+      ],
+      isOverview: s === "overview", isEvents: s === "events", isEventDetail: s === "eventDetail",
+      isWebhooks: s === "webhooks", isWebhookDetail: s === "webhookDetail", isReplay: s === "replay",
+      isLogs: s === "logs", isContracts: s === "contracts", isAutomations: s === "automations",
+      isDiagnostics: s === "diagnostics", isApiSdk: s === "apisdk", isSettings: s === "settings", isAiSetup: s === "aisetup",
+      events, webhooks, deliveries, contracts, logs, endpoints, replayItems,
+      replaySel: { name: replaySelName },
+      sel: events[0],
+      replayIdle: this.state.replay === "idle", replayRunning: this.state.replay === "running", replayDone: this.state.replay === "done",
+      goEvents: () => this.go("events"), goWebhooks: () => this.go("webhooks"),
+      goReplay: () => this.go("replay"), goLogs: () => this.go("logs"), goDiagnostics: () => this.go("diagnostics")
+    };
+  }
+}
+</script>
+</body>
+</html>

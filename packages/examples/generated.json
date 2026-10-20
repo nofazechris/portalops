@@ -1,0 +1,826 @@
+{
+ "compiler": {
+  "name": "solc-js",
+  "version": "0.8.37+commit.f401782d.Emscripten.clang",
+  "evmVersion": "paris",
+  "optimizerRuns": 200
+ },
+ "contracts": {
+  "quest": {
+   "name": "PortalQuest",
+   "source": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.24;\n\n/// @title PortalQuest — demo contract for PortalOps\n/// @notice Exists only to emit verifiable events on the Portaldot V3.0 testnet.\n///         It holds no value and issues no tokens: \"rewards\" are recorded as events.\ncontract PortalQuest {\n    struct Quest {\n        address creator;\n        string title;\n        bool exists;\n    }\n\n    uint256 public questCount;\n    uint256 public constant MAX_TITLE_BYTES = 64;\n    uint256 public constant MAX_REWARD = 1_000;\n\n    mapping(uint256 => Quest) public quests;\n    mapping(uint256 => mapping(address => bool)) public completed;\n\n    event QuestCreated(uint256 indexed questId, address indexed creator, string title);\n    event QuestCompleted(uint256 indexed questId, address indexed participant);\n    event RewardIssued(uint256 indexed questId, address indexed recipient, uint256 amount);\n\n    error TitleTooLong();\n    error UnknownQuest();\n    error AlreadyCompleted();\n    error NotCreator();\n    error RewardTooLarge();\n    error NotCompleted();\n\n    function createQuest(string calldata title) external returns (uint256 questId) {\n        if (bytes(title).length > MAX_TITLE_BYTES) revert TitleTooLong();\n        questId = ++questCount;\n        quests[questId] = Quest({creator: msg.sender, title: title, exists: true});\n        emit QuestCreated(questId, msg.sender, title);\n    }\n\n    function completeQuest(uint256 questId) external {\n        if (!quests[questId].exists) revert UnknownQuest();\n        if (completed[questId][msg.sender]) revert AlreadyCompleted();\n        completed[questId][msg.sender] = true;\n        emit QuestCompleted(questId, msg.sender);\n    }\n\n    /// @notice Records a test reward for a participant who completed the quest. Creator only.\n    function issueReward(uint256 questId, address recipient, uint256 amount) external {\n        Quest storage q = quests[questId];\n        if (!q.exists) revert UnknownQuest();\n        if (q.creator != msg.sender) revert NotCreator();\n        if (!completed[questId][recipient]) revert NotCompleted();\n        if (amount > MAX_REWARD) revert RewardTooLarge();\n        emit RewardIssued(questId, recipient, amount);\n    }\n}\n",
+   "abi": [
+    {
+     "inputs": [],
+     "name": "AlreadyCompleted",
+     "type": "error"
+    },
+    {
+     "inputs": [],
+     "name": "NotCompleted",
+     "type": "error"
+    },
+    {
+     "inputs": [],
+     "name": "NotCreator",
+     "type": "error"
+    },
+    {
+     "inputs": [],
+     "name": "RewardTooLarge",
+     "type": "error"
+    },
+    {
+     "inputs": [],
+     "name": "TitleTooLong",
+     "type": "error"
+    },
+    {
+     "inputs": [],
+     "name": "UnknownQuest",
+     "type": "error"
+    },
+    {
+     "anonymous": false,
+     "inputs": [
+      {
+       "indexed": true,
+       "internalType": "uint256",
+       "name": "questId",
+       "type": "uint256"
+      },
+      {
+       "indexed": true,
+       "internalType": "address",
+       "name": "participant",
+       "type": "address"
+      }
+     ],
+     "name": "QuestCompleted",
+     "type": "event"
+    },
+    {
+     "anonymous": false,
+     "inputs": [
+      {
+       "indexed": true,
+       "internalType": "uint256",
+       "name": "questId",
+       "type": "uint256"
+      },
+      {
+       "indexed": true,
+       "internalType": "address",
+       "name": "creator",
+       "type": "address"
+      },
+      {
+       "indexed": false,
+       "internalType": "string",
+       "name": "title",
+       "type": "string"
+      }
+     ],
+     "name": "QuestCreated",
+     "type": "event"
+    },
+    {
+     "anonymous": false,
+     "inputs": [
+      {
+       "indexed": true,
+       "internalType": "uint256",
+       "name": "questId",
+       "type": "uint256"
+      },
+      {
+       "indexed": true,
+       "internalType": "address",
+       "name": "recipient",
+       "type": "address"
+      },
+      {
+       "indexed": false,
+       "internalType": "uint256",
+       "name": "amount",
+       "type": "uint256"
+      }
+     ],
+     "name": "RewardIssued",
+     "type": "event"
+    },
+    {
+     "inputs": [],
+     "name": "MAX_REWARD",
+     "outputs": [
+      {
+       "internalType": "uint256",
+       "name": "",
+       "type": "uint256"
+      }
+     ],
+     "stateMutability": "view",
+     "type": "function"
+    },
+    {
+     "inputs": [],
+     "name": "MAX_TITLE_BYTES",
+     "outputs": [
+      {
+       "internalType": "uint256",
+       "name": "",
+       "type": "uint256"
+      }
+     ],
+     "stateMutability": "view",
+     "type": "function"
+    },
+    {
+     "inputs": [
+      {
+       "internalType": "uint256",
+       "name": "questId",
+       "type": "uint256"
+      }
+     ],
+     "name": "completeQuest",
+     "outputs": [],
+     "stateMutability": "nonpayable",
+     "type": "function"
+    },
+    {
+     "inputs": [
+      {
+       "internalType": "uint256",
+       "name": "",
+       "type": "uint256"
+      },
+      {
+       "internalType": "address",
+       "name": "",
+       "type": "address"
+      }
+     ],
+     "name": "completed",
+     "outputs": [
+      {
+       "internalType": "bool",
+       "name": "",
+       "type": "bool"
+      }
+     ],
+     "stateMutability": "view",
+     "type": "function"
+    },
+    {
+     "inputs": [
+      {
+       "internalType": "string",
+       "name": "title",
+       "type": "string"
+      }
+     ],
+     "name": "createQuest",
+     "outputs": [
+      {
+       "internalType": "uint256",
+       "name": "questId",
+       "type": "uint256"
+      }
+     ],
+     "stateMutability": "nonpayable",
+     "type": "function"
+    },
+    {
+     "inputs": [
+      {
+       "internalType": "uint256",
+       "name": "questId",
+       "type": "uint256"
+      },
+      {
+       "internalType": "address",
+       "name": "recipient",
+       "type": "address"
+      },
+      {
+       "internalType": "uint256",
+       "name": "amount",
+       "type": "uint256"
+      }
+     ],
+     "name": "issueReward",
+     "outputs": [],
+     "stateMutability": "nonpayable",
+     "type": "function"
+    },
+    {
+     "inputs": [],
+     "name": "questCount",
+     "outputs": [
+      {
+       "internalType": "uint256",
+       "name": "",
+       "type": "uint256"
+      }
+     ],
+     "stateMutability": "view",
+     "type": "function"
+    },
+    {
+     "inputs": [
+      {
+       "internalType": "uint256",
+       "name": "",
+       "type": "uint256"
+      }
+     ],
+     "name": "quests",
+     "outputs": [
+      {
+       "internalType": "address",
+       "name": "creator",
+       "type": "address"
+      },
+      {
+       "internalType": "string",
+       "name": "title",
+       "type": "string"
+      },
+      {
+       "internalType": "bool",
+       "name": "exists",
+       "type": "bool"
+      }
+     ],
+     "stateMutability": "view",
+     "type": "function"
+    }
+   ],
+   "bytecode": "0x6080604052348015600f57600080fd5b506108728061001f6000396000f3fe608060405234801561001057600080fd5b50600436106100885760003560e01c8063918360031161005b57806391836003146100da578063e085f980146100e2578063fbcd713f14610104578063ffc4ed251461011757600080fd5b80630e1505e01461008d5780633970ab43146100a9578063528be0a9146100b2578063823636da146100c7575b600080fd5b6100966103e881565b6040519081526020015b60405180910390f35b61009660005481565b6100c56100c0366004610506565b610155565b005b6100966100d536600461051f565b610213565b610096604081565b6100f56100f0366004610506565b610340565b6040516100a093929190610593565b6100c5610112366004610615565b6103f9565b61014561012536600461064b565b600260209081526000928352604080842090915290825290205460ff1681565b60405190151581526020016100a0565b60008181526001602052604090206002015460ff1661018757604051635396fac960e11b815260040160405180910390fd5b600081815260026020908152604080832033845290915290205460ff16156101c25760405163195332a560e01b815260040160405180910390fd5b6000818152600260209081526040808320338085529252808320805460ff1916600117905551909183917f1f830b1eb1d06c99fa9684f55e907da9251648000c05474005094c53869dbf609190a350565b60006040821115610237576040516324a25c5760e01b815260040160405180910390fd5b600080815461024590610677565b91905081905590506040518060600160405280336001600160a01b0316815260200184848080601f01602080910402602001604051908101604052809392919081815260200183838082843760009201829052509385525050600160209384018190528583528084526040909220845181546001600160a01b0319166001600160a01b0390911617815592840151918301916102e291508261074a565b50604091820151600291909101805460ff191691151591909117905551339082907fe88a2bb97a8694468aae6d04865a326ab908c15edcb1493973de8264c691e05e90610332908790879061080d565b60405180910390a392915050565b6001602081905260009182526040909120805491810180546001600160a01b039093169261036d906106b4565b80601f0160208091040260200160405190810160405280929190818152602001828054610399906106b4565b80156103e65780601f106103bb576101008083540402835291602001916103e6565b820191906000526020600020905b8154815290600101906020018083116103c957829003601f168201915b5050506002909301549192505060ff1683565b6000838152600160205260409020600281015460ff1661042c57604051635396fac960e11b815260040160405180910390fd5b80546001600160a01b03163314610456576040516393687c0b60e01b815260040160405180910390fd5b60008481526002602090815260408083206001600160a01b038716845290915290205460ff16610499576040516317f5db8160e21b815260040160405180910390fd5b6103e88211156104bc576040516371009bf760e01b815260040160405180910390fd5b826001600160a01b0316847fe0cd90766c15f7b4f6005cfeac58557360ca7dad41abeeb585e961cda38da3c1846040516104f891815260200190565b60405180910390a350505050565b60006020828403121561051857600080fd5b5035919050565b6000806020838503121561053257600080fd5b823567ffffffffffffffff81111561054957600080fd5b8301601f8101851361055a57600080fd5b803567ffffffffffffffff81111561057157600080fd5b85602082840101111561058357600080fd5b6020919091019590945092505050565b60018060a01b0384168152606060208201526000835180606084015260005b818110156105cf57602081870181015160808684010152016105b2565b506000608082850101526080601f19601f8301168401019150508215156040830152949350505050565b80356001600160a01b038116811461061057600080fd5b919050565b60008060006060848603121561062a57600080fd5b8335925061063a602085016105f9565b929592945050506040919091013590565b6000806040838503121561065e57600080fd5b8235915061066e602084016105f9565b90509250929050565b60006001820161069757634e487b7160e01b600052601160045260246000fd5b5060010190565b634e487b7160e01b600052604160045260246000fd5b600181811c908216806106c857607f821691505b6020821081036106e857634e487b7160e01b600052602260045260246000fd5b50919050565b601f821115610745578282111561074557806000526020600020601f840160051c602085101561071c575060005b90810190601f840160051c0360005b818110156107415760008382015560010161072b565b5050505b505050565b815167ffffffffffffffff8111156107645761076461069e565b6107788161077284546106b4565b846106ee565b6020601f8211600181146107ac57600083156107945750848201515b600019600385901b1c1916600184901b178455610806565b600084815260208120601f198516915b828110156107dc57878501518255602094850194600190920191016107bc565b50848210156107fa5786840151600019600387901b60f8161c191681555b505060018360011b0184555b5050505050565b60208152816020820152818360408301376000818301604090810191909152601f909201601f1916010191905056fea26469706673582212206394588c3f254c99a7850e2a8e80027d93570de0aca9754b8aac8dc0b617812264736f6c63430008250033"
+  },
+  "token": {
+   "name": "PortalToken",
+   "source": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.24;\n\n/// @title PortalToken: a minimal fungible token (ERC-20 shaped) for trying PortalOps on transfers.\n/// @notice Demo only. It exists to emit Transfer / Approval events you can watch, filter and replay.\ncontract PortalToken {\n    string public constant name = \"Portal Demo Token\";\n    string public constant symbol = \"PDT\";\n    uint8 public constant decimals = 18;\n    uint256 public constant MAX_SUPPLY = 10_000_000 ether;\n\n    address public immutable owner;\n    uint256 public totalSupply;\n    mapping(address => uint256) public balanceOf;\n    mapping(address => mapping(address => uint256)) public allowance;\n\n    event Transfer(address indexed from, address indexed to, uint256 value);\n    event Approval(address indexed owner, address indexed spender, uint256 value);\n\n    error NotOwner();\n    error InsufficientBalance();\n    error InsufficientAllowance();\n    error SupplyCapExceeded();\n    error ZeroAddress();\n\n    constructor() {\n        owner = msg.sender;\n        _mint(msg.sender, 1_000_000 ether);\n    }\n\n    function mint(address to, uint256 amount) external {\n        if (msg.sender != owner) revert NotOwner();\n        _mint(to, amount);\n    }\n\n    function transfer(address to, uint256 amount) external returns (bool) {\n        _transfer(msg.sender, to, amount);\n        return true;\n    }\n\n    function approve(address spender, uint256 amount) external returns (bool) {\n        allowance[msg.sender][spender] = amount;\n        emit Approval(msg.sender, spender, amount);\n        return true;\n    }\n\n    function transferFrom(address from, address to, uint256 amount) external returns (bool) {\n        uint256 allowed = allowance[from][msg.sender];\n        if (allowed < amount) revert InsufficientAllowance();\n        if (allowed != type(uint256).max) allowance[from][msg.sender] = allowed - amount;\n        _transfer(from, to, amount);\n        return true;\n    }\n\n    function _transfer(address from, address to, uint256 amount) private {\n        if (to == address(0)) revert ZeroAddress();\n        if (balanceOf[from] < amount) revert InsufficientBalance();\n        unchecked {\n            balanceOf[from] -= amount;\n            balanceOf[to] += amount;\n        }\n        emit Transfer(from, to, amount);\n    }\n\n    function _mint(address to, uint256 amount) private {\n        if (to == address(0)) revert ZeroAddress();\n        if (totalSupply + amount > MAX_SUPPLY) revert SupplyCapExceeded();\n        totalSupply += amount;\n        balanceOf[to] += amount;\n        emit Transfer(address(0), to, amount);\n    }\n}\n",
+   "abi": [
+    {
+     "inputs": [],
+     "stateMutability": "nonpayable",
+     "type": "constructor"
+    },
+    {
+     "inputs": [],
+     "name": "InsufficientAllowance",
+     "type": "error"
+    },
+    {
+     "inputs": [],
+     "name": "InsufficientBalance",
+     "type": "error"
+    },
+    {
+     "inputs": [],
+     "name": "NotOwner",
+     "type": "error"
+    },
+    {
+     "inputs": [],
+     "name": "SupplyCapExceeded",
+     "type": "error"
+    },
+    {
+     "inputs": [],
+     "name": "ZeroAddress",
+     "type": "error"
+    },
+    {
+     "anonymous": false,
+     "inputs": [
+      {
+       "indexed": true,
+       "internalType": "address",
+       "name": "owner",
+       "type": "address"
+      },
+      {
+       "indexed": true,
+       "internalType": "address",
+       "name": "spender",
+       "type": "address"
+      },
+      {
+       "indexed": false,
+       "internalType": "uint256",
+       "name": "value",
+       "type": "uint256"
+      }
+     ],
+     "name": "Approval",
+     "type": "event"
+    },
+    {
+     "anonymous": false,
+     "inputs": [
+      {
+       "indexed": true,
+       "internalType": "address",
+       "name": "from",
+       "type": "address"
+      },
+      {
+       "indexed": true,
+       "internalType": "address",
+       "name": "to",
+       "type": "address"
+      },
+      {
+       "indexed": false,
+       "internalType": "uint256",
+       "name": "value",
+       "type": "uint256"
+      }
+     ],
+     "name": "Transfer",
+     "type": "event"
+    },
+    {
+     "inputs": [],
+     "name": "MAX_SUPPLY",
+     "outputs": [
+      {
+       "internalType": "uint256",
+       "name": "",
+       "type": "uint256"
+      }
+     ],
+     "stateMutability": "view",
+     "type": "function"
+    },
+    {
+     "inputs": [
+      {
+       "internalType": "address",
+       "name": "",
+       "type": "address"
+      },
+      {
+       "internalType": "address",
+       "name": "",
+       "type": "address"
+      }
+     ],
+     "name": "allowance",
+     "outputs": [
+      {
+       "internalType": "uint256",
+       "name": "",
+       "type": "uint256"
+      }
+     ],
+     "stateMutability": "view",
+     "type": "function"
+    },
+    {
+     "inputs": [
+      {
+       "internalType": "address",
+       "name": "spender",
+       "type": "address"
+      },
+      {
+       "internalType": "uint256",
+       "name": "amount",
+       "type": "uint256"
+      }
+     ],
+     "name": "approve",
+     "outputs": [
+      {
+       "internalType": "bool",
+       "name": "",
+       "type": "bool"
+      }
+     ],
+     "stateMutability": "nonpayable",
+     "type": "function"
+    },
+    {
+     "inputs": [
+      {
+       "internalType": "address",
+       "name": "",
+       "type": "address"
+      }
+     ],
+     "name": "balanceOf",
+     "outputs": [
+      {
+       "internalType": "uint256",
+       "name": "",
+       "type": "uint256"
+      }
+     ],
+     "stateMutability": "view",
+     "type": "function"
+    },
+    {
+     "inputs": [],
+     "name": "decimals",
+     "outputs": [
+      {
+       "internalType": "uint8",
+       "name": "",
+       "type": "uint8"
+      }
+     ],
+     "stateMutability": "view",
+     "type": "function"
+    },
+    {
+     "inputs": [
+      {
+       "internalType": "address",
+       "name": "to",
+       "type": "address"
+      },
+      {
+       "internalType": "uint256",
+       "name": "amount",
+       "type": "uint256"
+      }
+     ],
+     "name": "mint",
+     "outputs": [],
+     "stateMutability": "nonpayable",
+     "type": "function"
+    },
+    {
+     "inputs": [],
+     "name": "name",
+     "outputs": [
+      {
+       "internalType": "string",
+       "name": "",
+       "type": "string"
+      }
+     ],
+     "stateMutability": "view",
+     "type": "function"
+    },
+    {
+     "inputs": [],
+     "name": "owner",
+     "outputs": [
+      {
+       "internalType": "address",
+       "name": "",
+       "type": "address"
+      }
+     ],
+     "stateMutability": "view",
+     "type": "function"
+    },
+    {
+     "inputs": [],
+     "name": "symbol",
+     "outputs": [
+      {
+       "internalType": "string",
+       "name": "",
+       "type": "string"
+      }
+     ],
+     "stateMutability": "view",
+     "type": "function"
+    },
+    {
+     "inputs": [],
+     "name": "totalSupply",
+     "outputs": [
+      {
+       "internalType": "uint256",
+       "name": "",
+       "type": "uint256"
+      }
+     ],
+     "stateMutability": "view",
+     "type": "function"
+    },
+    {
+     "inputs": [
+      {
+       "internalType": "address",
+       "name": "to",
+       "type": "address"
+      },
+      {
+       "internalType": "uint256",
+       "name": "amount",
+       "type": "uint256"
+      }
+     ],
+     "name": "transfer",
+     "outputs": [
+      {
+       "internalType": "bool",
+       "name": "",
+       "type": "bool"
+      }
+     ],
+     "stateMutability": "nonpayable",
+     "type": "function"
+    },
+    {
+     "inputs": [
+      {
+       "internalType": "address",
+       "name": "from",
+       "type": "address"
+      },
+      {
+       "internalType": "address",
+       "name": "to",
+       "type": "address"
+      },
+      {
+       "internalType": "uint256",
+       "name": "amount",
+       "type": "uint256"
+      }
+     ],
+     "name": "transferFrom",
+     "outputs": [
+      {
+       "internalType": "bool",
+       "name": "",
+       "type": "bool"
+      }
+     ],
+     "stateMutability": "nonpayable",
+     "type": "function"
+    }
+   ],
+   "bytecode": "0x60a060405234801561001057600080fd5b5033608081905261002b9069d3c21bcecceda1000000610030565b61013f565b6001600160a01b0382166100575760405163d92e233d60e01b815260040160405180910390fd5b6a084595161401484a000000816000546100719190610118565b111561009057604051637ac7b99d60e11b815260040160405180910390fd5b806000808282546100a19190610118565b90915550506001600160a01b038216600090815260016020526040812080548392906100ce908490610118565b90915550506040518181526001600160a01b038316906000907fddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef9060200160405180910390a35050565b8082018082111561013957634e487b7160e01b600052601160045260246000fd5b92915050565b608051610708610161600039600081816101b2015261035701526107086000f3fe608060405234801561001057600080fd5b50600436106100b45760003560e01c806340c10f191161007157806340c10f191461017857806370a082311461018d5780638da5cb5b146101ad57806395d89b41146101ec578063a9059cbb1461020e578063dd62ed3e1461022157600080fd5b806306fdde03146100b9578063095ea7b3146100ff57806318160ddd1461012257806323b872dd14610139578063313ce5671461014c57806332cb6b0c14610166575b600080fd5b6100e9604051806040016040528060118152602001702837b93a30b6102232b6b7902a37b5b2b760791b81525081565b6040516100f69190610570565b60405180910390f35b61011261010d3660046105da565b61024c565b60405190151581526020016100f6565b61012b60005481565b6040519081526020016100f6565b610112610147366004610604565b6102b9565b610154601281565b60405160ff90911681526020016100f6565b61012b6a084595161401484a00000081565b61018b6101863660046105da565b61034c565b005b61012b61019b366004610641565b60016020526000908152604090205481565b6101d47f000000000000000000000000000000000000000000000000000000000000000081565b6040516001600160a01b0390911681526020016100f6565b6100e96040518060400160405280600381526020016214111560ea1b81525081565b61011261021c3660046105da565b6103a3565b61012b61022f366004610663565b600260209081526000928352604080842090915290825290205481565b3360008181526002602090815260408083206001600160a01b038716808552925280832085905551919290917f8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925906102a79086815260200190565b60405180910390a35060015b92915050565b6001600160a01b0383166000908152600260209081526040808320338452909152812054828110156102fe576040516313be252b60e01b815260040160405180910390fd5b60001981146103365761031183826106ac565b6001600160a01b03861660009081526002602090815260408083203384529091529020555b6103418585856103b9565b506001949350505050565b336001600160a01b037f00000000000000000000000000000000000000000000000000000000000000001614610395576040516330cd747160e01b815260040160405180910390fd5b61039f8282610488565b5050565b60006103b03384846103b9565b50600192915050565b6001600160a01b0382166103e05760405163d92e233d60e01b815260040160405180910390fd5b6001600160a01b03831660009081526001602052604090205481111561041957604051631e9acf1760e31b815260040160405180910390fd5b6001600160a01b03808416600081815260016020526040808220805486900390559285168082529083902080548501905591517fddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef9061047b9085815260200190565b60405180910390a3505050565b6001600160a01b0382166104af5760405163d92e233d60e01b815260040160405180910390fd5b6a084595161401484a000000816000546104c991906106bf565b11156104e857604051637ac7b99d60e11b815260040160405180910390fd5b806000808282546104f991906106bf565b90915550506001600160a01b038216600090815260016020526040812080548392906105269084906106bf565b90915550506040518181526001600160a01b038316906000907fddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef9060200160405180910390a35050565b602081526000825180602084015260005b8181101561059e5760208186018101516040868401015201610581565b506000604082850101526040601f19601f83011684010191505092915050565b80356001600160a01b03811681146105d557600080fd5b919050565b600080604083850312156105ed57600080fd5b6105f6836105be565b946020939093013593505050565b60008060006060848603121561061957600080fd5b610622846105be565b9250610630602085016105be565b929592945050506040919091013590565b60006020828403121561065357600080fd5b61065c826105be565b9392505050565b6000806040838503121561067657600080fd5b61067f836105be565b915061068d602084016105be565b90509250929050565b634e487b7160e01b600052601160045260246000fd5b818103818111156102b3576102b3610696565b808201808211156102b3576102b361069656fea2646970667358221220eea3707c358ee294e91759f8cfbbd9dcd401e2e74435af533bd8d9b5a56796d564736f6c63430008250033"
+  },
+  "bounty": {
+   "name": "PortalBounty",
+   "source": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.24;\n\n/// @title PortalBounty: post a task, submit work, approve it. A four-step lifecycle that makes a good webhook story.\n/// @notice Demo only. It holds no value: rewards are recorded as numbers in events, like PortalQuest.\ncontract PortalBounty {\n    enum Status { None, Open, Submitted, Approved, Cancelled }\n\n    struct Bounty {\n        address poster;\n        address hunter;\n        uint256 reward;\n        Status status;\n    }\n\n    uint256 public bountyCount;\n    uint256 public constant MAX_TEXT_BYTES = 140;\n    mapping(uint256 => Bounty) public bounties;\n\n    event BountyPosted(uint256 indexed bountyId, address indexed poster, string title, uint256 reward);\n    event WorkSubmitted(uint256 indexed bountyId, address indexed hunter, string proof);\n    event BountyApproved(uint256 indexed bountyId, address indexed hunter, uint256 reward);\n    event BountyCancelled(uint256 indexed bountyId, address indexed poster);\n\n    error TextTooLong();\n    error UnknownBounty();\n    error WrongStatus();\n    error NotPoster();\n    error PosterCannotSubmit();\n\n    function postBounty(string calldata title, uint256 reward) external returns (uint256 bountyId) {\n        if (bytes(title).length > MAX_TEXT_BYTES) revert TextTooLong();\n        bountyId = ++bountyCount;\n        bounties[bountyId] = Bounty({poster: msg.sender, hunter: address(0), reward: reward, status: Status.Open});\n        emit BountyPosted(bountyId, msg.sender, title, reward);\n    }\n\n    function submitWork(uint256 bountyId, string calldata proof) external {\n        Bounty storage b = _get(bountyId);\n        if (b.status != Status.Open) revert WrongStatus();\n        if (b.poster == msg.sender) revert PosterCannotSubmit();\n        if (bytes(proof).length > MAX_TEXT_BYTES) revert TextTooLong();\n        b.hunter = msg.sender;\n        b.status = Status.Submitted;\n        emit WorkSubmitted(bountyId, msg.sender, proof);\n    }\n\n    function approve(uint256 bountyId) external {\n        Bounty storage b = _get(bountyId);\n        if (b.poster != msg.sender) revert NotPoster();\n        if (b.status != Status.Submitted) revert WrongStatus();\n        b.status = Status.Approved;\n        emit BountyApproved(bountyId, b.hunter, b.reward);\n    }\n\n    function cancel(uint256 bountyId) external {\n        Bounty storage b = _get(bountyId);\n        if (b.poster != msg.sender) revert NotPoster();\n        if (b.status != Status.Open) revert WrongStatus();\n        b.status = Status.Cancelled;\n        emit BountyCancelled(bountyId, msg.sender);\n    }\n\n    function _get(uint256 bountyId) private view returns (Bounty storage b) {\n        b = bounties[bountyId];\n        if (b.status == Status.None) revert UnknownBounty();\n    }\n}\n",
+   "abi": [
+    {
+     "inputs": [],
+     "name": "NotPoster",
+     "type": "error"
+    },
+    {
+     "inputs": [],
+     "name": "PosterCannotSubmit",
+     "type": "error"
+    },
+    {
+     "inputs": [],
+     "name": "TextTooLong",
+     "type": "error"
+    },
+    {
+     "inputs": [],
+     "name": "UnknownBounty",
+     "type": "error"
+    },
+    {
+     "inputs": [],
+     "name": "WrongStatus",
+     "type": "error"
+    },
+    {
+     "anonymous": false,
+     "inputs": [
+      {
+       "indexed": true,
+       "internalType": "uint256",
+       "name": "bountyId",
+       "type": "uint256"
+      },
+      {
+       "indexed": true,
+       "internalType": "address",
+       "name": "hunter",
+       "type": "address"
+      },
+      {
+       "indexed": false,
+       "internalType": "uint256",
+       "name": "reward",
+       "type": "uint256"
+      }
+     ],
+     "name": "BountyApproved",
+     "type": "event"
+    },
+    {
+     "anonymous": false,
+     "inputs": [
+      {
+       "indexed": true,
+       "internalType": "uint256",
+       "name": "bountyId",
+       "type": "uint256"
+      },
+      {
+       "indexed": true,
+       "internalType": "address",
+       "name": "poster",
+       "type": "address"
+      }
+     ],
+     "name": "BountyCancelled",
+     "type": "event"
+    },
+    {
+     "anonymous": false,
+     "inputs": [
+      {
+       "indexed": true,
+       "internalType": "uint256",
+       "name": "bountyId",
+       "type": "uint256"
+      },
+      {
+       "indexed": true,
+       "internalType": "address",
+       "name": "poster",
+       "type": "address"
+      },
+      {
+       "indexed": false,
+       "internalType": "string",
+       "name": "title",
+       "type": "string"
+      },
+      {
+       "indexed": false,
+       "internalType": "uint256",
+       "name": "reward",
+       "type": "uint256"
+      }
+     ],
+     "name": "BountyPosted",
+     "type": "event"
+    },
+    {
+     "anonymous": false,
+     "inputs": [
+      {
+       "indexed": true,
+       "internalType": "uint256",
+       "name": "bountyId",
+       "type": "uint256"
+      },
+      {
+       "indexed": true,
+       "internalType": "address",
+       "name": "hunter",
+       "type": "address"
+      },
+      {
+       "indexed": false,
+       "internalType": "string",
+       "name": "proof",
+       "type": "string"
+      }
+     ],
+     "name": "WorkSubmitted",
+     "type": "event"
+    },
+    {
+     "inputs": [],
+     "name": "MAX_TEXT_BYTES",
+     "outputs": [
+      {
+       "internalType": "uint256",
+       "name": "",
+       "type": "uint256"
+      }
+     ],
+     "stateMutability": "view",
+     "type": "function"
+    },
+    {
+     "inputs": [
+      {
+       "internalType": "uint256",
+       "name": "bountyId",
+       "type": "uint256"
+      }
+     ],
+     "name": "approve",
+     "outputs": [],
+     "stateMutability": "nonpayable",
+     "type": "function"
+    },
+    {
+     "inputs": [
+      {
+       "internalType": "uint256",
+       "name": "",
+       "type": "uint256"
+      }
+     ],
+     "name": "bounties",
+     "outputs": [
+      {
+       "internalType": "address",
+       "name": "poster",
+       "type": "address"
+      },
+      {
+       "internalType": "address",
+       "name": "hunter",
+       "type": "address"
+      },
+      {
+       "internalType": "uint256",
+       "name": "reward",
+       "type": "uint256"
+      },
+      {
+       "internalType": "enum PortalBounty.Status",
+       "name": "status",
+       "type": "uint8"
+      }
+     ],
+     "stateMutability": "view",
+     "type": "function"
+    },
+    {
+     "inputs": [],
+     "name": "bountyCount",
+     "outputs": [
+      {
+       "internalType": "uint256",
+       "name": "",
+       "type": "uint256"
+      }
+     ],
+     "stateMutability": "view",
+     "type": "function"
+    },
+    {
+     "inputs": [
+      {
+       "internalType": "uint256",
+       "name": "bountyId",
+       "type": "uint256"
+      }
+     ],
+     "name": "cancel",
+     "outputs": [],
+     "stateMutability": "nonpayable",
+     "type": "function"
+    },
+    {
+     "inputs": [
+      {
+       "internalType": "string",
+       "name": "title",
+       "type": "string"
+      },
+      {
+       "internalType": "uint256",
+       "name": "reward",
+       "type": "uint256"
+      }
+     ],
+     "name": "postBounty",
+     "outputs": [
+      {
+       "internalType": "uint256",
+       "name": "bountyId",
+       "type": "uint256"
+      }
+     ],
+     "stateMutability": "nonpayable",
+     "type": "function"
+    },
+    {
+     "inputs": [
+      {
+       "internalType": "uint256",
+       "name": "bountyId",
+       "type": "uint256"
+      },
+      {
+       "internalType": "string",
+       "name": "proof",
+       "type": "string"
+      }
+     ],
+     "name": "submitWork",
+     "outputs": [],
+     "stateMutability": "nonpayable",
+     "type": "function"
+    }
+   ],
+   "bytecode": "0x6080604052348015600f57600080fd5b506107588061001f6000396000f3fe608060405234801561001057600080fd5b506004361061007d5760003560e01c8063b759f9541161005b578063b759f954146100bb578063da8accf9146100ce578063dc2f8744146100e1578063f18f761b1461013857600080fd5b80630effdd26146100825780633e362c961461009d57806340e58ee5146100a6575b600080fd5b61008a608c81565b6040519081526020015b60405180910390f35b61008a60005481565b6100b96100b4366004610536565b61014b565b005b6100b96100c9366004610536565b6101fc565b6100b96100dc366004610598565b6102cc565b6101286100ef366004610536565b600160208190526000918252604090912080549181015460028201546003909201546001600160a01b0393841693909116919060ff1684565b60405161009494939291906105fa565b61008a610146366004610646565b6103c9565b6000610156826104eb565b80549091506001600160a01b0316331461018357604051630edd024760e11b815260040160405180910390fd5b6001600382015460ff16600481111561019e5761019e6105e4565b146101bc57604051638e78f0cb60e01b815260040160405180910390fd5b60038101805460ff19166004179055604051339083907fbe34663bc2803ca9be398afdbd7e0bd537378360b743b76b170e3421fbe3845090600090a35050565b6000610207826104eb565b80549091506001600160a01b0316331461023457604051630edd024760e11b815260040160405180910390fd5b6002600382015460ff16600481111561024f5761024f6105e4565b1461026d57604051638e78f0cb60e01b815260040160405180910390fd5b6003818101805460ff19169091179055600181015460028201546040519081526001600160a01b039091169083907f3461928d99d63b85da6f68825e7685d5fdde0b639ba59e41bfc043a7282794c49060200160405180910390a35050565b60006102d7846104eb565b90506001600382015460ff1660048111156102f4576102f46105e4565b1461031257604051638e78f0cb60e01b815260040160405180910390fd5b8054336001600160a01b039091160361033e5760405163c72b86c760e01b815260040160405180910390fd5b608c8211156103605760405163d88051b560e01b815260040160405180910390fd5b600181018054336001600160a01b0319909116811790915560038201805460ff1916600217905560405185907fd5d9bc882dc95f198786a74e52a0b87e49a07c80921b74821ba374339e394d30906103bb90879087906106bb565b60405180910390a350505050565b6000608c8311156103ed5760405163d88051b560e01b815260040160405180910390fd5b60008081546103fb906106d7565b918290555060408051608081018252338152600060208201529081018490529091506060810160019052600082815260016020818152604092839020845181546001600160a01b03199081166001600160a01b0392831617835592860151828501805490941691161790915591830151600283015560608301516003830180549192909160ff191690836004811115610496576104966105e4565b0217905550905050336001600160a01b0316817f61e8a38ccd4a18cfad06023a19fdd46a2869d6058e1cbe52caab0dcfc6730bb38686866040516104dc939291906106fe565b60405180910390a39392505050565b600081815260016020526040812090600382015460ff166004811115610513576105136105e4565b0361053157604051633c58dd7f60e11b815260040160405180910390fd5b919050565b60006020828403121561054857600080fd5b5035919050565b60008083601f84011261056157600080fd5b50813567ffffffffffffffff81111561057957600080fd5b60208301915083602082850101111561059157600080fd5b9250929050565b6000806000604084860312156105ad57600080fd5b83359250602084013567ffffffffffffffff8111156105cb57600080fd5b6105d78682870161054f565b9497909650939450505050565b634e487b7160e01b600052602160045260246000fd5b6001600160a01b0385811682528416602082015260408101839052608081016005831061063757634e487b7160e01b600052602160045260246000fd5b82606083015295945050505050565b60008060006040848603121561065b57600080fd5b833567ffffffffffffffff81111561067257600080fd5b61067e8682870161054f565b909790965060209590950135949350505050565b81835281816020850137506000828201602090810191909152601f909101601f19169091010190565b6020815260006106cf602083018486610692565b949350505050565b6000600182016106f757634e487b7160e01b600052601160045260246000fd5b5060010190565b604081526000610712604083018587610692565b905082602083015294935050505056fea2646970667358221220ab407e657bf6e426f13141a8a7c69ce43507ddddfd7685af4a0aa0897f1c36d064736f6c63430008250033"
+  }
+ }
+}
