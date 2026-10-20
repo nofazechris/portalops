@@ -386,3 +386,31 @@ pre { margin: 0; }
 .dropdown-label { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--faint); padding: 8px 10px 4px; }
 .dropdown .item.project-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .project-check { color: var(--accent); font-size: 13px; }
+
+/* ---------- collapsible sidebar (desktop): icon rail ---------- */
+.collapse-btn {
+  display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; margin-right: 10px; border-radius: 9px;
+  border: 1px solid #242424; background: #121212; color: var(--fg-3); cursor: pointer; flex-shrink: 0;
+}
+.collapse-btn:hover { color: var(--fg); border-color: #333; }
+.collapse-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.topbar > .collapse-btn { margin-right: 10px; }
+.topbar { justify-content: flex-start; }
+.topbar .topbar-right { margin-left: auto; }
+
+@media (min-width: 901px) {
+  .shell.collapsed { grid-template-columns: 68px minmax(0, 1fr); }
+  .shell.collapsed .sidebar { padding: 18px 10px; align-items: stretch; }
+  .shell.collapsed .brand { justify-content: center; padding: 4px 0 18px; }
+  .shell.collapsed .brand-name, .shell.collapsed .nav-item .label { display: none; }
+  .shell.collapsed .nav { gap: 6px; }
+  .shell.collapsed .nav-label { font-size: 0; height: 1px; padding: 0; margin: 8px 10px 6px; background: #1b1b1b; }
+  .shell.collapsed .nav-item { justify-content: center; padding: 11px 0; position: relative; gap: 0; }
+  .shell.collapsed .nav-item .bar { position: absolute; left: -10px; }
+  .shell.collapsed .nav-item .glyph { font-size: 15px; width: auto; }
+  .shell.collapsed .api-status { justify-content: center; padding: 12px 0; }
+  .shell.collapsed .api-status > div { display: none; }
+}
+@media (max-width: 900px) {
+  .collapse-btn { display: none; }
+}

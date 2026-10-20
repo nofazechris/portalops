@@ -14,6 +14,7 @@ import AiSetup from "../screens/AiSetup.jsx";
 import { Logs, Contracts, Automations, Diagnostics, ApiSdk, Settings } from "../screens/Misc.jsx";
 
 const TOUR_KEY = "pops_tour_done";
+const SIDEBAR_KEY = "pops_sidebar_collapsed";
 const readHash = () => (location.hash || "").replace("#", "");
 
 function initialState() {
@@ -96,6 +97,8 @@ export default function Dashboard() {
   const [menu, setMenu] = useState(null); // "project" | "user" | null
   const [navOpen, setNavOpen] = useState(false); // off-canvas sidebar on narrow screens
   const [creating, setCreating] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => { try { return localStorage.getItem(SIDEBAR_KEY) === "1"; } catch { return false; } });
+  const toggleSidebar = () => setCollapsed((c) => { const n = !c; try { localStorage.setItem(SIDEBAR_KEY, n ? "1" : "0"); } catch { /* storage unavailable */ } return n; });
   const menuRef = useOutsideClose(!!menu, () => setMenu(null));
 
   const net = useApi(() => api.networkStatus(projectId), [projectId], { refreshMs: 8000, enabled: !!projectId });
@@ -114,6 +117,17 @@ export default function Dashboard() {
     return () => window.removeEventListener("hashchange", onHash);
   }, []);
 
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key !== "[" || e.metaKey || e.ctrlKey || e.altKey) return;
+      const t = e.target;
+      if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+      toggleSidebar();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
   const endTour = () => {
     try { localStorage.setItem(TOUR_KEY, "1"); } catch { /* storage unavailable */ }
     setTour(false);
@@ -129,10 +143,10 @@ export default function Dashboard() {
   const initial = (user?.email ?? "?")[0].toUpperCase();
 
   return (
-    <div className="shell">
+    <div className={"shell" + (collapsed ? " collapsed" : "")}>
       {navOpen && <div className="nav-backdrop" onClick={() => setNavOpen(false)} />}
       <aside className={"sidebar" + (navOpen ? " open" : "")}>
-        <Link className="brand" href={LANDING_URL}>
+        <Link className="brand" href={LANDING_URL} title="PortalOps home">
           <span className="brand-mark"><i /></span>
           <span className="brand-name">PortalOps</span>
         </Link>
@@ -141,15 +155,15 @@ export default function Dashboard() {
             <div key={gi}>
               {g.label && <div className="nav-label">{g.label}</div>}
               {g.items.map((item) => {
-                const inner = <><span className="bar" /><span className="glyph">{item.icon}</span><span className="label">{item.label}</span></>;
+                const inner = <><span className="bar" /><span className="glyph" aria-hidden="true">{item.icon}</span><span className="label">{item.label}</span></>;
                 return item.href
-                  ? <Link key={item.id} className="nav-item" href={item.href}>{inner}</Link>
-                  : <button key={item.id} className={"nav-item" + (item.id === activeId ? " active" : "")} data-tour={item.id} onClick={() => go(item.id)}>{inner}</button>;
+                  ? <Link key={item.id} className="nav-item" href={item.href} title={item.label} aria-label={item.label}>{inner}</Link>
+                  : <button key={item.id} className={"nav-item" + (item.id === activeId ? " active" : "")} data-tour={item.id} title={item.label} aria-label={item.label} aria-current={item.id === activeId ? "page" : undefined} onClick={() => go(item.id)}>{inner}</button>;
               })}
             </div>
           ))}
         </nav>
-        <div className="api-status" title={net.data?.rpcError ?? ""}>
+        <div className="api-status" title={net.data?.rpcError || `RPC ${connLabel.toLowerCase()}`}>
           <span className={"dot " + dot} style={dot === "green" ? undefined : { boxShadow: "none", animation: "none" }} />
           <div>
             <div style={{ color: "var(--fg-2)" }}>RPC {connLabel.toLowerCase()}</div>
@@ -161,6 +175,16 @@ export default function Dashboard() {
       <div className="main-col">
         <header className="topbar">
           <button className="menu-btn" aria-label="Open navigation" aria-expanded={navOpen} onClick={() => setNavOpen(!navOpen)}>☰</button>
+          <button
+            className="collapse-btn" onClick={toggleSidebar} aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"} aria-expanded={!collapsed}
+            title={(collapsed ? "Expand sidebar" : "Collapse sidebar") + "  ( [ )"}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <rect x="3" y="4" width="18" height="16" rx="3" />
+              <path d="M9 4v16" />
+              {collapsed ? <path d="M14 10l2 2-2 2" /> : <path d="M16 10l-2 2 2 2" />}
+            </svg>
+          </button>
           <div style={{ position: "relative" }} ref={menu === "project" ? menuRef : null}>
             <button className="project-btn" onClick={() => setMenu(menu === "project" ? null : "project")} aria-haspopup="menu">
               <span className="swatch" />{project ? project.name : user ? "No project yet" : "Public testnet explorer"}<span className="caret">▾</span>
