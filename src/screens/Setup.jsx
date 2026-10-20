@@ -127,7 +127,7 @@ function ContractStep({ projectId, contracts, reload, chosen, setChosen, onDone 
         </div>
       )}
       <ExamplePicker onUse={(ex) => setF((cur) => ({ ...cur, name: cur.name || ex.title, abi: JSON.stringify(ex.abi) }))} />
-      <form onSubmit={add}>
+      <form noValidate onSubmit={add}>
         <Field label="Contract address" error={fe.address} hint="A 0x-prefixed 20-byte address on the Portaldot V3.0 testnet."><input className="input mono" placeholder="0x…" value={f.address} onChange={set("address")} required /></Field>
         <Field label="Name (optional)" error={fe.name}><input className="input" value={f.name} onChange={set("name")} /></Field>
         <Field label="ABI (optional)" error={fe.abi} hint="Paste the ABI array or a compiler artifact. Skip to receive undecoded logs."><textarea className="textarea mono" value={f.abi} onChange={set("abi")} /></Field>
@@ -204,7 +204,7 @@ function DeliveryStep({ projectId, filter, hook, setHook, secretShown, setSecret
       <h2 className="h2">Where should events be delivered?</h2>
       <Why>A webhook is how captured events reach your application. Each delivery is signed, retried on failure, recorded, and replayable.</Why>
       {existing?.length > 0 && <div className="banner info"><div>You already have {existing.length} webhook{existing.length > 1 ? "s" : ""} in this project. Creating another is optional; you can also continue with the existing one on the Webhooks screen.</div></div>}
-      <form onSubmit={create}>
+      <form noValidate onSubmit={create}>
         <label className={"replay-row" + (mode === "builtin" ? " on" : "")} style={{ cursor: "pointer" }}>
           <span><input type="radio" checked={mode === "builtin"} onChange={() => setMode("builtin")} style={{ accentColor: "#b9a7ff", marginRight: 10 }} /><strong>Built-in test receiver</strong><br /><span style={{ color: "var(--muted)", fontSize: 12.5, marginLeft: 24 }}>No backend needed. PortalOps verifies signatures and shows what it received.</span></span>
         </label>

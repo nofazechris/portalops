@@ -35,7 +35,7 @@ function CreateModal({ projectId, onClose, onCreated }) {
   const fe = fieldErrors(err);
   return (
     <Modal title="Create webhook" onClose={onClose}>
-      <form onSubmit={submit}>
+      <form noValidate onSubmit={submit}>
         <label style={{ display: "flex", gap: 10, alignItems: "flex-start", marginBottom: 14, cursor: "pointer" }}>
           <input type="checkbox" checked={form.builtin} onChange={(e) => setForm({ ...form, builtin: e.target.checked })} style={{ marginTop: 3, accentColor: "#b9a7ff" }} />
           <span style={{ fontSize: 13, color: "var(--fg-2)", lineHeight: 1.45 }}>

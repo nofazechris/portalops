@@ -90,6 +90,35 @@ export function Modal({ title, onClose, children, wide }) {
   );
 }
 
+/** A designed alert: tone icon, title, message, optional action and dismiss. Used instead of browser alerts and native validation bubbles. */
+export function Alert({ tone = "error", title, children, action, onClose }) {
+  const icon = { error: "!", warn: "!", info: "i", ok: "✓" }[tone] ?? "!";
+  return (
+    <div className={"alert tone-" + tone} role={tone === "error" || tone === "warn" ? "alert" : "status"}>
+      <span className="alert-ico" aria-hidden="true">{icon}</span>
+      <div className="alert-body">
+        {title && <div className="alert-title">{title}</div>}
+        {children && <div className="alert-msg">{children}</div>}
+        {action && <div className="alert-action">{action}</div>}
+      </div>
+      {onClose && <button type="button" className="alert-x" onClick={onClose} aria-label="Dismiss">✕</button>}
+    </div>
+  );
+}
+
+/** Replaces window.confirm: a proper dialog with a clear primary action. Escape or clicking outside cancels. */
+export function ConfirmDialog({ title, children, confirmLabel = "Confirm", danger = false, busy = false, onConfirm, onCancel }) {
+  return (
+    <Modal title={title} onClose={onCancel}>
+      <div style={{ fontSize: 14, color: "var(--fg-2)", lineHeight: 1.6 }}>{children}</div>
+      <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 22 }}>
+        <button type="button" className="btn secondary" onClick={onCancel} autoFocus>Cancel</button>
+        <button type="button" className={"btn " + (danger ? "danger-solid" : "primary")} disabled={busy} onClick={onConfirm}>{busy ? "Working…" : confirmLabel}</button>
+      </div>
+    </Modal>
+  );
+}
+
 export const Field = ({ label, hint, error, children }) => (
   <label className="field">
     <span className="field-label">{label}</span>

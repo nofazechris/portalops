@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { api } from "../api.js";
 import { shortHash, timeAgo, useApi, useSession } from "../state.jsx";
-import { CopyButton, Empty, ErrorBox, Field, Loading, Modal, NeedsProject, PageHead, ReadOnlyNote, deliveryLabel, fieldErrors } from "../ui.jsx";
+import { ConfirmDialog, CopyButton, Empty, ErrorBox, Field, Loading, Modal, NeedsProject, PageHead, ReadOnlyNote, deliveryLabel, fieldErrors } from "../ui.jsx";
 import { apiEndpoints, sdkSnippet, signatureSnippet } from "../data.js";
 
 // ------------------------------------------------------------------ Logs
@@ -74,7 +74,7 @@ function AddContractModal({ projectId, onClose, onAdded }) {
   const fe = fieldErrors(err);
   return (
     <Modal title="Register contract" onClose={onClose} wide>
-      <form onSubmit={submit}>
+      <form noValidate onSubmit={submit}>
         <Field label="Contract address" error={fe.address}><input className="input mono" autoFocus placeholder="0x…" value={f.address} onChange={set("address")} required /></Field>
         <Field label="Name (optional)" error={fe.name}><input className="input" value={f.name} onChange={set("name")} /></Field>
         <Field label="ABI (optional)" hint="Without an ABI, logs are stored raw and undecoded." error={fe.abi}><textarea className="textarea mono" value={f.abi} onChange={set("abi")} placeholder='[{"type":"event","name":"QuestCreated", …}]' /></Field>
@@ -162,7 +162,7 @@ function AutomationModal({ projectId, onClose, onCreated }) {
   const fe = fieldErrors(err);
   return (
     <Modal title="New automation" onClose={onClose}>
-      <form onSubmit={submit}>
+      <form noValidate onSubmit={submit}>
         <Field label="Name" error={fe.name}><input className="input" autoFocus value={f.name} onChange={set("name")} required /></Field>
         <Field label="WHEN event name (optional)" hint="Empty matches any event." error={fe.triggerEventName}><input className="input mono" placeholder="QuestCompleted" value={f.event} onChange={set("event")} /></Field>
         <Field label="ON contract (optional)" error={fe.triggerContract}>
@@ -350,13 +350,20 @@ function ApiKeysPanel({ projectId }) {
     try { setFresh(await api.createApiKey(projectId, { name: name.trim(), scope })); setName(""); reload(); }
     catch (x) { setErr(x); } finally { setBusy(false); }
   }
-  async function revoke(k) {
-    if (!window.confirm(`Revoke "${k.name}"? Anything using it stops working immediately.`)) return;
-    try { await api.revokeApiKey(k.id); reload(); } catch (x) { setErr(x); }
+  const [confirming, setConfirming] = useState(null);
+  const [revoking, setRevoking] = useState(false);
+  async function revoke() {
+    setRevoking(true);
+    try { await api.revokeApiKey(confirming.id); setConfirming(null); reload(); } catch (x) { setConfirming(null); setErr(x); } finally { setRevoking(false); }
   }
   const active = (data ?? []).filter((k) => !k.revokedAt);
   return (
     <div className="panel" style={{ marginTop: 14, maxWidth: 560 }}>
+      {confirming && (
+        <ConfirmDialog title="Revoke this API key?" confirmLabel="Revoke key" danger busy={revoking} onConfirm={revoke} onCancel={() => setConfirming(null)}>
+          <strong>{confirming.name}</strong> will stop working immediately. Anything using it (servers, scripts, Claude) will start getting <span className="mono">invalid_api_key</span> errors. This cannot be undone, but you can create a new key.
+        </ConfirmDialog>
+      )}
       <h2 className="h2 sm">API keys</h2>
       <div style={{ fontSize: 12.5, color: "var(--muted)", margin: "4px 0 12px", lineHeight: 1.5 }}>
         For servers and scripts. A key works inside this project only. <strong>Read</strong> keys can only fetch data; <strong>write</strong> keys can also manage webhooks and replay events. Keys cannot create projects or other keys.
@@ -375,10 +382,10 @@ function ApiKeysPanel({ projectId }) {
       {active.length === 0 ? <div style={{ fontSize: 13, color: "var(--muted)", marginBottom: 12 }}>No active keys.</div> : active.map((k) => (
         <div key={k.id} className="row-sep">
           <span style={{ fontSize: 13, color: "var(--fg-2)" }}>{k.name} <span className="pill" style={{ fontSize: 11, marginLeft: 6, color: k.scope === "write" ? "var(--amber)" : "var(--fg-3)" }}>{k.scope}</span><br /><span className="mono" style={{ fontSize: 11, color: "var(--dim)" }}>{k.prefix}… · {k.lastUsedAt ? "used " + timeAgo(k.lastUsedAt) : "never used"}</span></span>
-          <button className="link-btn danger" onClick={() => revoke(k)}>Revoke</button>
+          <button className="link-btn danger" onClick={() => setConfirming(k)}>Revoke</button>
         </div>
       ))}
-      <form onSubmit={create} style={{ display: "flex", gap: 8, marginTop: 14, flexWrap: "wrap" }}>
+      <form noValidate onSubmit={create} style={{ display: "flex", gap: 8, marginTop: 14, flexWrap: "wrap" }}>
         <input className="input" style={{ flex: "1 1 160px" }} placeholder="Key name (e.g. CI)" value={name} onChange={(e) => setName(e.target.value)} required maxLength={60} aria-label="Key name" />
         <select className="select" style={{ width: 110 }} value={scope} onChange={(e) => setScope(e.target.value)} aria-label="Scope"><option value="read">read</option><option value="write">write</option></select>
         <button className="btn primary small" disabled={busy}>Create key</button>
@@ -414,7 +421,7 @@ export function Settings() {
       <h1 className="h1">Settings</h1>
       <p className="sub">Project configuration.</p>
       {msg && <div className={"banner " + (msg.ok ? "ok" : "error")} style={{ marginTop: 16 }}>{msg.text}</div>}
-      <form onSubmit={save} className="card" style={{ marginTop: 20, maxWidth: 560 }}>
+      <form noValidate onSubmit={save} className="card" style={{ marginTop: 20, maxWidth: 560 }}>
         <Field label="Project name"><input className="input" value={name} onChange={(e) => setName(e.target.value)} required maxLength={80} /></Field>
         <Field label="Description"><textarea className="textarea" style={{ minHeight: 70 }} value={desc} onChange={(e) => setDesc(e.target.value)} maxLength={500} /></Field>
         <div className="mono" style={{ fontSize: 11, color: "var(--dim)", marginBottom: 12 }}>Project ID <span style={{ color: "var(--fg-3)" }}>{project.id}</span> <CopyButton text={project.id} /></div>

@@ -52,7 +52,7 @@ function NewProjectModal({ onClose, onCreated }) {
   }
   return (
     <Modal title="Create project" onClose={onClose}>
-      <form onSubmit={submit}>
+      <form noValidate onSubmit={submit}>
         <Field label="Project name" error={err?.details?.find((d) => d.path === "name")?.message}><input className="input" autoFocus value={name} onChange={(e) => setName(e.target.value)} required maxLength={80} /></Field>
         <Field label="Description (optional)"><input className="input" value={desc} onChange={(e) => setDesc(e.target.value)} maxLength={500} /></Field>
         <Field label="Network"><input className="input" value="Portaldot V3.0 Testnet" disabled /></Field>

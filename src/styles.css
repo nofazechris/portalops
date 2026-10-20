@@ -359,3 +359,19 @@ pre { margin: 0; }
   .timeline .spark-wrap small { display: none; }
   .timeline .tl-block { padding-left: 10px; }
 }
+
+/* ---------- designed alert + confirm dialog (replace browser alerts) ---------- */
+.alert { display: flex; gap: 12px; align-items: flex-start; padding: 13px 14px; border-radius: 12px; border: 1px solid #2a2a2a; background: #121212; font-size: 13.5px; }
+.alert-ico { flex-shrink: 0; width: 22px; height: 22px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; font-size: 12px; margin-top: 1px; }
+.alert-body { min-width: 0; flex: 1; }
+.alert-title { font-weight: 600; color: var(--fg); }
+.alert-msg { margin-top: 3px; color: var(--fg-3); line-height: 1.5; font-size: 13px; }
+.alert-action { margin-top: 8px; }
+.alert-x { background: none; border: 0; color: var(--dim); cursor: pointer; font-size: 13px; padding: 2px 4px; border-radius: 6px; }
+.alert-x:hover { color: var(--fg); background: rgba(255, 255, 255, 0.06); }
+.alert.tone-error { background: #160f10; border-color: #3a1f22; } .alert.tone-error .alert-ico { background: rgba(240, 138, 134, 0.18); color: var(--red); }
+.alert.tone-warn { background: #17140c; border-color: #3a3120; } .alert.tone-warn .alert-ico { background: rgba(233, 196, 106, 0.18); color: var(--amber); }
+.alert.tone-info { background: #121016; border-color: #2a2740; } .alert.tone-info .alert-ico { background: rgba(185, 167, 255, 0.18); color: var(--accent); }
+.alert.tone-ok { background: #0e1611; border-color: #1f3a2a; } .alert.tone-ok .alert-ico { background: rgba(110, 231, 168, 0.18); color: var(--green); }
+.btn.danger-solid { background: #c5484d; color: #fff; border: 0; }
+.btn.danger-solid:hover { background: #d95a5f; }
