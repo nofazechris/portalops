@@ -194,3 +194,79 @@ test("store: reads issued during an open transaction never see its uncommitted r
   await writer;
   assert.equal(await s.countEvents("p1"), 1);
 });
+
+// ------------------------------------------------------------------ accounts: upgrade of a pre-existing database
+test("migration: accounts that existed before email verification are grandfathered as verified, exactly once", async () => {
+  const { TEST_BACKEND } = await import("./testing.ts");
+  const { openStore } = await import("./store.ts");
+  let store: Store;
+  let cleanup: () => Promise<void> = async () => {};
+  let reopen: (() => Promise<Store>) | null = null;
+  const old = "2026-01-02T03:04:05.000Z";
+
+  if (TEST_BACKEND === "postgres") {
+    const pg = (await import("pg")).default;
+    const schema = "pops_mig_" + randomBytes(5).toString("hex");
+    const admin = new pg.Client({ connectionString: process.env.TEST_DATABASE_URL });
+    await admin.connect();
+    await admin.query(`CREATE SCHEMA ${schema}`);
+    await admin.query(`CREATE TABLE ${schema}.users (id TEXT PRIMARY KEY, email TEXT NOT NULL UNIQUE, password_hash TEXT NOT NULL, created_at TEXT NOT NULL)`);
+    await admin.query(`INSERT INTO ${schema}.users VALUES ('usr_old', 'old@example.com', 'scrypt$x', $1)`, [old]);
+    store = await openStore(process.env.TEST_DATABASE_URL!, { schema, dropSchemaOnClose: true, max: 2 });
+    cleanup = async () => { await admin.end(); };
+  } else {
+    const { mkdtempSync, rmSync } = await import("node:fs");
+    const { tmpdir } = await import("node:os");
+    const { join } = await import("node:path");
+    const { DatabaseSync } = await import("node:sqlite");
+    const dir = mkdtempSync(join(tmpdir(), "pops-mig-"));
+    const file = join(dir, "old.sqlite");
+    const raw = new DatabaseSync(file);
+    raw.exec("CREATE TABLE users (id TEXT PRIMARY KEY, email TEXT NOT NULL UNIQUE, password_hash TEXT NOT NULL, created_at TEXT NOT NULL)");
+    raw.prepare("INSERT INTO users VALUES ('usr_old', 'old@example.com', 'scrypt$x', ?)").run(old);
+    raw.close();
+    store = await openStore(file);
+    reopen = async () => { await store.close(); return openStore(file); };
+    cleanup = async () => { await store.close(); rmSync(dir, { recursive: true, force: true }); };
+  }
+
+  try {
+    const u = (await store.getUserByEmail("old@example.com"))!;
+    assert.equal(u.emailVerifiedAt, old, "existing accounts keep working: verified as of their creation");
+    assert.equal(u.githubId, null);
+
+    // a user who signs up AFTER the upgrade is unverified, and re-running the migration (a restart) must not verify them
+    const fresh = (await store.createUser("new@example.com", "scrypt$y"))!;
+    assert.equal((await store.getUser(fresh.id))!.emailVerifiedAt, null);
+    if (reopen) {
+      store = await reopen(); // a restart runs the migration again
+      assert.equal((await store.getUser(fresh.id))!.emailVerifiedAt, null, "a restart does not verify anyone");
+      assert.equal((await store.getUserByEmail("old@example.com"))!.emailVerifiedAt, old);
+    }
+  } finally {
+    await cleanup();
+  }
+});
+
+test("auth tokens: single use, expiry, supersede, concurrent use has exactly one winner, purge", async () => {
+  const s = await makeTestStore();
+  const u = (await s.createUser("tok@example.com", "scrypt$x"))!;
+  const now = new Date("2026-10-20T10:00:00Z");
+  const later = (ms: number) => new Date(now.getTime() + ms);
+
+  await s.createAuthToken(u.id, "reset_password", "h1", later(3_600_000), now);
+  assert.equal(await s.consumeAuthToken("verify_email", "h1", now), null, "wrong kind");
+  assert.equal(await s.consumeAuthToken("reset_password", "h1", later(3_600_001)), null, "expired");
+  const results = await Promise.all(Array.from({ length: 8 }, () => s.consumeAuthToken("reset_password", "h1", now)));
+  assert.equal(results.filter((r) => r === u.id).length, 1, "exactly one concurrent use wins");
+  assert.equal(await s.consumeAuthToken("reset_password", "h1", now), null, "already used");
+
+  await s.createAuthToken(u.id, "verify_email", "h2", later(60_000), now);
+  await s.createAuthToken(u.id, "verify_email", "h3", later(60_000), now);
+  assert.equal(await s.consumeAuthToken("verify_email", "h2", now), null, "superseded by a newer link");
+  assert.equal(await s.consumeAuthToken("verify_email", "h3", now), u.id);
+
+  await s.createAuthToken(u.id, "reset_password", "h4", later(1000), now);
+  await s.purgeSessions(later(3 * 86_400_000));
+  assert.equal(Number((await s.rawAll("SELECT COUNT(*) AS n FROM auth_tokens"))[0].n), 0, "old tokens are purged");
+});

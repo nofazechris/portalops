@@ -21,6 +21,9 @@ import { installProcessDiagnostics } from "../../packages/config/diagnostics.ts"
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 loadServiceEnv(ROOT); // also drops the deploy-script private keys: this process never needs them
+// The worker never sends account email or talks to GitHub: do not hold those credentials in this process.
+delete process.env.RESEND_API_KEY;
+delete process.env.GITHUB_CLIENT_SECRET;
 
 const RPC = process.env.PORTALDOT_EVM_RPC_URL || "https://test-evm-rpc-v3.portaldot.dev";
 const CHAIN_ID = Number(process.env.PORTALDOT_EVM_CHAIN_ID || 420420777);

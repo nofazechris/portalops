@@ -20,6 +20,29 @@ CREATE TABLE IF NOT EXISTS sessions (
 );
 CREATE INDEX IF NOT EXISTS sessions_user ON sessions (user_id);
 
+-- Email verification and GitHub sign-in. Accounts that existed before these columns are treated as verified exactly once.
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'users' AND column_name = 'email_verified_at') THEN
+    ALTER TABLE users ADD COLUMN email_verified_at TEXT;
+    UPDATE users SET email_verified_at = created_at;
+  END IF;
+END $$;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS github_id TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS github_login TEXT;
+CREATE UNIQUE INDEX IF NOT EXISTS users_github ON users (github_id) WHERE github_id IS NOT NULL;
+
+CREATE TABLE IF NOT EXISTS auth_tokens (
+  id          TEXT PRIMARY KEY,
+  user_id     TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  kind        TEXT NOT NULL,
+  token_hash  TEXT NOT NULL UNIQUE,
+  created_at  TEXT NOT NULL,
+  expires_at  TEXT NOT NULL,
+  used_at     TEXT
+);
+CREATE INDEX IF NOT EXISTS auth_tokens_user ON auth_tokens (user_id, kind);
+
 CREATE TABLE IF NOT EXISTS projects (
   id          TEXT PRIMARY KEY,
   name        TEXT NOT NULL,

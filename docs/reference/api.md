@@ -41,6 +41,7 @@ contact the outside (replay, test delivery, contract test). The SDK retries `GET
 | HTTP | `code` | When |
 |---|---|---|
 | 400 | `invalid_json` | the body is not valid JSON |
+| 400 | `invalid_token` | an email link (verify or reset) is wrong, expired or already used |
 | 401 | `unauthenticated` | no valid session |
 | 401 | `invalid_api_key` | the key is wrong, malformed or revoked |
 | 401 | `invalid_credentials` | wrong email or password (the same message for both) |
@@ -56,6 +57,8 @@ contact the outside (replay, test delivery, contract test). The SDK retries `GET
 | 429 | `rate_limited` | slow down; see `Retry-After` |
 | 502 | `rpc_unavailable` | the server could not reach the chain |
 | 503 | `worker_unavailable` | readiness: the worker is not reporting |
+| 503 | `email_unavailable` | the email provider could not send right now (only reported to the signed-in owner of the address) |
+| 404 | `github_unavailable` | GitHub sign-in is not configured on this server |
 
 ---
 
@@ -84,7 +87,7 @@ contact the outside (replay, test delivery, contract test). The SDK retries `GET
 ## Accounts
 
 ### POST /api/v1/auth/signup
-**Public.** Body `{ "email", "password" }` (password 12–200 characters). `201` with `{ user: { id, email } }` and a session cookie. `409 email_taken`. Rate limited per IP.
+**Public.** Body `{ "email", "password" }` (password 12–200 characters). `201` with `{ user }` and a session cookie. `409 email_taken`. Rate limited per IP. A verification email is sent best-effort (it never makes sign-up fail or wait more than a few seconds). The `user` object is `{ id, email, emailVerified, githubLinked, githubLogin, hasPassword }`; the password hash is never returned.
 
 ### POST /api/v1/auth/login
 **Public.** Body `{ "email", "password" }`. `200` with `{ user }` and a session cookie. The same `401 invalid_credentials` is returned whether the email exists or not, and the work done is the same, so timing does not leak it. Rate limited per IP and per email.
@@ -93,7 +96,28 @@ contact the outside (replay, test delivery, contract test). The SDK retries `GET
 Revokes the session and clears the cookie. `{ "ok": true }`.
 
 ### GET /api/v1/auth/me
-**Session.** `{ user: { id, email } }`.
+**Session.** `{ user: { id, email, emailVerified, githubLinked, githubLogin, hasPassword } }`.
+
+### GET /api/v1/auth/providers
+**Public.** Which sign-in options this server offers: `{ github: boolean, email: boolean }`. `email` is `true` only when a real email provider is configured, so a UI can warn when reset emails cannot be sent.
+
+### POST /api/v1/auth/verify-email
+**Public.** Body `{ "token" }`, the token from the emailed link (`/auth#verify=<token>`). Marks the address verified: `{ verified: true }`. A token works once and expires after 24 hours; anything else is `400 invalid_token`. It needs no session, so the link works from any browser.
+
+### POST /api/v1/auth/resend-verification
+**Session.** Sends a fresh verification link and invalidates the previous one. `{ sent: true }`, or `{ sent: false, alreadyVerified: true }`. One per minute (`429`); `503 email_unavailable` if the provider could not send.
+
+### POST /api/v1/auth/forgot-password
+**Public.** Body `{ "email" }`. **Always** answers `200 { sent: true, message }` in the same way whether or not the address has an account, so it cannot be used to discover who is registered; the email, if any, is sent in the background. Rate limited per IP and per address. The link (`/auth#reset=<token>`) works once and expires after 1 hour; a newer request replaces the older link.
+
+### POST /api/v1/auth/reset-password
+**Public.** Body `{ "token", "password" }` (12–200 characters). Sets the password, marks the address verified (the user proved they own the inbox), and **revokes every session** of the account. `{ reset: true }`, or `400 invalid_token` and the token stays unused if the password was rejected with `422`. Works for GitHub-only accounts too, which adds a password.
+
+### GET /api/v1/auth/github/start
+**Public.** Begins "Continue with GitHub": `302` to GitHub's authorization page with a random `state`, also stored in a short-lived (10 min) `HttpOnly; SameSite=Lax` cookie scoped to the GitHub routes. `404 github_unavailable` when not configured.
+
+### GET /api/v1/auth/github/callback
+**Public.** Where GitHub sends the browser back. Always answers with a `302`: to `/app` with a session cookie on success, or to `/auth#error=<code>` with no session. Codes: `state_mismatch` (forged, replayed or expired), `access_denied`, `github_failed`, `github_no_verified_email`, `github_account_mismatch`, `github_unavailable`, `rate_limited`. See [Accounts](../guides/accounts.md) for exactly how an account is matched.
 
 ---
 

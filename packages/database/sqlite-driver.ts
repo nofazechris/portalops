@@ -46,6 +46,17 @@ export class SqliteDriver extends Ops implements SqlDriver {
     add("description", "description TEXT");
     add("owner_id", "owner_id TEXT REFERENCES users(id) ON DELETE CASCADE");
     add("kind", "kind TEXT NOT NULL DEFAULT 'user'");
+
+    // Accounts: email verification and GitHub sign-in. Accounts that already exist are treated as verified (grandfathered) exactly once,
+    // when the column is first added; new databases get the columns from schema.sql and skip this.
+    const ucols = (this.db.prepare("PRAGMA table_info(users)").all() as Row[]).map((c) => c.name as string);
+    if (!ucols.includes("email_verified_at")) {
+      this.db.exec("ALTER TABLE users ADD COLUMN email_verified_at TEXT");
+      this.db.exec("UPDATE users SET email_verified_at = created_at");
+    }
+    if (!ucols.includes("github_id")) this.db.exec("ALTER TABLE users ADD COLUMN github_id TEXT");
+    if (!ucols.includes("github_login")) this.db.exec("ALTER TABLE users ADD COLUMN github_login TEXT");
+    this.db.exec("CREATE UNIQUE INDEX IF NOT EXISTS users_github ON users (github_id) WHERE github_id IS NOT NULL");
   }
 
   /**

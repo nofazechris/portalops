@@ -30,6 +30,12 @@ services:
         sync: false
       - key: EMAIL_FROM
         sync: false
+      # GitHub sign-in (optional). Create an OAuth App on GitHub with the callback URL
+      # https://<your-url>/api/v1/auth/github/callback, then paste the values in the Render dashboard.
+      - key: GITHUB_CLIENT_ID
+        sync: false
+      - key: GITHUB_CLIENT_SECRET
+        sync: false
       # Random 256-bit key that encrypts webhook secrets at rest. Generated once by Render.
       # COPY IT somewhere safe after the first deploy: if it is lost, stored webhook secrets cannot be decrypted.
       - key: WEBHOOK_ENCRYPTION_KEY

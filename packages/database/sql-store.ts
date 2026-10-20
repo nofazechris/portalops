@@ -4,7 +4,7 @@ import type {
 } from "../shared-types/index.ts";
 import type { Row, SqlDriver } from "./driver.ts";
 import {
-  redact, type ApiKeyRecord, type AutomationRecord, type ContractRecord, type ProjectRecord, type ReceiverMode, type ReceiverRecord, type ReceiverRequestRecord,
+  redact, type ApiKeyRecord, type AuthTokenKind, type AutomationRecord, type ContractRecord, type ProjectRecord, type UserRecord, type ReceiverMode, type ReceiverRecord, type ReceiverRequestRecord,
 } from "./records.ts";
 
 const uid = (prefix: string, len: number) => prefix + randomUUID().replaceAll("-", "").slice(0, len);
@@ -356,21 +356,63 @@ export class SqlStore {
   }
 
   // -------------------------------------------------------------------- users
-  async createUser(email: string, passwordHash: string): Promise<{ id: string; email: string; createdAt: string } | null> {
+  async createUser(email: string, passwordHash: string, opts: { verified?: boolean; githubId?: string; githubLogin?: string } = {}): Promise<{ id: string; email: string; createdAt: string } | null> {
     const id = uid("usr_", 20);
     const createdAt = new Date().toISOString();
-    const r = await this.run(this.ignore("INSERT OR IGNORE INTO users (id, email, password_hash, created_at) VALUES (?, ?, ?, ?)"), [id, email.toLowerCase(), passwordHash, createdAt]);
+    const r = await this.run(
+      this.ignore("INSERT OR IGNORE INTO users (id, email, password_hash, created_at, email_verified_at, github_id, github_login) VALUES (?, ?, ?, ?, ?, ?, ?)"),
+      [id, email.toLowerCase(), passwordHash, createdAt, opts.verified ? createdAt : null, opts.githubId ?? null, opts.githubLogin ?? null],
+    );
     return r.changes === 1 ? { id, email: email.toLowerCase(), createdAt } : null;
   }
 
-  async getUserByEmail(email: string): Promise<{ id: string; email: string; passwordHash: string; createdAt: string } | null> {
-    const r = await this.get("SELECT * FROM users WHERE email = ?", [email.toLowerCase()]);
-    return r ? { id: r.id as string, email: r.email as string, passwordHash: r.password_hash as string, createdAt: r.created_at as string } : null;
+  private userRow(r: Row): UserRecord {
+    return {
+      id: r.id as string, email: r.email as string, passwordHash: r.password_hash as string, createdAt: r.created_at as string,
+      emailVerifiedAt: (r.email_verified_at as string | null) ?? null, githubId: (r.github_id as string | null) ?? null, githubLogin: (r.github_login as string | null) ?? null,
+    };
   }
 
-  async getUser(id: string): Promise<{ id: string; email: string; createdAt: string } | null> {
-    const r = await this.get("SELECT id, email, created_at FROM users WHERE id = ?", [id]);
-    return r ? { id: r.id as string, email: r.email as string, createdAt: r.created_at as string } : null;
+  async getUserByEmail(email: string): Promise<UserRecord | null> {
+    const r = await this.get("SELECT * FROM users WHERE email = ?", [email.toLowerCase()]);
+    return r ? this.userRow(r) : null;
+  }
+
+  async getUser(id: string): Promise<UserRecord | null> {
+    const r = await this.get("SELECT * FROM users WHERE id = ?", [id]);
+    return r ? this.userRow(r) : null;
+  }
+
+  async getUserByGithubId(githubId: string): Promise<UserRecord | null> {
+    const r = await this.get("SELECT * FROM users WHERE github_id = ?", [githubId]);
+    return r ? this.userRow(r) : null;
+  }
+
+  async markEmailVerified(userId: string, now: Date = new Date()): Promise<void> {
+    await this.run("UPDATE users SET email_verified_at = ? WHERE id = ? AND email_verified_at IS NULL", [now.toISOString(), userId]);
+  }
+
+  async linkGithub(userId: string, githubId: string, githubLogin: string): Promise<void> {
+    await this.run("UPDATE users SET github_id = ?, github_login = ? WHERE id = ?", [githubId, githubLogin, userId]);
+  }
+
+  async setPassword(userId: string, passwordHash: string): Promise<void> {
+    await this.run("UPDATE users SET password_hash = ? WHERE id = ?", [passwordHash, userId]);
+  }
+
+  // -------------------------------------------------------------- auth tokens
+  /** Issues a token, superseding any earlier unused one of the same kind for this user (only the newest link works). */
+  async createAuthToken(userId: string, kind: AuthTokenKind, tokenHash: string, expiresAt: Date, now: Date = new Date()): Promise<void> {
+    await this.run("DELETE FROM auth_tokens WHERE user_id = ? AND kind = ? AND used_at IS NULL", [userId, kind]);
+    await this.run("INSERT INTO auth_tokens (id, user_id, kind, token_hash, created_at, expires_at) VALUES (?, ?, ?, ?, ?, ?)", [uid("tok_", 20), userId, kind, tokenHash, now.toISOString(), expiresAt.toISOString()]);
+  }
+
+  /** Atomically uses a token: returns its user id once, and null for unknown, expired, wrong-kind or already-used tokens. */
+  async consumeAuthToken(kind: AuthTokenKind, tokenHash: string, now: Date = new Date()): Promise<string | null> {
+    const r = await this.get("SELECT user_id FROM auth_tokens WHERE token_hash = ? AND kind = ? AND used_at IS NULL AND expires_at > ?", [tokenHash, kind, now.toISOString()]);
+    if (!r) return null;
+    const won = await this.run("UPDATE auth_tokens SET used_at = ? WHERE token_hash = ? AND used_at IS NULL", [now.toISOString(), tokenHash]);
+    return won.changes === 1 ? (r.user_id as string) : null; // two concurrent uses: exactly one wins
   }
 
   // ----------------------------------------------------------------- sessions
@@ -395,6 +437,7 @@ export class SqlStore {
   /** Deletes sessions that expired or were revoked more than a day ago. */
   async purgeSessions(now: Date = new Date()): Promise<number> {
     const cutoff = new Date(now.getTime() - 86_400_000).toISOString();
+    await this.run("DELETE FROM auth_tokens WHERE expires_at < ? OR (used_at IS NOT NULL AND used_at < ?)", [cutoff, cutoff]);
     return (await this.run("DELETE FROM sessions WHERE expires_at < ? OR (revoked_at IS NOT NULL AND revoked_at < ?)", [cutoff, cutoff])).changes;
   }
 

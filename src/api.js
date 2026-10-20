@@ -47,6 +47,11 @@ export const api = {
   signup: (email, password) => request("POST", "/auth/signup", { email, password }),
   login: (email, password) => request("POST", "/auth/login", { email, password }),
   logout: () => request("POST", "/auth/logout", {}),
+  authProviders: () => request("GET", "/auth/providers"),
+  verifyEmail: (token) => request("POST", "/auth/verify-email", { token }),
+  resendVerification: () => request("POST", "/auth/resend-verification", {}),
+  forgotPassword: (email) => request("POST", "/auth/forgot-password", { email }),
+  resetPassword: (token, password) => request("POST", "/auth/reset-password", { token, password }),
 
   projects: () => request("GET", "/projects"),
   project: (id) => request("GET", `/projects/${id}`),

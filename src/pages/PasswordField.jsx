@@ -25,7 +25,7 @@ export function StrengthBar({ level, compact }) {
  * checklist that opens while the field is focused or after a failed submit. Validation messages are shown inline, never as a
  * browser bubble.
  */
-export default function PasswordField({ id, label = "Password", value, onChange, onBlur, autoComplete, placeholder, email, error, strength = false, attempted = false, inputRef, onKeyDown }) {
+export default function PasswordField({ id, label = "Password", value, onChange, onBlur, autoComplete, placeholder, email, error, strength = false, attempted = false, inputRef, onKeyDown, labelAction = null }) {
   const [shown, setShown] = useState(false);
   const [focused, setFocused] = useState(false);
   const [caps, setCaps] = useState(false);
@@ -43,6 +43,7 @@ export default function PasswordField({ id, label = "Password", value, onChange,
       <div className="pw-head">
         <label className="field-label" htmlFor={id} style={{ margin: 0 }}>{label}</label>
         {strength && value && <StrengthBar level={a.level} compact />}
+        {labelAction}
       </div>
 
       <div className={"pw-wrap" + (error ? " invalid" : "")}>

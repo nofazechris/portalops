@@ -4,6 +4,7 @@ import { mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { EvmAdapter } from "../../packages/chain-adapters/evm.ts";
+import { createEmailSender } from "../../packages/email/index.ts";
 import { describeDatabase, openStore } from "../../packages/database/store.ts";
 import { parseKey } from "../../packages/database/secrets.ts";
 import { createApp, type NetworkProbe } from "./app.ts";
@@ -75,6 +76,10 @@ const handler = createApp({
     receiverBaseUrl: API_PUBLIC_URL,
     trustedProxyHops: TRUSTED_PROXY_HOPS,
     maxProjectsPerUser: 20,
+    publicUrl: PUBLIC_URL,
+    // Account emails: Resend when RESEND_API_KEY is set, otherwise printed to this log (development only; never in production).
+    email: createEmailSender(process.env, { production: isHttps }),
+    github: process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET ? { clientId: process.env.GITHUB_CLIENT_ID, clientSecret: process.env.GITHUB_CLIENT_SECRET } : null,
   },
 });
 

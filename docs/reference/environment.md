@@ -46,6 +46,15 @@ settings (or `.env.production` with docker compose). Values already set in the r
 | `RESEND_API_KEY` | unset | A [Resend](https://resend.com) API key with **sending access**. Set it only in your host's environment settings and your local `.env`, never in a committed file. Without it, emails are printed to the server log instead of being sent (development) |
 | `EMAIL_FROM` | unset | The sender, for example `PortalOps <no-reply@yourdomain.com>`. The domain must be verified in Resend (`onboarding@resend.dev` works for testing, but only delivers to your own Resend account address) |
 
+## GitHub sign-in
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `GITHUB_CLIENT_ID` | unset | The Client ID of a GitHub OAuth App. With the secret below it turns on "Continue with GitHub" |
+| `GITHUB_CLIENT_SECRET` | unset | The OAuth App's client secret. Set only in your host's settings and your local `.env`; never committed, never in the browser, and dropped from the worker process. Both values must be set or the feature stays off |
+
+The OAuth App's **Authorization callback URL** must be exactly `<PORTALOPS_PUBLIC_URL>/api/v1/auth/github/callback`. Setup steps: [Accounts](../guides/accounts.md#github-sign-in).
+
 ## Worker
 
 | Variable | Default | Meaning |

@@ -1,7 +1,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { createHash, randomBytes, randomUUID } from "node:crypto";
+import { createHash, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
 import { z, ZodError } from "zod";
-import type { Store, ProjectRecord, ContractRecord } from "../../packages/database/store.ts";
+import type { Store, ProjectRecord, ContractRecord, UserRecord } from "../../packages/database/store.ts";
 import { decryptSecret, encryptSecret, generateWebhookSecret } from "../../packages/database/secrets.ts";
 import { DEFAULT_RETRY_POLICY, type NormalizedEvent, type RetryPolicy, type WebhookEndpoint } from "../../packages/shared-types/index.ts";
 import { getExample, listExamples } from "../../packages/examples/catalog.ts";
@@ -10,6 +10,8 @@ import { sendWebhook } from "../../packages/webhook-engine/send.ts";
 import { signHeader, SIGNATURE_HEADER, verifySignature } from "../../packages/webhook-engine/sign.ts";
 import { BlockedTargetError, validateWebhookUrl, type GuardOptions } from "../../packages/webhook-engine/url-guard.ts";
 import { clearedSessionCookie, dummyHash, hashPassword, hashToken, newSessionToken, SESSION_COOKIE, sessionCookie, verifyPassword } from "./auth.ts";
+import { resetPasswordMessage, verifyEmailMessage } from "../../packages/email/templates.ts";
+import type { EmailSender } from "../../packages/email/index.ts";
 import { ApiError, clientIp, parseCookies, parseJsonBody, RateLimiter, readRaw, Router, sendJson, MAX_BODY_BYTES, type Ctx } from "./http.ts";
 
 export interface NetworkCheck {
@@ -45,7 +47,21 @@ export interface AppConfig {
   trustedProxyHops?: number;
   maxProjectsPerUser: number;
   now?: () => Date;
+  /** Browser-facing origin; used to build the links in emails and the GitHub callback. */
+  publicUrl?: string;
+  /** Sends account emails. Without one, emails are not delivered (the flows still respond normally). */
+  email?: EmailSender;
+  /** GitHub OAuth App credentials. Null/absent hides "Continue with GitHub". */
+  github?: { clientId: string; clientSecret: string } | null;
+  /** fetch used for outbound calls to GitHub (injectable for tests). */
+  fetch?: typeof fetch;
 }
+
+/** Marker stored instead of a password hash for accounts created through GitHub: it can never verify as a password. */
+const NO_PASSWORD = "!oauth";
+const VERIFY_TTL_MS = 24 * 3600 * 1000;
+const RESET_TTL_MS = 60 * 60 * 1000;
+const OAUTH_COOKIE = "portalops_oauth";
 
 export interface AppDeps {
   store: Store;
@@ -70,6 +86,9 @@ const retryPolicyInput = z
 const schemas = {
   signup: z.object({ email: z.string().trim().toLowerCase().email().max(254), password: z.string().min(12, "At least 12 characters.").max(200) }),
   login: z.object({ email: z.string().trim().toLowerCase().email().max(254), password: z.string().min(1).max(200) }),
+  forgot: z.object({ email: z.string().trim().toLowerCase().email().max(254) }),
+  token: z.object({ token: z.string().min(20).max(200) }),
+  reset: z.object({ token: z.string().min(20).max(200), password: z.string().min(12, "At least 12 characters.").max(200) }),
   project: z.object({
     name: z.string().trim().min(1).max(80),
     description: z.string().trim().max(500).optional(),
@@ -283,6 +302,29 @@ export function createApp(deps: AppDeps): (req: IncomingMessage, res: ServerResp
   }, "none");
 
   // ------------------------------------------------------------------- auth
+  const publicUrl = (config.publicUrl ?? "http://localhost:5173").replace(/\/+$/, "");
+  const outbound = config.fetch ?? fetch;
+  const resendLimiter = new RateLimiter(1, 60_000); // one verification email per user per minute
+  const sleep = (ms: number) => new Promise<void>((r) => { const t = setTimeout(r, ms); t.unref(); });
+
+  /** What the browser is told about an account: never the hash. */
+  const userView = (u: UserRecord) => ({ id: u.id, email: u.email, emailVerified: u.emailVerifiedAt !== null, githubLinked: u.githubId !== null, githubLogin: u.githubLogin, hasPassword: u.passwordHash !== NO_PASSWORD });
+  const newToken = () => randomBytes(32).toString("base64url");
+
+  /** Creates a single-use link token and emails it. Returns whether the provider accepted the message. */
+  async function sendAccountEmail(kind: "verify_email" | "reset_password", user: { id: string; email: string }): Promise<boolean> {
+    if (!config.email) return false;
+    const token = newToken();
+    const ttl = kind === "verify_email" ? VERIFY_TTL_MS : RESET_TTL_MS;
+    await store.createAuthToken(user.id, kind, hashToken(token), new Date(now().getTime() + ttl), now());
+    // The token travels in the URL FRAGMENT: it is never sent to a server, logged by a proxy, or leaked in a Referer header.
+    const link = `${publicUrl}/auth#${kind === "verify_email" ? "verify" : "reset"}=${token}`;
+    const msg = kind === "verify_email" ? verifyEmailMessage(user.email, link, VERIFY_TTL_MS / 3_600_000) : resetPasswordMessage(user.email, link, RESET_TTL_MS / 60_000);
+    const r = await config.email.send(msg);
+    if (!r.ok) console.warn(`account email (${kind}) not sent: ${r.error}`);
+    return r.ok;
+  }
+
   router.add("POST", "/api/v1/auth/signup", async (ctx) => {
     const wait = authLimiter.hit("signup:" + ctx.ip);
     if (wait) throw new ApiError(429, "rate_limited", `Too many attempts. Try again in ${wait}s.`);
@@ -290,7 +332,10 @@ export function createApp(deps: AppDeps): (req: IncomingMessage, res: ServerResp
     const user = await store.createUser(body.email, await hashPassword(body.password));
     if (!user) throw new ApiError(409, "email_taken", "An account with this email already exists.");
     await store.audit("auth.signup", user.id, null);
-    return await startSession(ctx, user.id, { id: user.id, email: user.email }, 201);
+    // Best effort and capped: a slow or failing email provider must never block or fail sign-up.
+    await Promise.race([sendAccountEmail("verify_email", user).catch(() => false), sleep(3_000)]);
+    const full = (await store.getUser(user.id))!;
+    return await startSession(ctx, user.id, userView(full), 201);
   }, "none");
 
   router.add("POST", "/api/v1/auth/login", async (ctx) => {
@@ -298,16 +343,18 @@ export function createApp(deps: AppDeps): (req: IncomingMessage, res: ServerResp
     const wait = Math.max(authLimiter.hit("login:" + ctx.ip), authLimiter.hit("login-email:" + body.email));
     if (wait) throw new ApiError(429, "rate_limited", `Too many attempts. Try again in ${wait}s.`);
     const user = await store.getUserByEmail(body.email);
-    const ok = await verifyPassword(body.password, user ? user.passwordHash : await dummyHash());
+    // Accounts without a password (GitHub-only) are checked against the dummy hash, so they cost the same time as any wrong password.
+    const hasPassword = !!user && user.passwordHash !== NO_PASSWORD;
+    const ok = (await verifyPassword(body.password, hasPassword ? user!.passwordHash : await dummyHash())) && hasPassword;
     if (!user || !ok) {
       await store.audit("auth.login_failed", user?.id ?? null, null);
       throw new ApiError(401, "invalid_credentials", "Incorrect email or password."); // same message for both cases
     }
     await store.audit("auth.login", user.id, null);
-    return await startSession(ctx, user.id, { id: user.id, email: user.email }, 200);
+    return await startSession(ctx, user.id, userView(user), 200);
   }, "none");
 
-  async function startSession(ctx: Ctx, userId: string, user: { id: string; email: string }, status: number) {
+  async function startSession(ctx: Ctx, userId: string, user: ReturnType<typeof userView>, status: number) {
     const { token, hash } = newSessionToken();
     await store.createSession(hash, userId, new Date(now().getTime() + config.sessionTtlMs));
     return { __status: status, __headers: { "set-cookie": sessionCookie(token, Math.floor(config.sessionTtlMs / 1000), config.cookieSecure) }, data: { user } };
@@ -322,8 +369,139 @@ export function createApp(deps: AppDeps): (req: IncomingMessage, res: ServerResp
     sessionOnly(ctx);
     const user = await store.getUser(requireUser(ctx));
     if (!user) throw new ApiError(401, "unauthenticated", "Sign in to continue.");
-    return { user };
+    return { user: userView(user) };
   });
+
+  // ---- sign-in options, email verification, password reset
+  router.add("GET", "/api/v1/auth/providers", async () => ({ github: !!config.github, email: !!config.email && config.email.kind !== "console" }), "none");
+
+  const invalidToken = () => new ApiError(400, "invalid_token", "This link is invalid or has expired. Request a new one.");
+
+  router.add("POST", "/api/v1/auth/verify-email", async (ctx) => {
+    const wait = authLimiter.hit("verify:" + ctx.ip);
+    if (wait) throw new ApiError(429, "rate_limited", `Too many attempts. Try again in ${wait}s.`);
+    const { token } = parse(schemas.token, ctx.body);
+    const userId = await store.consumeAuthToken("verify_email", hashToken(token), now());
+    if (!userId) throw invalidToken();
+    await store.markEmailVerified(userId, now());
+    await store.audit("auth.email_verified", userId, null);
+    return { verified: true };
+  }, "none");
+
+  router.add("POST", "/api/v1/auth/resend-verification", async (ctx) => {
+    sessionOnly(ctx);
+    const userId = requireUser(ctx);
+    const user = await store.getUser(userId);
+    if (!user) throw new ApiError(401, "unauthenticated", "Sign in to continue.");
+    if (user.emailVerifiedAt) return { sent: false, alreadyVerified: true };
+    const wait = resendLimiter.hit("resend:" + userId);
+    if (wait) throw new ApiError(429, "rate_limited", `Please wait ${wait}s before asking for another email.`);
+    const ok = await sendAccountEmail("verify_email", user);
+    if (!ok) throw new ApiError(503, "email_unavailable", "We couldn't send the email right now. Try again in a few minutes.");
+    return { sent: true };
+  });
+
+  router.add("POST", "/api/v1/auth/forgot-password", async (ctx) => {
+    const body = parse(schemas.forgot, ctx.body);
+    const wait = Math.max(authLimiter.hit("forgot:" + ctx.ip), authLimiter.hit("forgot-email:" + body.email));
+    if (wait) throw new ApiError(429, "rate_limited", `Too many attempts. Try again in ${wait}s.`);
+    // The same answer, in the same time, whether or not the account exists: the email (if any) is sent in the background.
+    void (async () => {
+      const user = await store.getUserByEmail(body.email);
+      if (user) await sendAccountEmail("reset_password", user);
+    })().catch((e) => console.warn("forgot-password work failed:", e instanceof Error ? e.message : e));
+    return { sent: true, message: "If an account exists for that address, a reset link is on its way." };
+  }, "none");
+
+  router.add("POST", "/api/v1/auth/reset-password", async (ctx) => {
+    const wait = authLimiter.hit("reset:" + ctx.ip);
+    if (wait) throw new ApiError(429, "rate_limited", `Too many attempts. Try again in ${wait}s.`);
+    const body = parse(schemas.reset, ctx.body);
+    const userId = await store.consumeAuthToken("reset_password", hashToken(body.token), now());
+    if (!userId) throw invalidToken();
+    await store.setPassword(userId, await hashPassword(body.password));
+    await store.markEmailVerified(userId, now()); // they just proved they control the inbox
+    await store.revokeAllSessions(userId);       // anyone who had the old password is signed out everywhere
+    await store.audit("auth.password_reset", userId, null);
+    return { reset: true };
+  }, "none");
+
+  // ---- GitHub sign-in (OAuth authorization-code flow)
+  const oauthCookie = (value: string, maxAge: number) =>
+    `${OAUTH_COOKIE}=${encodeURIComponent(value)}; Path=/api/v1/auth/github; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${config.cookieSecure ? "; Secure" : ""}`;
+  const authError = (code: string) => ({ __redirect: `${publicUrl}/auth#error=${code}`, __headers: { "set-cookie": oauthCookie("", 0) } });
+  const safeEqual = (a: string, b: string) => { const x = Buffer.from(a), y = Buffer.from(b); return x.length === y.length && timingSafeEqual(x, y); };
+
+  router.add("GET", "/api/v1/auth/github/start", async (ctx) => {
+    if (!config.github) throw new ApiError(404, "github_unavailable", "GitHub sign-in is not configured on this server.");
+    const wait = authLimiter.hit("gh-start:" + ctx.ip);
+    if (wait) throw new ApiError(429, "rate_limited", `Too many attempts. Try again in ${wait}s.`);
+    const state = randomBytes(24).toString("base64url");
+    const q = new URLSearchParams({ client_id: config.github.clientId, redirect_uri: `${publicUrl}/api/v1/auth/github/callback`, scope: "read:user user:email", state, allow_signup: "true" });
+    return { __redirect: `https://github.com/login/oauth/authorize?${q}`, __headers: { "set-cookie": oauthCookie(state, 600) } };
+  }, "none");
+
+  router.add("GET", "/api/v1/auth/github/callback", async (ctx) => {
+    if (!config.github) return authError("github_unavailable");
+    const wait = authLimiter.hit("gh-cb:" + ctx.ip);
+    if (wait) return authError("rate_limited");
+    const q = ctx.url.searchParams;
+    const expected = parseCookies(ctx.req.headers.cookie)[OAUTH_COOKIE] ?? "";
+    const state = q.get("state") ?? "";
+    if (!expected || !state || !safeEqual(expected, state)) return authError("state_mismatch");   // forged or replayed callback
+    if (q.get("error")) return authError("access_denied");
+    const code = q.get("code");
+    if (!code || code.length > 200) return authError("github_failed");
+
+    const gh = async <T>(url: string, init: RequestInit): Promise<T | null> => {
+      try {
+        const r = await outbound(url, { ...init, signal: AbortSignal.timeout(10_000), redirect: "error" });
+        return r.ok ? ((await r.json()) as T) : null;
+      } catch { return null; }
+    };
+    const tok = await gh<{ access_token?: string }>("https://github.com/login/oauth/access_token", {
+      method: "POST", headers: { accept: "application/json", "content-type": "application/json" },
+      body: JSON.stringify({ client_id: config.github.clientId, client_secret: config.github.clientSecret, code, redirect_uri: `${publicUrl}/api/v1/auth/github/callback` }),
+    });
+    if (!tok?.access_token) return authError("github_failed");
+    const headers = { authorization: `Bearer ${tok.access_token}`, accept: "application/vnd.github+json", "user-agent": "PortalOps" };
+    const profile = await gh<{ id?: number; login?: string }>("https://api.github.com/user", { headers });
+    const emails = await gh<{ email: string; primary: boolean; verified: boolean }[]>("https://api.github.com/user/emails", { headers });
+    if (!profile?.id || !profile.login || !Array.isArray(emails)) return authError("github_failed");
+    // Only an address GitHub itself has verified may identify an account here.
+    const verified = emails.filter((e) => e.verified);
+    const chosen = (verified.find((e) => e.primary) ?? verified[0])?.email?.toLowerCase();
+    if (!chosen) return authError("github_no_verified_email");
+
+    const githubId = String(profile.id);
+    let user = await store.getUserByGithubId(githubId);
+    if (!user) {
+      const existing = await store.getUserByEmail(chosen);
+      if (existing) {
+        if (existing.githubId && existing.githubId !== githubId) return authError("github_account_mismatch");
+        if (!existing.emailVerifiedAt) {
+          // Someone registered this address with a password but never proved they own it. GitHub just did, so the real owner takes
+          // the account over: the unproven password stops working and every session of it is revoked.
+          await store.setPassword(existing.id, NO_PASSWORD);
+          await store.revokeAllSessions(existing.id);
+          await store.markEmailVerified(existing.id, now());
+          await store.audit("auth.github_reclaim", existing.id, null);
+        }
+        await store.linkGithub(existing.id, githubId, profile.login);
+        user = (await store.getUser(existing.id))!;
+      } else {
+        const created = await store.createUser(chosen, NO_PASSWORD, { verified: true, githubId, githubLogin: profile.login });
+        if (!created) return authError("github_failed");
+        user = (await store.getUser(created.id))!;
+        await store.audit("auth.signup", user.id, null, { via: "github" });
+      }
+    }
+    await store.audit("auth.login", user.id, null, { via: "github" });
+    const { token, hash } = newSessionToken();
+    await store.createSession(hash, user.id, new Date(now().getTime() + config.sessionTtlMs));
+    return { __redirect: `${publicUrl}/app`, __headers: { "set-cookie": [sessionCookie(token, Math.floor(config.sessionTtlMs / 1000), config.cookieSecure), oauthCookie("", 0)] } };
+  }, "none");
+
 
   // --------------------------------------------------------------- projects
   router.add("POST", "/api/v1/projects", async (ctx) => {
@@ -749,6 +927,12 @@ export function createApp(deps: AppDeps): (req: IncomingMessage, res: ServerResp
       }
       const result = await m.route.handler({ req, res, url, params: m.params, body, userId, ip, sessionToken, rawBody, apiKey });
 
+      if (result && typeof result === "object" && "__redirect" in result) {
+        const r = result as { __redirect: string; __headers?: Record<string, string | string[]> };
+        res.writeHead(302, { location: r.__redirect, "cache-control": "no-store", "referrer-policy": "no-referrer", "x-content-type-options": "nosniff", ...(r.__headers ?? {}) });
+        res.end();
+        return;
+      }
       if (result && typeof result === "object" && "__headers" in result) {
         const r = result as { __status?: number; __headers: Record<string, string>; data: unknown };
         return reply(r.__status ?? 200, { data: r.data }, r.__headers);

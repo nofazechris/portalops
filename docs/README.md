@@ -10,6 +10,7 @@ retried, replayable webhooks. These pages are the full manual.
 | Get my first event delivered in ten minutes | [Quickstart](guides/quickstart.md) |
 | Let Claude set everything up for me | [Set up with Claude](guides/claude-setup.md) |
 | Understand the model (events, finality, deliveries, replay) | [Concepts](guides/concepts.md) |
+| Set up sign-in: GitHub, email verification, password reset | [Accounts](guides/accounts.md) |
 | Receive webhooks safely (Node, Python, Go, PHP) | [Webhooks](guides/webhooks.md) |
 | Track a contract, or start from an example | [Contracts and examples](guides/contracts-and-examples.md) |
 | Call the API from code | [TypeScript SDK](guides/sdk.md) and the [REST API reference](reference/api.md) |

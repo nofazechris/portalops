@@ -3,7 +3,7 @@ import { api } from "../api.js";
 import { navGroups, validScreens, tourSteps, LANDING_URL } from "../data.js";
 import { Link, navigate } from "../router.jsx";
 import { useApi, useSession } from "../state.jsx";
-import { ErrorBoundary, ErrorBox, Field, Loading, Modal } from "../ui.jsx";
+import { Alert, ErrorBoundary, ErrorBox, Field, Loading, Modal } from "../ui.jsx";
 import Tour from "../Tour.jsx";
 import Overview from "../screens/Overview.jsx";
 import Setup from "../screens/Setup.jsx";
@@ -67,6 +67,31 @@ function NewProjectModal({ onClose, onCreated, isFirst }) {
   );
 }
 
+/** Asks people who signed up with a password to confirm their address. Hidden once verified; dismissible for the session. */
+function VerifyBanner({ user, refreshUser }) {
+  const [hidden, setHidden] = useState(false);
+  const [state, setState] = useState({ busy: false, msg: null });
+  if (!user || user.emailVerified !== false || hidden) return null;
+  async function resend() {
+    setState({ busy: true, msg: null });
+    try { const r = await api.resendVerification(); setState({ busy: false, msg: r.alreadyVerified ? { tone: "ok", text: "Already confirmed." } : { tone: "ok", text: `Sent. Check ${user.email} (and spam).` } }); if (r.alreadyVerified) refreshUser(); }
+    catch (e) { setState({ busy: false, msg: { tone: "warn", text: e.code === "rate_limited" ? e.message : e.code === "email_unavailable" ? "We couldn't send it right now. Try again in a few minutes." : e.message } }); }
+  }
+  return (
+    <div style={{ marginBottom: 16 }}>
+      <Alert tone="info" title="Confirm your email address" onClose={() => setHidden(true)}
+        action={(
+          <span style={{ display: "inline-flex", gap: 14, alignItems: "center", flexWrap: "wrap" }}>
+            <button type="button" className="link-btn" disabled={state.busy} onClick={resend}>{state.busy ? "Sending…" : "Resend email"}</button>
+            <button type="button" className="link-btn" onClick={refreshUser}>I've confirmed it</button>
+            {state.msg && <span style={{ fontSize: 12.5, color: state.msg.tone === "ok" ? "var(--green)" : "var(--amber)" }}>{state.msg.text}</span>}
+          </span>
+        )}
+      >We sent a link to <strong style={{ color: "var(--fg-2)" }}>{user.email}</strong>. It proves the address is yours, which is how password reset reaches you.</Alert>
+    </div>
+  );
+}
+
 /** Shown on every project screen until the signed-in user has created a project. */
 function FirstProject({ onCreate }) {
   return (
@@ -90,7 +115,7 @@ function FirstProject({ onCreate }) {
 export default function Dashboard() {
   const [init] = useState(initialState);
   const session = useSession();
-  const { user, loading, project, projects, projectId, setProjectId, logout } = session;
+  const { user, loading, project, projects, projectId, setProjectId, logout, refreshUser } = session;
   const [view, setView] = useState({ screen: init.screen, params: {} });
   const [tour, setTour] = useState(init.tour);
   const [tourStep, setTourStep] = useState(0);
@@ -227,6 +252,7 @@ export default function Dashboard() {
         <main className="content pops-scroll">
           <div className="content-inner">
             {session.bootError && <ErrorBox error={session.bootError} />}
+            <VerifyBanner user={user} refreshUser={refreshUser} />
             <ErrorBoundary resetKey={screen + (params.id ?? "") + (projectId ?? "")}>
             {user && projects.length === 0 ? <FirstProject onCreate={() => setCreating(true)} /> : <>
             {screen === "overview" && <Overview openEvent={openEvent} go={go} />}

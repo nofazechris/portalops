@@ -53,6 +53,10 @@ export function SessionProvider({ children }) {
     try { id ? localStorage.setItem("pops_project", id) : localStorage.removeItem("pops_project"); } catch { /* storage unavailable */ }
   }, []);
 
+  const refreshUser = useCallback(async () => {
+    try { const me = await api.me(); setUser(me.user); } catch { /* keep what we have */ }
+  }, []);
+
   const refreshProjects = useCallback(async () => {
     const list = await api.projects();
     setProjects(list);
@@ -86,13 +90,13 @@ export function SessionProvider({ children }) {
       project: own,
       projectId: own ? own.id : user ? null : demoId,
       readOnly: !own,
-      setProjectId, refreshProjects,
+      setProjectId, refreshProjects, refreshUser,
       async login(email, password) { const r = await api.login(email, password); setUser(r.user); await refreshProjects(); return r.user; },
       async signup(email, password) { const r = await api.signup(email, password); setUser(r.user); setProjects([]); setProjectIdState(null); return r.user; },
       async logout() { await api.logout().catch(() => {}); setUser(null); setProjects([]); setProjectId(null); },
       async createProject(name, description) { const p = await api.createProject({ name, description: description || undefined }); await refreshProjects(); setProjectId(p.id); return p; },
     };
-  }, [user, projects, projectId, demoId, bootError, setProjectId, refreshProjects]);
+  }, [user, projects, projectId, demoId, bootError, setProjectId, refreshProjects, refreshUser]);
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }
