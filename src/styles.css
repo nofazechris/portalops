@@ -380,8 +380,8 @@ pre { margin: 0; }
 .first-project { max-width: 640px; margin: 8vh auto 0; padding: 40px 28px; text-align: center; border: 1px solid #1f1f1f; border-radius: 18px; background: linear-gradient(180deg, #0f0e14, #0b0b0b); display: flex; flex-direction: column; align-items: center; }
 .first-project-mark { width: 46px; height: 46px; border-radius: 13px; background: linear-gradient(140deg, #b9a7ff, #6f5fb0); display: flex; align-items: center; justify-content: center; margin-bottom: 20px; }
 .first-project-mark span { width: 15px; height: 15px; border-radius: 4px; background: #080808; }
-.first-project-steps { display: flex; gap: 18px; flex-wrap: wrap; justify-content: center; margin-top: 30px; padding-top: 22px; border-top: 1px solid #1a1a1a; width: 100%; font-size: 12.5px; color: var(--muted); }
-.first-project-steps > div { display: flex; align-items: center; gap: 8px; }
+.first-project-steps { display: flex; gap: 22px; flex-wrap: nowrap; justify-content: center; margin-top: 30px; padding-top: 22px; border-top: 1px solid #1a1a1a; width: 100%; font-size: 12.5px; color: var(--muted); }
+.first-project-steps > div { display: flex; align-items: center; gap: 8px; white-space: nowrap; }
 .first-project-steps .mono { width: 20px; height: 20px; border-radius: 50%; border: 1px solid #2c2845; color: var(--accent); display: inline-flex; align-items: center; justify-content: center; font-size: 11px; }
 .dropdown-label { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--faint); padding: 8px 10px 4px; }
 .dropdown .item.project-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
@@ -414,3 +414,5 @@ pre { margin: 0; }
 @media (max-width: 900px) {
   .collapse-btn { display: none; }
 }
+
+@media (max-width: 560px) { .first-project-steps { flex-wrap: wrap; gap: 12px 18px; } }

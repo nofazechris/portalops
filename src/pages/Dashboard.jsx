@@ -79,7 +79,7 @@ function FirstProject({ onCreate }) {
       </p>
       <button className="btn primary" style={{ marginTop: 26, padding: "12px 26px", fontSize: 14.5 }} onClick={onCreate}>Create project</button>
       <div className="first-project-steps">
-        {["Create the project", "Guided setup: contract, webhook, test delivery", "Watch real events arrive"].map((t, i) => (
+        {["Create the project", "Guided setup", "Watch real events arrive"].map((t, i) => (
           <div key={t}><span className="mono">{i + 1}</span>{t}</div>
         ))}
       </div>
