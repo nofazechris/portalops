@@ -23,6 +23,13 @@ services:
       # Where the worker reaches the API for the built-in test receiver. On a single service this is the same public URL.
       - key: PORTALOPS_API_PUBLIC_URL
         sync: false
+      # Email (verification and password reset). Names only here: paste the VALUES in the Render dashboard, never in this file.
+      # RESEND_API_KEY: a Resend key with "Sending access". EMAIL_FROM: a sender on a domain verified in Resend,
+      # e.g. PortalOps <no-reply@yourdomain.com> (or onboarding@resend.dev while testing).
+      - key: RESEND_API_KEY
+        sync: false
+      - key: EMAIL_FROM
+        sync: false
       # Random 256-bit key that encrypts webhook secrets at rest. Generated once by Render.
       # COPY IT somewhere safe after the first deploy: if it is lost, stored webhook secrets cannot be decrypted.
       - key: WEBHOOK_ENCRYPTION_KEY

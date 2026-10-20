@@ -39,6 +39,13 @@ settings (or `.env.production` with docker compose). Values already set in the r
 | `PORTALOPS_ALLOW_PRIVATE_WEBHOOK_TARGETS` | unset | `1` allows webhooks to loopback and private addresses over http. **Development only**: the API refuses to start with it on an https deployment |
 | `PORT` | none | Used only if `PORTALOPS_API_PORT` is unset |
 
+## Email (verification and password reset)
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `RESEND_API_KEY` | unset | A [Resend](https://resend.com) API key with **sending access**. Set it only in your host's environment settings and your local `.env`, never in a committed file. Without it, emails are printed to the server log instead of being sent (development) |
+| `EMAIL_FROM` | unset | The sender, for example `PortalOps <no-reply@yourdomain.com>`. The domain must be verified in Resend (`onboarding@resend.dev` works for testing, but only delivers to your own Resend account address) |
+
 ## Worker
 
 | Variable | Default | Meaning |
