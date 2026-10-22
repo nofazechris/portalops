@@ -14,7 +14,7 @@ const routes = {
 
 export default function App() {
   const path = usePath().replace(/\/+$/, "") || "/";
-  const Page = routes[path] || Landing;
+  const Page = path === "/docs" || path.startsWith("/docs/") ? Docs : routes[path] || Landing;
   return (
     <SessionProvider>
       <Page key={path} />

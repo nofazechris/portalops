@@ -1,164 +1,173 @@
-import { useState } from "react";
-import { Link } from "../router.jsx";
-import { apiEndpoints as endpoints, signatureSnippet } from "../data.js";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Link, navigate, usePath } from "../router.jsx";
+import { DEFAULT_DOC, DOC_LIST, DOC_SECTIONS, findDoc } from "./docsNav.js";
+import { renderDoc, searchDocs } from "./docsRender.js";
 import "./pages.css";
 
-const sections = [
-  { label: "Getting started", items: [["intro", "Introduction"], ["quickstart", "Quickstart"]] },
-  { label: "Concepts", items: [["concepts", "Core concepts"]] },
-  { label: "Guides", items: [["webhooks", "Webhooks & replay"]] },
-  { label: "Reference", items: [["api", "API reference"]] },
-];
+// Each markdown file is its own chunk, fetched only when that page (or a search) needs it.
+const FILES = import.meta.glob("../../docs/**/*.md", { query: "?raw", import: "default" });
+const load = (path) => {
+  const loader = FILES[`../../docs/${path}.md`];
+  return loader ? loader() : Promise.reject(new Error("missing"));
+};
 
-const concepts = [
-  { tag: "events", title: "Events", body: "Normalized records of on-chain activity, decoded from your contract's ABI and stored durably." },
-  { tag: "webhooks", title: "Webhooks", body: "Signed HTTP deliveries to your endpoints, with retries, response timing and full history." },
-  { tag: "replay", title: "Replay", body: "Re-deliver any stored event exactly as it happened — no reconstructing blockchain state." },
-  { tag: "automations", title: "Automations", body: "When an event matches your conditions, trigger a webhook or action automatically." },
-];
+const REPO = "https://github.com/nofazechris/portalops";
 
-const Eyebrow = ({ children }) => <div className="mono-tag">{children}</div>;
-const Card = ({ title, children }) => (
-  <div className="card" style={{ borderRadius: 12 }}>
-    <div style={{ fontSize: 14, fontWeight: 600 }}>{title}</div>
-    <p style={{ fontSize: 13.5, color: "var(--muted)", margin: "7px 0 0", lineHeight: 1.5 }}>{children}</p>
-  </div>
-);
+function slugFromPath(path) {
+  const rest = path.replace(/^\/docs\/?/, "").replace(/\/+$/, "");
+  return rest || DEFAULT_DOC;
+}
 
-function Intro() {
+function useSearchIndex(enabled) {
+  const [index, setIndex] = useState(null);
+  useEffect(() => {
+    if (!enabled || index) return undefined;
+    let alive = true;
+    Promise.all(DOC_LIST.map(async (d) => ({ ...renderDoc(await load(d.path), d.path), path: d.path, section: d.section, title: d.title })))
+      .then((i) => { if (alive) setIndex(i); }).catch(() => { if (alive) setIndex([]); });
+    return () => { alive = false; };
+  }, [enabled, index]);
+  return index;
+}
+
+function SearchBox({ onPick }) {
+  const [q, setQ] = useState("");
+  const [open, setOpen] = useState(false);
+  const index = useSearchIndex(open);
+  const hits = useMemo(() => (index ? searchDocs(index, q) : []), [index, q]);
+  const box = useRef(null);
+  useEffect(() => {
+    const onDown = (e) => { if (box.current && !box.current.contains(e.target)) setOpen(false); };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, []);
   return (
-    <div>
-      <Eyebrow>Getting started</Eyebrow>
-      <h1 className="doc-h1">Introduction</h1>
-      <p className="doc-p">PortalOps is the operational event layer for Portaldot applications. It ingests on-chain events, normalizes them into clean records, stores them, and delivers them wherever your application needs — with monitoring, retries and one-click replay built in.</p>
-      <div className="grid docs-grid-2" style={{ gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 28 }}>
-        <Card title="Event ingestion">A worker polls the chain for new blocks, stores each log once, and decodes it when you supply an ABI.</Card>
-        <Card title="Reliable delivery">Webhooks with signing, retries, history and replay.</Card>
-      </div>
-      <h2 className="doc-h2" style={{ marginTop: 40 }}>How it fits together</h2>
-      <div className="doc-code" style={{ marginTop: 16, padding: 20, fontSize: 12.5, color: "var(--fg-3)", lineHeight: 1.9 }}>
-        Contract → <span style={{ color: "var(--green)" }}>decode</span> → <span style={{ color: "var(--green)" }}>normalize</span> → <span style={{ color: "var(--green)" }}>store</span> → <span style={{ color: "var(--accent)" }}>deliver</span> → monitor → retry → <span style={{ color: "var(--accent)" }}>replay</span> → automate
-      </div>
+    <div className="dx-search" ref={box}>
+      <input
+        type="search" placeholder="Search the docs" aria-label="Search the docs" value={q}
+        onFocus={() => setOpen(true)} onChange={(e) => { setQ(e.target.value); setOpen(true); }}
+        onKeyDown={(e) => { if (e.key === "Escape") { setOpen(false); e.currentTarget.blur(); } }}
+      />
+      {open && q.trim().length >= 2 && (
+        <div className="dx-results" role="listbox">
+          {!index && <div className="dx-result-empty">Searching…</div>}
+          {index && hits.length === 0 && <div className="dx-result-empty">No results for “{q.trim()}”.</div>}
+          {hits.map((h) => (
+            <button key={h.path + (h.anchor ?? "")} type="button" className="dx-result" onClick={() => { setOpen(false); setQ(""); onPick(`/docs/${h.path}${h.anchor ? "#" + h.anchor : ""}`); }}>
+              <span className="dx-result-title">{h.title}{h.headingText && h.headingText !== h.title ? <em> › {h.headingText}</em> : null}</span>
+              <span className="dx-result-snippet">{h.snippet}</span>
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
-
-function Quickstart() {
-  return (
-    <div>
-      <Eyebrow>Getting started</Eyebrow>
-      <h1 className="doc-h1">Quickstart</h1>
-      <p className="doc-p">Receive your first captured event at your own backend. Webhooks are plain signed HTTP; the TypeScript SDK (packages/sdk) adds a typed client and verification helpers.</p>
-      <div className="doc-label" style={{ margin: "30px 0 10px" }}>1 — Register a contract</div>
-      <p className="doc-p" style={{ marginTop: 0, fontSize: 14 }}>Create a project, then add your contract address (and ABI, to decode events) on the Contracts screen.</p>
-      <div className="doc-label" style={{ margin: "26px 0 10px" }}>2 — Add a webhook</div>
-      <p className="doc-p" style={{ marginTop: 0, fontSize: 14 }}>On the Webhooks screen, add an HTTPS URL. Copy the signing secret when it is shown; it is displayed once.</p>
-      <div className="doc-label" style={{ margin: "26px 0 10px" }}>3 — Verify the signature in your receiver</div>
-      <div className="doc-code" style={{ overflow: "hidden" }}>
-        <div className="mono" style={{ padding: "10px 16px", borderBottom: "1px solid #1a1a1a", fontSize: 11, color: "var(--dim)" }}>verify.mjs</div>
-        <pre style={{ padding: 18, lineHeight: 1.7, overflowX: "auto", fontSize: 12.5 }}>{signatureSnippet}</pre>
-      </div>
-      <div className="doc-label" style={{ margin: "26px 0 10px" }}>4 — Send a test delivery</div>
-      <p className="doc-p" style={{ marginTop: 0, fontSize: 14 }}>Use “Send test delivery” on the webhook. A 2xx response from your route confirms the integration.</p>
-    </div>
-  );
-}
-
-function Concepts() {
-  return (
-    <div>
-      <Eyebrow>Concepts</Eyebrow>
-      <h1 className="doc-h1">Core concepts</h1>
-      <div className="stack" style={{ gap: 14, marginTop: 24 }}>
-        {concepts.map((c) => (
-          <div key={c.tag} className="card" style={{ borderRadius: 12, padding: "18px 20px" }}>
-            <span className="mono-tag">{c.tag}</span>
-            <h3 style={{ fontSize: 16, fontWeight: 600, margin: "8px 0 0" }}>{c.title}</h3>
-            <p style={{ fontSize: 14, color: "#9a968e", margin: "7px 0 0", lineHeight: 1.55 }}>{c.body}</p>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function ApiRef() {
-  return (
-    <div>
-      <Eyebrow>Reference</Eyebrow>
-      <h1 className="doc-h1">API reference</h1>
-      <p className="doc-p">Endpoints live under <span className="mono">/api/v1</span> on the PortalOps host. Send <span className="mono">Authorization: Bearer pops_…</span> with a project API key (Settings → API keys), or use the dashboard's session cookie.</p>
-      <div className="table" style={{ marginTop: 24, borderRadius: 12 }}>
-        {endpoints.map((ep) => (
-          <div key={ep.method + ep.path} className="mono" style={{ display: "grid", gridTemplateColumns: "72px 1fr", gap: 14, alignItems: "center", padding: "13px 18px", borderBottom: "1px solid #161616", fontSize: 13 }}>
-            <span style={{ color: ep.color, fontWeight: 500 }}>{ep.method}</span>
-            <span style={{ color: "var(--fg-2)" }}>{ep.path}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function WebhooksDoc() {
-  return (
-    <div>
-      <Eyebrow>Guides</Eyebrow>
-      <h1 className="doc-h1">Webhooks &amp; replay</h1>
-      <p className="doc-p">Every delivery is signed and recorded. When a destination fails, PortalOps retains the normalized event and retries on a backoff schedule — and you can replay any event by hand.</p>
-      <h2 className="doc-h2">Verifying signatures</h2>
-      <div className="doc-code" style={{ marginTop: 14, padding: 18, lineHeight: 1.7, overflowX: "auto" }}>
-        <pre><span className="n">const</span> ok = portal.webhooks.<span className="n">verify</span>(req.body, sig, secret);</pre>
-      </div>
-      <h2 className="doc-h2">Replaying an event</h2>
-      <div className="doc-code" style={{ marginTop: 14, padding: 18, lineHeight: 1.7, overflowX: "auto" }}>
-        <pre><span className="k">POST</span> /v1/events/:id/replay</pre>
-      </div>
-      <div style={{ marginTop: 20 }}><Link href="/app#replay" style={{ fontSize: 14 }}>Open the Replay Center in the dashboard →</Link></div>
-    </div>
-  );
-}
-
-const pages = { intro: Intro, quickstart: Quickstart, concepts: Concepts, api: ApiRef, webhooks: WebhooksDoc };
 
 export default function Docs() {
-  const [page, setPage] = useState("intro");
-  const Page = pages[page];
-  const go = (id) => { setPage(id); window.scrollTo(0, 0); };
+  const path = usePath();
+  const slug = slugFromPath(path);
+  const meta = findDoc(slug);
+  const [doc, setDoc] = useState(null); // { slug, html, headings, title }
+  const [error, setError] = useState(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const article = useRef(null);
+
+  useEffect(() => {
+    let alive = true;
+    setError(null);
+    if (!meta) { setDoc(null); return undefined; }
+    load(slug).then((md) => { if (alive) setDoc({ slug, ...renderDoc(md, slug) }); }).catch(() => { if (alive) setError("This page could not be loaded."); });
+    return () => { alive = false; };
+  }, [slug, meta]);
+
+  useEffect(() => { document.title = meta ? `${meta.title} · PortalOps docs` : "PortalOps docs"; }, [meta]);
+  useEffect(() => { setMenuOpen(false); }, [slug]);
+
+  // after a page renders: jump to its #anchor, or to the top
+  useEffect(() => {
+    if (!doc) return;
+    const id = decodeURIComponent(location.hash.replace(/^#/, ""));
+    const el = id ? document.getElementById(id) : null;
+    if (el) el.scrollIntoView({ block: "start" }); else window.scrollTo(0, 0);
+  }, [doc]);
+
+  // links inside the article: docs links navigate in-app, copy buttons copy their code block
+  function onArticleClick(e) {
+    const copy = e.target.closest?.("[data-copy]");
+    if (copy) {
+      const code = copy.closest(".dx-code")?.querySelector("code")?.textContent ?? "";
+      try { navigator.clipboard?.writeText(code); } catch { /* clipboard unavailable */ }
+      copy.textContent = "Copied ✓"; setTimeout(() => { copy.textContent = "Copy"; }, 1500);
+      return;
+    }
+    const a = e.target.closest?.("a[href]");
+    if (!a || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    const href = a.getAttribute("href");
+    if (href.startsWith("/docs")) { e.preventDefault(); navigate(href); }
+  }
+
+  const i = DOC_LIST.findIndex((d) => d.path === slug);
+  const prev = i > 0 ? DOC_LIST[i - 1] : null;
+  const next = i >= 0 && i < DOC_LIST.length - 1 ? DOC_LIST[i + 1] : null;
 
   return (
-    <div className="docs-shell">
-      <aside className="docs-aside" style={{ background: "#0b0b0b", borderRight: "1px solid #1b1b1b", padding: "18px 16px", position: "sticky", top: 0, height: "100vh", display: "flex", flexDirection: "column" }}>
-        <Link href="/" className="brand" style={{ padding: "4px 8px 18px" }}>
-          <span className="brand-mark"><i /></span>
-          <span className="brand-name">PortalOps</span>
-          <span className="mono" style={{ fontSize: 11, color: "var(--dim)", marginLeft: 2 }}>docs</span>
-        </Link>
-        <div style={{ background: "#0d0d0d", border: "1px solid #1f1f1f", borderRadius: 9, padding: "8px 11px", marginBottom: 16, display: "flex", alignItems: "center", gap: 9, color: "var(--faint)", fontSize: 13 }}>
-          <span>⌕</span>Search docs
-          <span className="mono" style={{ marginLeft: "auto", fontSize: 10.5, border: "1px solid #242424", borderRadius: 5, padding: "1px 6px" }}>⌘K</span>
-        </div>
-        <nav className="pops-scroll" style={{ overflowY: "auto", flex: 1, display: "flex", flexDirection: "column", gap: 16 }}>
-          {sections.map((g) => (
-            <div key={g.label}>
-              <div className="nav-label" style={{ padding: "4px 10px 6px" }}>{g.label}</div>
-              {g.items.map(([id, label]) => (
-                <button key={id} className={"docs-nav-item" + (id === page ? " on" : "")} onClick={() => go(id)}>{label}</button>
+    <div className="dx">
+      <header className="dx-top">
+        <Link href="/" className="brand dx-brand"><span className="brand-mark"><i /></span><span className="brand-name">PortalOps</span></Link>
+        <span className="dx-top-label">Docs</span>
+        <SearchBox onPick={(href) => navigate(href)} />
+        <nav className="dx-top-links" aria-label="Site">
+          <a href={REPO} target="_blank" rel="noopener noreferrer">GitHub</a>
+          <Link href="/app" className="dx-cta">Open dashboard</Link>
+        </nav>
+        <button type="button" className="dx-menu-btn" aria-expanded={menuOpen} aria-controls="dx-nav" onClick={() => setMenuOpen(!menuOpen)}>{menuOpen ? "Close" : "Menu"}</button>
+      </header>
+
+      <div className="dx-body">
+        <nav id="dx-nav" className={"dx-nav" + (menuOpen ? " open" : "")} aria-label="Documentation">
+          {DOC_SECTIONS.map((s) => (
+            <div key={s.title} className="dx-nav-group">
+              <div className="dx-nav-label">{s.title}</div>
+              {s.items.map((it) => (
+                <Link key={it.path} href={`/docs/${it.path}`} className={"dx-nav-item" + (it.path === slug ? " on" : "")} aria-current={it.path === slug ? "page" : undefined}>{it.title}</Link>
               ))}
             </div>
           ))}
         </nav>
-      </aside>
 
-      <main className="docs-main" style={{ padding: "48px 56px 80px" }}>
-        <div style={{ maxWidth: 720 }}>
-          <Page />
-          <div style={{ marginTop: 48, paddingTop: 22, borderTop: "1px solid #1b1b1b", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <Link className="muted-link" href="/" style={{ fontSize: 13.5 }}>← Back to site</Link>
-            <Link className="pbtn" href="/auth#signup" style={{ fontSize: 13.5, padding: "9px 16px", borderRadius: 9 }}>Start Building</Link>
-          </div>
-        </div>
-      </main>
+        <main className="dx-main">
+          {!meta && (
+            <div className="dx-notfound">
+              <h1>Page not found</h1>
+              <p>There is no documentation page at <code>{path}</code>.</p>
+              <Link href="/docs" className="dx-cta">Go to the docs home</Link>
+            </div>
+          )}
+          {meta && error && <div className="dx-notfound"><h1>{meta.title}</h1><p>{error}</p></div>}
+          {meta && !error && !doc && <div className="dx-loading">Loading…</div>}
+          {meta && doc && doc.slug === slug && (
+            <>
+              <div className="dx-crumb">{meta.section}</div>
+              <article ref={article} className="dx-article" onClick={onArticleClick} dangerouslySetInnerHTML={{ __html: doc.html }} />
+              <div className="dx-pager">
+                {prev ? <Link href={`/docs/${prev.path}`} className="dx-pager-link"><small>Previous</small>{prev.title}</Link> : <span />}
+                {next ? <Link href={`/docs/${next.path}`} className="dx-pager-link next"><small>Next</small>{next.title}</Link> : <span />}
+              </div>
+              <div className="dx-edit"><a href={`${REPO}/blob/main/docs/${slug}.md`} target="_blank" rel="noopener noreferrer">View this page on GitHub</a></div>
+            </>
+          )}
+        </main>
+
+        <aside className="dx-toc" aria-label="On this page">
+          {doc && doc.slug === slug && doc.headings.length > 0 && (
+            <>
+              <div className="dx-nav-label">On this page</div>
+              {doc.headings.map((h) => <a key={h.id} href={`#${h.id}`} className={"dx-toc-item l" + h.level} onClick={(e) => { e.preventDefault(); history.replaceState(null, "", "#" + h.id); document.getElementById(h.id)?.scrollIntoView({ block: "start" }); }}>{h.text}</a>)}
+            </>
+          )}
+        </aside>
+      </div>
     </div>
   );
 }

@@ -31,7 +31,6 @@ export const navGroups = [
   { label: "Developer", items: [
     { id: "aisetup", label: "AI Setup", icon: "✧" },
     { id: "apisdk", label: "API/SDK", icon: "{ }" },
-    { id: "docs", label: "Documentation", icon: "⧉", href: DOCS_URL },
   ] },
   { label: "Project", items: [{ id: "settings", label: "Settings", icon: "⚙" }] },
 ];

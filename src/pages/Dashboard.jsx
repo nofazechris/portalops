@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../api.js";
-import { navGroups, validScreens, tourSteps, LANDING_URL } from "../data.js";
+import { navGroups, validScreens, tourSteps } from "../data.js";
 import { Link, navigate } from "../router.jsx";
 import { useApi, useSession } from "../state.jsx";
 import { Alert, ErrorBoundary, ErrorBox, Field, Loading, Modal } from "../ui.jsx";
@@ -15,6 +15,8 @@ import { Logs, Contracts, Automations, Diagnostics, ApiSdk, Settings } from "../
 
 const TOUR_KEY = "pops_tour_done";
 const SIDEBAR_KEY = "pops_sidebar_collapsed";
+/** Form-like screens read better in a centered column than hugging the left edge. */
+const NARROW = new Set(["setup", "settings", "apisdk", "aisetup", "diagnostics"]);
 const readHash = () => (location.hash || "").replace("#", "");
 
 function initialState() {
@@ -171,10 +173,10 @@ export default function Dashboard() {
     <div className={"shell" + (collapsed ? " collapsed" : "")}>
       {navOpen && <div className="nav-backdrop" onClick={() => setNavOpen(false)} />}
       <aside className={"sidebar" + (navOpen ? " open" : "")}>
-        <Link className="brand" href={LANDING_URL} title="PortalOps home">
+        <button type="button" className="brand brand-btn" title="Overview" aria-label="PortalOps: go to the Overview" onClick={() => go("overview")}>
           <span className="brand-mark"><i /></span>
           <span className="brand-name">PortalOps</span>
-        </Link>
+        </button>
         <nav className="nav pops-scroll">
           {navGroups.map((g, gi) => (
             <div key={gi}>
@@ -254,7 +256,7 @@ export default function Dashboard() {
             {session.bootError && <ErrorBox error={session.bootError} />}
             <VerifyBanner user={user} refreshUser={refreshUser} />
             <ErrorBoundary resetKey={screen + (params.id ?? "") + (projectId ?? "")}>
-            {user && projects.length === 0 ? <FirstProject onCreate={() => setCreating(true)} /> : <>
+            {user && projects.length === 0 ? <FirstProject onCreate={() => setCreating(true)} /> : <div className={NARROW.has(screen) ? "page-narrow" : undefined}>
             {screen === "overview" && <Overview openEvent={openEvent} go={go} />}
             {screen === "setup" && <Setup go={go} />}
             {screen === "events" && <Events openEvent={openEvent} />}
@@ -269,7 +271,7 @@ export default function Dashboard() {
             {screen === "apisdk" && <ApiSdk />}
             {screen === "aisetup" && <AiSetup />}
             {screen === "settings" && <Settings key={project?.id} />}
-            </>}
+            </div>}
             </ErrorBoundary>
           </div>
         </main>

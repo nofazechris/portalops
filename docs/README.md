@@ -7,7 +7,11 @@ retried, replayable webhooks. These pages are the full manual.
 
 | I want to… | Read |
 |---|---|
+| Understand what PortalOps is and why it exists | [What is PortalOps?](guides/product-overview.md) |
 | Get my first event delivered in ten minutes | [Quickstart](guides/quickstart.md) |
+| See every dashboard screen explained | [Dashboard tour](guides/dashboard-tour.md) |
+| Build something with it | [Use cases and recipes](guides/use-cases.md) |
+| Quick answers | [FAQ](guides/faq.md) |
 | Let Claude set everything up for me | [Set up with Claude](guides/claude-setup.md) |
 | Understand the model (events, finality, deliveries, replay) | [Concepts](guides/concepts.md) |
 | Set up sign-in: GitHub, email verification, password reset | [Accounts](guides/accounts.md) |
