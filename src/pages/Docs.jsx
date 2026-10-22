@@ -119,6 +119,7 @@ export default function Docs() {
         <span className="dx-top-label">Docs</span>
         <SearchBox onPick={(href) => navigate(href)} />
         <nav className="dx-top-links" aria-label="Site">
+          <Link href="/playground">Playground</Link>
           <a href={REPO} target="_blank" rel="noopener noreferrer">GitHub</a>
           <Link href="/app" className="dx-cta">Open dashboard</Link>
         </nav>

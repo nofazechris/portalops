@@ -427,6 +427,7 @@ export default function Landing() {
             <a className="muted-link" href="#features">Webhooks</a>
             <a className="muted-link" href="#replay">Replay</a>
             <a className="muted-link" href="#pipeline">Automations</a>
+            <Link className="muted-link" href="/playground">Playground</Link>
           </div>
           <div className="foot-col">
             <span className="h">Developers</span>
