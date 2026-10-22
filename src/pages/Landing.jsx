@@ -208,7 +208,7 @@ export default function Landing() {
       <LandingAi />
 
       {/* WHY */}
-      <section id="why" className="why">
+      <section id="why" className="lp-sec why">
         <Reveal className="lp-section-head">
           <h2 className="lp-h2">The boring part of every Portaldot app, already built.</h2>
           <p className="lp-aside">// why PortalOps</p>
@@ -227,12 +227,12 @@ export default function Landing() {
       </section>
 
       {/* WALKTHROUGH */}
-      <section id="walkthrough" style={{ padding: "64px 0 20px" }}>
+      <section id="walkthrough" className="lp-sec">
         <div className="lp-section-head">
           <h2 className="lp-h2">From zero to a live integration in six steps.</h2>
           <p className="lp-aside">// guided setup</p>
         </div>
-        <div className="lp-grid-2" style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr)", gap: 24, marginTop: 34, alignItems: "start" }}>
+        <div className="lp-grid-2" style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr)", gap: 24, alignItems: "start" }}>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {walk.map((w, i) => (
               <button key={w.k} className={"walk-row" + (i === step ? " on" : "")} onClick={() => setStep(i)}>
@@ -255,7 +255,7 @@ export default function Landing() {
       </section>
 
       {/* PIPELINE */}
-      <section id="pipeline" style={{ padding: "56px 0 20px" }}>
+      <section id="pipeline" className="lp-sec">
         <div className="lp-section-head">
           <h2 className="lp-h2">Everything that happens after an on-chain event exists.</h2>
           <p className="lp-aside">// the operational event layer</p>
@@ -273,7 +273,7 @@ export default function Landing() {
       </section>
 
       {/* FEATURES */}
-      <section id="features" style={{ padding: "48px 0 20px" }}>
+      <section id="features" className="lp-sec">
         <div className="lp-grid-3" style={{ display: "grid", gridTemplateColumns: "repeat(3,minmax(0,1fr))", gap: 16 }} onMouseMove={spotlight}>
           {features.map((f) => (
             <div key={f.title} className="feature">
@@ -287,7 +287,7 @@ export default function Landing() {
       </section>
 
       {/* PROOF: the contract we deployed on the testnet and the transactions that produced real events */}
-      <section id="proof" className="proof">
+      <section id="proof" className="lp-sec proof">
         <Reveal className="lp-section-head">
           <h2 className="lp-h2">Not a mock-up. Real transactions on the Portaldot testnet.</h2>
           <p className="lp-aside">// evidence</p>
@@ -315,7 +315,7 @@ export default function Landing() {
       </section>
 
       {/* LIVE STATUS */}
-      <section className="lp-grid-4" style={{ margin: "44px 0", background: "linear-gradient(120deg,#0d0d0d,#121016)", border: "1px solid #201d2b", borderRadius: 16, padding: "34px 36px", display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 24 }}>
+      <section className="lp-grid-4" style={{ background: "linear-gradient(120deg,#0d0d0d,#121016)", border: "1px solid #201d2b", borderRadius: 16, padding: "34px 36px", display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 24 }}>
         {[
           { value: status.data?.demo ? status.data.demo.eventsIndexed.toLocaleString() : "—", label: "Testnet events indexed (public explorer)", color: "var(--accent)" },
           { value: status.data?.headBlock != null ? "#" + status.data.headBlock.toLocaleString() : "—", label: "Current head block" },
@@ -330,7 +330,7 @@ export default function Landing() {
       </section>
 
       {/* REPLAY HIGHLIGHT */}
-      <section id="replay" className="lp-grid-2" style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr)", gap: 48, alignItems: "center", padding: "48px 0" }}>
+      <section id="replay" className="lp-sec lp-grid-2" style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr)", gap: 56, alignItems: "center" }}>
         <div>
           <span className="mono-tag">// signature feature</span>
           <h2 className="lp-h2-big" style={{ fontSize: 36, letterSpacing: "-0.025em", fontWeight: 600, margin: "14px 0 0", lineHeight: 1.08 }}>Recover failed deliveries. Instantly.</h2>
@@ -359,7 +359,7 @@ export default function Landing() {
       </section>
 
       {/* DEVELOPERS */}
-      <section id="sdk" className="lp-grid-2" style={{ display: "grid", gridTemplateColumns: "minmax(0,0.9fr) minmax(0,1.1fr)", gap: 48, alignItems: "center", padding: "48px 0" }}>
+      <section id="sdk" className="lp-sec lp-grid-2" style={{ display: "grid", gridTemplateColumns: "minmax(0,0.9fr) minmax(0,1.1fr)", gap: 56, alignItems: "center" }}>
         <div>
           <span className="mono-tag">// built for developers</span>
           <h2 className="lp-h2-big" style={{ fontSize: 34, letterSpacing: "-0.025em", fontWeight: 600, margin: "14px 0 0", lineHeight: 1.1 }}>A REST API, an SDK and signed webhooks.</h2>
@@ -379,7 +379,7 @@ export default function Landing() {
       </section>
 
       {/* FAQ */}
-      <section id="faq" className="faq">
+      <section id="faq" className="lp-sec faq">
         <Reveal className="lp-section-head">
           <h2 className="lp-h2">Questions people ask first.</h2>
           <p className="lp-aside">// straight answers</p>
@@ -395,7 +395,7 @@ export default function Landing() {
       </section>
 
       {/* CLOSING */}
-      <section id="start" className="lp-closing" style={{ margin: "40px 0 72px", position: "relative", background: "linear-gradient(160deg,#0a0a0a 0%,#121016 55%,#1a1530 100%)", border: "1px solid #221d33", borderRadius: 20, padding: "72px 48px", textAlign: "center", overflow: "hidden" }}>
+      <section id="start" className="lp-closing" style={{ position: "relative", background: "linear-gradient(160deg,#0a0a0a 0%,#121016 55%,#1a1530 100%)", border: "1px solid #221d33", borderRadius: 20, padding: "72px 48px", textAlign: "center", overflow: "hidden" }}>
         <div style={{ position: "absolute", inset: 0, background: "radial-gradient(50% 80% at 50% 120%, rgba(185,167,255,0.22), transparent 70%)", pointerEvents: "none" }} />
         <div style={{ position: "relative" }}>
           <div style={{ display: "flex", justifyContent: "center", marginBottom: 22 }}><Orb size={64} state="breathing" label="PortalOps is watching" /></div>
