@@ -1,0 +1,68 @@
+{
+  "contractName": "PortalPing",
+  "contractAddress": "0x6a8705e4621dd87a261b1c5f97b73871616537ec",
+  "deployTransactionHash": "0xb6809eeee11d1b4a1a98113da824cfd763131028b4048608883ab3bdb8aee7b8",
+  "deployBlock": 152078,
+  "gasUsed": "1421100341089317",
+  "compiler": "0.8.37+commit.f401782d.Emscripten.clang",
+  "abi": [
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "from",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "uint256",
+          "name": "seq",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "string",
+          "name": "note",
+          "type": "string"
+        }
+      ],
+      "name": "Ping",
+      "type": "event"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "string",
+          "name": "note",
+          "type": "string"
+        }
+      ],
+      "name": "ping",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "seq",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "total",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    }
+  ],
+  "deployedAt": "2026-10-22T22:42:48.848Z"
+}
