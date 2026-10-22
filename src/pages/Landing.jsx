@@ -414,12 +414,12 @@ export default function Landing() {
       </section>
 
       {/* FOOTER */}
-      <footer id="pricing" style={{ borderTop: "1px solid #1b1b1b", padding: "36px 0 56px", display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 28 }}>
-        <div style={{ maxWidth: 280 }}>
+      <footer id="pricing" className="lp-foot">
+        <div className="lp-foot-brand">
           <Brand size={20} inner={7} font={15} />
           <p style={{ fontSize: 13, color: "#7f7b73", lineHeight: 1.5, margin: "14px 0 0" }}>The operational event layer for Portaldot applications.</p>
         </div>
-        <div style={{ display: "flex", gap: 56, flexWrap: "wrap" }}>
+        <div className="lp-foot-cols">
           <div className="foot-col">
             <span className="h">Product</span>
             <a className="muted-link" href="#features">Events</a>
@@ -436,7 +436,7 @@ export default function Landing() {
             <a className="muted-link" href="https://github.com/nofazechris/portalops" target="_blank" rel="noopener noreferrer">GitHub ↗</a>
           </div>
         </div>
-        <div className="mono" style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 11.5, color: "var(--muted)" }}>
+        <div className="mono lp-foot-status">
           <span className={"dot " + connDot} style={connDot === "green" ? undefined : { boxShadow: "none" }} />Testnet {connText.toLowerCase()}
         </div>
       </footer>
