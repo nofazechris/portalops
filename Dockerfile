@@ -10,6 +10,8 @@ COPY package.json package-lock.json ./
 RUN npm ci --no-audit --no-fund
 COPY index.html vite.config.js ./
 COPY src ./src
+# the /docs site is rendered from these markdown files at build time: without them every docs page says it "could not be loaded"
+COPY docs ./docs
 RUN npm run build
 
 # ---- runtime ------------------------------------------------------------------------------------

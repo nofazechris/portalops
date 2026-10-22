@@ -85,3 +85,11 @@ test("docs: every relative link and heading anchor in the markdown resolves", ()
   }
   assert.deepEqual(problems, []);
 });
+
+test("docs site: the Docker build stage receives the markdown it bundles (otherwise every docs page fails to load in production)", () => {
+  const docker = read("Dockerfile");
+  const buildStage = docker.slice(docker.indexOf("AS build"), docker.indexOf("AS runtime"));
+  assert.match(buildStage, /^COPY docs \.\/docs$/m, "the build stage copies docs/");
+  const ignore = read(".dockerignore").split(/\r?\n/).map((l) => l.trim());
+  assert.ok(!ignore.includes("docs") && !ignore.includes("docs/") && !ignore.includes("/docs") && !ignore.includes("**/*.md"), ".dockerignore must not exclude docs/");
+});

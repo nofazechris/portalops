@@ -7,7 +7,6 @@ data
 .env
 .env.*
 design
-docs
 contracts
 scripts/*
 !scripts/backup-db.mjs
