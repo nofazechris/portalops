@@ -86,6 +86,23 @@ test("docs: every relative link and heading anchor in the markdown resolves", ()
   assert.deepEqual(problems, []);
 });
 
+test("web build: every file the web app imports from outside src/ is copied into the Docker build stage", () => {
+  const docker = read("Dockerfile");
+  const buildStage = docker.slice(docker.indexOf("AS build"), docker.indexOf("AS runtime"));
+  const copied = [...buildStage.matchAll(/^COPY\s+(?!--)(.+)\s+\S+$/gm)].flatMap((m) => m[1].trim().split(/\s+/)).map((p) => p.replace(/^\.\//, "").replace(/\/$/, ""));
+  const srcRoot = resolve(ROOT, "src");
+  const problems: string[] = [];
+  for (const f of walk(srcRoot, (p) => /\.(jsx?|css)$/.test(p) && !p.endsWith(".test.js"))) {
+    for (const m of readFileSync(f, "utf8").matchAll(/(?:from\s+|import\s+)["'](\.[^"']+)["']/g)) {
+      const target = resolve(dirname(f), m[1]);
+      if (target.startsWith(srcRoot)) continue;
+      const rel = relative(ROOT, target).split("\\").join("/");
+      if (!copied.some((c) => rel === c || rel.startsWith(c + "/"))) problems.push(`${relative(ROOT, f)} imports ${rel}, which the Dockerfile build stage does not copy`);
+    }
+  }
+  assert.deepEqual(problems, []);
+});
+
 test("docs site: the Docker build stage receives the markdown it bundles (otherwise every docs page fails to load in production)", () => {
   const docker = read("Dockerfile");
   const buildStage = docker.slice(docker.indexOf("AS build"), docker.indexOf("AS runtime"));

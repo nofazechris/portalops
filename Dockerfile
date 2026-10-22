@@ -12,6 +12,8 @@ COPY index.html vite.config.js ./
 COPY src ./src
 # the /docs site is rendered from these markdown files at build time: without them every docs page says it "could not be loaded"
 COPY docs ./docs
+# the landing page's evidence card imports the featured-contracts list from outside src/
+COPY packages/examples/featured.json ./packages/examples/featured.json
 RUN npm run build
 
 # ---- runtime ------------------------------------------------------------------------------------
