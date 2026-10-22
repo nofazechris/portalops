@@ -28,7 +28,7 @@ retried, replayable webhooks. These pages are the full manual.
 - [Put it live (Neon + Render)](operations/live-deploy.md)
 - [Deployment, backups and upgrades](operations/deployment.md)
 - [Security review](security/review.md) and [threat notes](security/)
-- [Crash investigation](operations/crash-investigation.md) and [demo script](operations/demo-script.md)
+- [Crash investigation](operations/crash-investigation.md), [demo script](operations/demo-script.md) and the [3-minute video script](operations/video-script.md)
 
 ## Conventions used in these docs
 

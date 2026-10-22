@@ -48,6 +48,21 @@ design/         original Claude Design files
 - **API keys** (Settings → API keys): project-scoped `read`/`write` keys for servers and scripts; stored only as a SHA-256 hash, shown once, revocable.
 - **TypeScript SDK** in `packages/sdk` (typed client, retries on reads, webhook verification). See its README. Not on npm yet.
 
+## Testnet evidence
+
+Deployed and exercised on the **Portaldot V3.0 testnet** (EVM chain id 420420777) on 2026-10-22:
+
+| | |
+|---|---|
+| Contract | `PortalQuest` at `0x274F8AbeCAa7FE3772A2cB92F67F2ed4A64bc649` |
+| Deployment transaction | `0xe2590bb80b8d81067a1af092a76e5ee9ea22d9c277b0bf2da752813fc21f8a4d` (block 145,098) |
+| `createQuest` → `QuestCreated` | `0xd267e8a0610c73a4f21e24d0d69319307e52346dc65ad2e72ed280a26630f17c` (block 145,103) |
+| `completeQuest` → `QuestCompleted` | `0x11a6d7a86de919ad2b5da0c5098e3904cf23683733d53ff30b13c86d6af1c4b3` (block 145,104) |
+| `issueReward` → `RewardIssued` | `0x999f0cb2a1c04bce8edcd2b1ac37a3f98408162277428ada87b56b5fed7d32fb` (block 145,105) |
+
+The three events were read back with `eth_getLogs`, then captured, decoded and delivered by PortalOps itself. The contracts are written in
+Solidity; see [network compatibility](docs/architecture/network-compatibility.md) for how Portaldot's EVM layer works.
+
 ## Documentation
 
 The full manual is in [docs/](docs/README.md): [quickstart](docs/guides/quickstart.md), [concepts](docs/guides/concepts.md) (events, finality,
@@ -61,6 +76,29 @@ reference and every link are checked by tests, so they cannot silently drift fro
 `packages/mcp` is an MCP server that lets Claude register your contract, create a signed webhook, send a test delivery, show events and replay
 failures. Secrets never enter the conversation: the API key stays in the server's environment and a webhook's signing secret is written
 straight to a local env file. See [docs/guides/claude-setup.md](docs/guides/claude-setup.md); `npm run mcp` starts it over stdio.
+
+## Architecture
+
+```mermaid
+flowchart LR
+  subgraph Chain
+    RPC[Portaldot V3.0 testnet<br/>EVM RPC, chain id 420420777]
+  end
+  subgraph PortalOps
+    W[Worker<br/>ingest, decode, finality, delivery]
+    S[(Store<br/>SQLite or PostgreSQL)]
+    A[API + dashboard<br/>sessions, API keys, GitHub sign-in]
+  end
+  RPC -->|logs, blocks, finalized head| W
+  W -->|events, deliveries, attempts| S
+  A <--> S
+  W -->|signed webhooks, retries, replay| R[Your app / built-in receiver]
+  D[Dashboard] --> A
+  SDK[TypeScript SDK] --> A
+  MCP[Claude via MCP] --> SDK
+```
+
+The worker and the API share only the database. More in [docs/architecture/overview.md](docs/architecture/overview.md).
 
 ## Example contracts
 

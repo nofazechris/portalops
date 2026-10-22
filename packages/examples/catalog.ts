@@ -137,6 +137,33 @@ app.listen(3000, () => console.log("listening on :3000 (${id} example)"));
 `;
 }
 
+export interface FeaturedContract {
+  id: string;
+  title: string;
+  /** "ours": deployed by this project. "community": someone else's contract, watched read-only. */
+  origin: "ours" | "community";
+  blurb: string;
+  address: string;
+  /** The example whose ABI decodes this contract's events. */
+  example: string;
+  startBlock: number;
+  /** Event names the ABI decodes, so the UI can say what to expect. */
+  events: string[];
+  evidence?: { deployTransactionHash: string; deployBlock: number; transactions: { label: string; hash: string; block: number }[] };
+}
+
+let featured: Omit<FeaturedContract, "events">[] | null = null;
+
+/** Contracts a new user can start watching with one click: real, on the testnet, with a known ABI. */
+export function listFeatured(): FeaturedContract[] {
+  featured ??= JSON.parse(readFileSync(resolve(here, "featured.json"), "utf8")) as Omit<FeaturedContract, "events">[];
+  return featured.map((f) => {
+    const ex = getExample(f.example);
+    const events = ex ? (ex.abi as { type: string; name: string }[]).filter((x) => x.type === "event").map((x) => x.name) : [];
+    return { ...f, events };
+  });
+}
+
 export function listExamples(): ExampleSummary[] {
   const g = load();
   return Object.entries(META).map(([id, m]) => ({

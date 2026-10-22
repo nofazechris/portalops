@@ -42,6 +42,7 @@ export const api = {
   publicStatus: () => request("GET", "/public/status"),
   examples: () => request("GET", "/examples"),
   example: (id) => request("GET", `/examples/${encodeURIComponent(id)}`),
+  featured: () => request("GET", "/examples/featured"),
 
   me: () => request("GET", "/auth/me"),
   signup: (email, password) => request("POST", "/auth/signup", { email, password }),

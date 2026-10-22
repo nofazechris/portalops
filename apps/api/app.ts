@@ -4,7 +4,7 @@ import { z, ZodError } from "zod";
 import type { Store, ProjectRecord, ContractRecord, UserRecord } from "../../packages/database/store.ts";
 import { decryptSecret, encryptSecret, generateWebhookSecret } from "../../packages/database/secrets.ts";
 import { DEFAULT_RETRY_POLICY, type NormalizedEvent, type RetryPolicy, type WebhookEndpoint } from "../../packages/shared-types/index.ts";
-import { getExample, listExamples } from "../../packages/examples/catalog.ts";
+import { getExample, listExamples, listFeatured } from "../../packages/examples/catalog.ts";
 import { replayEvent } from "../../packages/webhook-engine/runner.ts";
 import { sendWebhook } from "../../packages/webhook-engine/send.ts";
 import { signHeader, SIGNATURE_HEADER, verifySignature } from "../../packages/webhook-engine/sign.ts";
@@ -281,6 +281,8 @@ export function createApp(deps: AppDeps): (req: IncomingMessage, res: ServerResp
 
   // Example contracts for the setup wizard and docs: public, static, and safe to cache.
   router.add("GET", "/api/v1/examples", async () => listExamples(), "none");
+  // Registered BEFORE /examples/:id so "featured" is not read as an example id.
+  router.add("GET", "/api/v1/examples/featured", async () => listFeatured(), "none");
   router.add("GET", "/api/v1/examples/:id", async (ctx) => {
     const ex = getExample(ctx.params.id);
     if (!ex) throw new ApiError(404, "not_found", "No such example.");

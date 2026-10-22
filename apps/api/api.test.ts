@@ -780,6 +780,9 @@ test("examples: public catalog and detail; no auth needed, unknown ids are 404, 
   assert.match(d.data.handler, /constructEvent/);
   assert.match(d.data.deployCommand, /--example token/);
 
+  const feat = await c.call("GET", "/api/v1/examples/featured");
+  assert.equal(feat.status, 200);
+  assert.ok(feat.data.length >= 2 && feat.data.every((x: any) => /^0x[0-9a-fA-F]{40}$/.test(x.address) && x.events.length > 0), "featured is not mistaken for an example id");
   assert.equal((await c.call("GET", "/api/v1/examples/nope")).status, 404);
   assert.equal((await c.call("GET", "/api/v1/examples/__proto__")).status, 404);
   assert.ok([404, 405].includes((await c.call("POST", "/api/v1/examples", {})).status), "read-only");

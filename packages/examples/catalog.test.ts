@@ -76,3 +76,21 @@ test("examples: unknown ids give null (prototype keys included)", () => {
   assert.equal(getExample("__proto__"), null);
   assert.equal(getExample("constructor"), null);
 });
+
+test("featured: every entry is a valid address with a known example, decodable events, and evidence for our own contracts", async () => {
+  const { listFeatured } = await import("./catalog.ts");
+  const f = listFeatured();
+  assert.ok(f.length >= 2);
+  assert.ok(f.some((x) => x.origin === "ours") && f.some((x) => x.origin === "community"));
+  assert.equal(new Set(f.map((x) => x.id)).size, f.length, "unique ids");
+  for (const x of f) {
+    assert.match(x.address, /^0x[0-9a-fA-F]{40}$/, x.id);
+    assert.ok(getExample(x.example), `${x.id}: example ${x.example} exists`);
+    assert.ok(x.events.length > 0, `${x.id}: has decodable events`);
+    assert.ok(Number.isInteger(x.startBlock) && x.startBlock >= 0);
+    if (x.origin === "ours") {
+      assert.match(x.evidence!.deployTransactionHash, /^0x[0-9a-f]{64}$/);
+      assert.ok(x.evidence!.transactions.length >= 1 && x.evidence!.transactions.every((t) => /^0x[0-9a-f]{64}$/.test(t.hash)));
+    }
+  }
+});

@@ -1,7 +1,6 @@
 # Judging demo script
 
-A repeatable walkthrough that shows what is **genuinely live** and is explicit about what is not. Everything marked ⛔ needs our own
-contract deployed on the public testnet, which is **blocked on a funded account** and has not been done.
+A repeatable walkthrough that shows what is **genuinely live** and is explicit about what is not. Our own contract **is deployed** on the public testnet (see the README's *Testnet evidence*); the full narrated scripts are in [video-script.md](video-script.md).
 
 ## Before you start (2 min)
 
@@ -59,7 +58,7 @@ example at 0x… and send transfers to the built-in test receiver."* Claude regi
 test delivery. **Say:** "Notice what it did not do: it never saw my API key or the signing secret. The secret went to `.env.portalops`; Claude only got a masked preview."
 If you have no deployed contract, run the same flow with any address: the tool reports honestly that no code was found there.
 
-## 5. ⛔ Our own contract (blocked)
+## 5. Our own contract (deployed 2026-10-22)
 
 Once the deployer address is funded:
 
@@ -72,7 +71,7 @@ npm run contract:interact -- --send  # createQuest → completeQuest → issueRe
 Register `docs/architecture/deployment.json`'s `contractAddress` with the ABI from `contracts/evm/artifacts/PortalQuest.json`.
 Expected: the three events appear **decoded** (`QuestCreated`, `QuestCompleted`, `RewardIssued`), reach `finalized`, and are delivered.
 Evidence to show a judge: the deployment tx hash and block in `deployment.json`, the transaction hashes in `evidence.json`, and the same hashes on the Events screen.
-**Until this is done, do not claim our contract is deployed.**
+Deployed: `PortalQuest` at `0x274F8AbeCAa7FE3772A2cB92F67F2ed4A64bc649` (block 145,098) with three transactions and three decoded events.
 
 ## What not to claim
 

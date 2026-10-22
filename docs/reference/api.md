@@ -79,6 +79,9 @@ contact the outside (replay, test delivery, contract test). The SDK retries `GET
 ### GET /api/v1/examples
 **Public.** The example contract catalog: `[{ id, title, tagline, category, contractName, events: [{ name, meaning }] }]`. See [Contracts and examples](../guides/contracts-and-examples.md).
 
+### GET /api/v1/examples/featured
+**Public.** Contracts a new user can start watching with one click, each with a known ABI: `[{ id, title, origin: "ours" | "community", blurb, address, example, startBlock, events: [names…], evidence? }]`. `ours` are deployed by this project (with the deployment and transaction hashes in `evidence`); `community` are other teams' contracts on the testnet, watched read-only.
+
 ### GET /api/v1/examples/:id
 **Public.** One example with `description`, `eventDetails` (meaning, sample payload, typical use), `source`, `abi`, `bytecode`, `deployCommand`, a ready `handler` (Node.js receiver) and the `compiler` used. `404` for an unknown id.
 

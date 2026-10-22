@@ -39,9 +39,11 @@ Consequences, all handled in `apps/worker/ingest.ts`:
 - **`finalized` and `safe` block tags are supported** (`eth_getBlockByNumber("finalized")` trailed `latest` by ~2 blocks). True
   finality is therefore available; PortalOps uses it: events at or below the finalized height are promoted to `finalized` after verifying their block hash (see `apps/worker/finality.ts`); `confirmed` remains a 12-block depth heuristic.
 
-## Not yet verified (needs a funded testnet account)
+## Verified with a funded account (2026-10-22)
 
-These are PRD Phase 0 exit criteria and are **not proven**:
+The Phase 0 exit criteria below were first listed as unproven. They are now **proven on the public testnet**: `PortalQuest` was deployed at `0x274F8AbeCAa7FE3772A2cB92F67F2ed4A64bc649` (block 145,098, tx `0xe2590bb8…8a4d`), `createQuest`, `completeQuest` and `issueReward` were sent (blocks 145,103 to 145,105), the three events were read back with `eth_getLogs`, and PortalOps ingested, decoded and delivered them. Evidence: `docs/architecture/deployment.json` and `evidence.json`.
+
+Originally listed as not yet verified:
 
 - Transaction submission and receipt retrieval.
 - Contract deployment and invocation.

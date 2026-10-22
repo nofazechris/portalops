@@ -1,0 +1,21 @@
+{
+  "network": "Portaldot V3.0 Testnet",
+  "chainId": 420420777,
+  "rpcUrl": "https://test-evm-rpc-v3.portaldot.dev",
+  "contractName": "PortalQuest",
+  "contractAddress": "0x274F8AbeCAa7FE3772A2cB92F67F2ed4A64bc649",
+  "deployTransactionHash": "0xe2590bb80b8d81067a1af092a76e5ee9ea22d9c277b0bf2da752813fc21f8a4d",
+  "blockNumber": 145098,
+  "blockHash": "0x24d81690dbc059f89da20993bbb2a459da599b4dab570efb6652c5d8d01b4c65",
+  "gasUsed": "5231424917119018",
+  "deployer": "0xC525375E19819D014041C989E6CeF2407AB6773F",
+  "deployedAt": "2026-10-22T11:01:46.238Z",
+  "compiler": {
+    "name": "solc-js",
+    "version": "0.8.37+commit.f401782d.Emscripten.clang",
+    "evmVersion": "paris",
+    "optimizerRuns": 200
+  },
+  "runtimeCodeBytes": 2162,
+  "verification": "receipt status success; eth_getCode returned non-empty runtime bytecode"
+}

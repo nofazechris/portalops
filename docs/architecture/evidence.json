@@ -1,0 +1,78 @@
+{
+  "transactions": [
+    {
+      "label": "1. createQuest",
+      "from": "0xC525375E19819D014041C989E6CeF2407AB6773F",
+      "function": "createQuest",
+      "transactionHash": "0xd267e8a0610c73a4f21e24d0d69319307e52346dc65ad2e72ed280a26630f17c",
+      "blockNumber": 145103,
+      "blockHash": "0x0f088c057bfda0ede429a51600ad3c22500198b7be028a7f369a298c7ca36b51",
+      "status": "success",
+      "gasUsed": "442363535913282",
+      "eventsInReceipt": 1,
+      "eventsViaGetLogs": 1,
+      "events": [
+        {
+          "name": "QuestCreated",
+          "logIndex": 3,
+          "args": {
+            "questId": "1",
+            "creator": "0xC525375E19819D014041C989E6CeF2407AB6773F",
+            "title": "PortalOps demo quest"
+          }
+        }
+      ],
+      "observedAt": "2026-10-22T11:02:15.844Z"
+    },
+    {
+      "label": "2. completeQuest",
+      "from": "0xC525375E19819D014041C989E6CeF2407AB6773F",
+      "function": "completeQuest",
+      "transactionHash": "0x11a6d7a86de919ad2b5da0c5098e3904cf23683733d53ff30b13c86d6af1c4b3",
+      "blockNumber": 145104,
+      "blockHash": "0xa0894ddf04412539570975f7ce7f6fa55eea7dfa68914c235671977dbefdec62",
+      "status": "success",
+      "gasUsed": "110867129648124",
+      "eventsInReceipt": 1,
+      "eventsViaGetLogs": 1,
+      "events": [
+        {
+          "name": "QuestCompleted",
+          "logIndex": 4,
+          "args": {
+            "questId": "1",
+            "participant": "0xC525375E19819D014041C989E6CeF2407AB6773F"
+          }
+        }
+      ],
+      "observedAt": "2026-10-22T11:02:22.270Z"
+    },
+    {
+      "label": "3. issueReward",
+      "from": "0xC525375E19819D014041C989E6CeF2407AB6773F",
+      "function": "issueReward",
+      "transactionHash": "0x999f0cb2a1c04bce8edcd2b1ac37a3f98408162277428ada87b56b5fed7d32fb",
+      "blockNumber": 145105,
+      "blockHash": "0xf2b8508a54d5add98b56c3c4ee5b1509b2ebcd5beb82e6bcb8448835508c435c",
+      "status": "success",
+      "gasUsed": "615575804863",
+      "eventsInReceipt": 1,
+      "eventsViaGetLogs": 1,
+      "events": [
+        {
+          "name": "RewardIssued",
+          "logIndex": 4,
+          "args": {
+            "questId": "1",
+            "recipient": "0xC525375E19819D014041C989E6CeF2407AB6773F",
+            "amount": "50"
+          }
+        }
+      ],
+      "observedAt": "2026-10-22T11:02:28.287Z"
+    }
+  ],
+  "network": "Portaldot V3.0 Testnet",
+  "chainId": 420420777,
+  "contractAddress": "0x274F8AbeCAa7FE3772A2cB92F67F2ed4A64bc649"
+}

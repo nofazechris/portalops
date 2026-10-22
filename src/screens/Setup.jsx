@@ -1,17 +1,21 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { api } from "../api.js";
-import { timeAgo, useApi, useSession } from "../state.jsx";
-import { CopyButton, ErrorBox, Field, Loading, NeedsProject, fieldErrors } from "../ui.jsx";
-import ExamplePicker from "./ExamplePicker.jsx";
+import { shortHash, useApi, useSession } from "../state.jsx";
+import { Alert, CopyButton, Field, Loading, NeedsProject, fieldErrors } from "../ui.jsx";
+import { LiveTimeline } from "../viz.jsx";
+
+/**
+ * Quick start: three short steps from an empty project to a delivered event.
+ *   1. What to watch   (one click on a ready-made real contract, or your own)
+ *   2. Where it goes   (the built-in test receiver needs nothing; or your own URL)
+ *   3. See it work     (live events, a test delivery, a checklist)
+ * Everything is explained in plain language, and the network is checked in the background instead of being a step of its own.
+ */
 
 const STEPS = [
-  { id: "welcome", title: "Welcome" },
-  { id: "network", title: "Connect network" },
-  { id: "contract", title: "Add contract", optional: true },
-  { id: "events", title: "Select events", optional: true },
-  { id: "delivery", title: "Configure delivery", optional: true },
-  { id: "test", title: "Test integration", optional: true },
-  { id: "finish", title: "Finish" },
+  { id: "watch", title: "What to watch" },
+  { id: "deliver", title: "Where events go" },
+  { id: "see", title: "See it work" },
 ];
 
 function parseAbi(text) {
@@ -23,27 +27,19 @@ function parseAbi(text) {
   throw new Error('Paste the ABI array, or a compiler artifact that has an "abi" field.');
 }
 
-/** Every step explains why it matters, validates inline, offers a way out, and recovers from errors. */
-const Why = ({ children }) => (
-  <div style={{ fontSize: 12.5, color: "var(--muted)", lineHeight: 1.55, margin: "6px 0 18px" }}><span style={{ color: "var(--accent)" }}>Why this matters: </span>{children}</div>
+const Explain = ({ children }) => (
+  <p style={{ fontSize: 13.5, color: "var(--muted)", lineHeight: 1.65, margin: "8px 0 18px", maxWidth: 620 }}>{children}</p>
 );
 
-function Stepper({ step, done, goTo }) {
+function Stepper({ step, goTo, reached }) {
   return (
-    <ol style={{ display: "flex", gap: 6, flexWrap: "wrap", listStyle: "none", padding: 0, margin: "22px 0 0" }} aria-label="Setup progress">
+    <ol className="qs-steps" aria-label="Quick start progress">
       {STEPS.map((s, i) => {
-        const state = i === step ? "now" : done.has(s.id) ? "done" : "todo";
-        const clickable = i <= Math.max(step, ...[...done].map((d) => STEPS.findIndex((x) => x.id === d)));
+        const state = i === step ? "now" : i < reached ? "done" : "todo";
         return (
           <li key={s.id}>
-            <button
-              className="chip"
-              disabled={!clickable}
-              onClick={() => goTo(i)}
-              aria-current={state === "now" ? "step" : undefined}
-              style={{ display: "inline-flex", gap: 8, alignItems: "center", opacity: clickable ? 1 : 0.5, ...(state === "now" ? { color: "#080808", background: "var(--accent)", borderColor: "var(--accent)" } : state === "done" ? { color: "var(--green)" } : {}) }}
-            >
-              <span>{state === "done" ? "✓" : i + 1}</span>{s.title}
+            <button type="button" className={"qs-step " + state} disabled={i > reached} onClick={() => goTo(i)} aria-current={i === step ? "step" : undefined}>
+              <span className="qs-num">{state === "done" ? "✓" : i + 1}</span>{s.title}
             </button>
           </li>
         );
@@ -52,148 +48,171 @@ function Stepper({ step, done, goTo }) {
   );
 }
 
-function NetworkStep({ projectId, net, setNet, onVerified }) {
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState(null);
-  const ran = useRef(false);
-  async function run() {
-    setBusy(true); setErr(null);
-    try { const r = await api.testNetwork(projectId); setNet(r); if (r.chainIdVerified) onVerified(); }
-    catch (e) { setErr(e); setNet(null); } finally { setBusy(false); }
-  }
-  useEffect(() => { if (!ran.current && !net) { ran.current = true; run(); } }); // validate on arrival, once
-  const ok = net?.chainIdVerified;
+function Glossary() {
   return (
-    <div>
-      <h2 className="h2">Connect to the Portaldot V3.0 testnet</h2>
-      <Why>PortalOps only shows a connected network after it has verified the endpoint answers and reports the expected chain id. Nothing downstream works without it.</Why>
-      {busy && <div className="state-box"><span className="spinner" />Checking the RPC endpoint…</div>}
-      {!busy && ok && (
-        <div className="banner ok"><div>
-          <strong>Network verified.</strong>
-          <div className="banner-sub">Chain id {net.reportedChainId} matches · head block #{net.headBlock?.toLocaleString()} · {net.latencyMs}ms round trip</div>
-        </div></div>
-      )}
-      {!busy && net && !ok && (
-        <div className="banner error"><div>
-          <strong>Not verified.</strong>
-          <div className="banner-sub">{net.error ?? `The endpoint reports chain id ${net.reportedChainId ?? "unknown"}, expected ${net.expectedChainId}.`}</div>
-          <div className="banner-sub" style={{ marginTop: 6 }}>Check that <span className="mono">PORTALDOT_EVM_RPC_URL</span> on the server points at the testnet and is reachable, then retry.</div>
-        </div></div>
-      )}
-      <ErrorBox error={err} />
-      {!busy && <button className="btn secondary small" onClick={run}>{net ? "Test again" : "Test connection"}</button>}
-    </div>
+    <details className="qs-gloss">
+      <summary>New to this? Three words you need</summary>
+      <dl>
+        <dt>Contract</dt><dd>A small program living on the blockchain. Anyone can use it, and it leaves a public record each time something happens.</dd>
+        <dt>Event</dt><dd>That record. For example "Alice sent 5 tokens to Bob". PortalOps captures these and decodes them into readable names.</dd>
+        <dt>Webhook</dt><dd>A web address PortalOps sends each event to, so your app can react. Each message is signed so you know it's genuine, and re-sent if your app is down.</dd>
+      </dl>
+    </details>
   );
 }
 
-function ContractStep({ projectId, contracts, reload, chosen, setChosen, onDone }) {
-  const [f, setF] = useState({ address: "", name: "", abi: "", startBlock: "" });
-  const [err, setErr] = useState(null);
-  const [busy, setBusy] = useState(false);
-  const [check, setCheck] = useState(null);
-  const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
+/** One selectable card (a featured contract, or "my own"). */
+function Choice({ selected, onSelect, title, tag, tagTone, children }) {
+  return (
+    <button type="button" className={"qs-choice" + (selected ? " on" : "")} onClick={onSelect} aria-pressed={selected}>
+      <span className="qs-radio" aria-hidden="true" />
+      <span className="qs-choice-body">
+        <span className="qs-choice-title">{title}{tag && <span className={"qs-tag " + (tagTone ?? "")}>{tag}</span>}</span>
+        {children}
+      </span>
+    </button>
+  );
+}
 
-  async function add(ev) {
-    ev.preventDefault(); setBusy(true); setErr(null); setCheck(null);
+// ------------------------------------------------------------------------------------------------------------- step 1
+function WatchStep({ projectId, contracts, reloadContracts, onWatching, watching }) {
+  const { data: featured, error: featErr } = useApi(() => api.featured(), []);
+  const { data: examples } = useApi(() => api.examples(), []);
+  const [pick, setPick] = useState(null); // featured id | "own"
+  const [own, setOwn] = useState({ address: "", exampleId: "", abi: "", startBlock: "" });
+  const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState(null);
+  const fe = fieldErrors(problem);
+
+  useEffect(() => { if (!pick && featured?.length) setPick(featured[0].id); }, [featured, pick]);
+
+  async function start() {
+    setBusy(true); setProblem(null);
     try {
-      const body = { address: f.address.trim() };
-      if (f.name.trim()) body.name = f.name.trim();
-      const abi = parseAbi(f.abi); if (abi) body.abi = abi;
-      if (f.startBlock.trim()) body.startBlock = Number(f.startBlock);
-      const c = await api.addContract(projectId, body);
-      const t = await api.testContract(c.id).catch(() => null);
-      setCheck(t);
-      await reload();
-      setChosen(c.id);
-      onDone();
-    } catch (e) { setErr(e); } finally { setBusy(false); }
+      let body, events = [];
+      if (pick === "own") {
+        body = { address: own.address.trim() };
+        if (own.exampleId) {
+          const ex = await api.example(own.exampleId);
+          body.abi = ex.abi; body.name = ex.title; events = ex.eventDetails.map((e) => e.name);
+        } else {
+          const abi = parseAbi(own.abi);
+          if (abi) { body.abi = abi; events = abi.filter((x) => x.type === "event").map((x) => x.name); }
+        }
+        if (own.startBlock.trim()) body.startBlock = Number(own.startBlock);
+      } else {
+        const f = featured.find((x) => x.id === pick);
+        const ex = await api.example(f.example);
+        body = { address: f.address, name: f.title, abi: ex.abi, startBlock: f.startBlock };
+        events = f.events;
+      }
+      let record;
+      try { record = await api.addContract(projectId, body); }
+      catch (e) {
+        if (e.code !== "contract_exists") throw e;
+        record = (await api.contracts(projectId)).find((c) => c.address.toLowerCase() === body.address.toLowerCase()); // already watching it: carry on
+      }
+      const check = record ? await api.testContract(record.id).catch(() => null) : null;
+      await reloadContracts();
+      onWatching({ record, events: record?.events?.length ? record.events : events, check });
+    } catch (e) { setProblem(e); } finally { setBusy(false); }
   }
-  const fe = fieldErrors(err);
+
+  const ready = pick && (pick !== "own" || own.address.trim());
   return (
     <div>
-      <h2 className="h2">Add the contract to monitor</h2>
-      <Why>PortalOps captures logs from the contracts you register. With an ABI it can decode them into named events; without one the raw logs are still stored and delivered.</Why>
-      {contracts?.length > 0 && (
-        <div style={{ marginBottom: 18 }}>
-          <div className="eyebrow" style={{ marginBottom: 8 }}>Already registered</div>
-          {contracts.map((c) => (
-            <label key={c.id} className={"replay-row" + (chosen === c.id ? " on" : "")} style={{ cursor: "pointer" }}>
-              <span><input type="radio" name="contract" checked={chosen === c.id} onChange={() => { setChosen(c.id); onDone(); }} style={{ accentColor: "#b9a7ff", marginRight: 10 }} />{c.name || "Contract"} <span className="mono" style={{ color: "var(--dim)", fontSize: 11.5 }}>{c.address.slice(0, 10)}…{c.address.slice(-6)}</span></span>
-              <span className="mono" style={{ fontSize: 11, color: "var(--muted)" }}>{c.events.length ? `${c.events.length} event types` : "no ABI"}</span>
-            </label>
-          ))}
-          <div className="eyebrow" style={{ margin: "16px 0 8px" }}>Or register another</div>
+      <h2 className="h2">What do you want to watch?</h2>
+      <Explain>PortalOps watches a contract on the Portaldot testnet and tells your app whenever something happens on it. Pick one to start with. You can add more any time.</Explain>
+      <Glossary />
+
+      {watching && (
+        <Alert tone="ok" title={`You're watching ${watching.record?.name ?? shortHash(watching.record?.address, 8, 6)}`}>
+          {watching.check?.codeFound === false ? "No contract was found at that address yet, but PortalOps will pick events up as soon as it exists." : `PortalOps is reading its history now. It emits ${watching.events.length ? watching.events.join(", ") : "events"}.`} Continue to the next step, or pick another below.
+        </Alert>
+      )}
+      {!watching && contracts?.length > 0 && (
+        <Alert tone="info" title={`This project already watches ${contracts.length} contract${contracts.length > 1 ? "s" : ""}`}>You can continue straight to the next step, or add another one below.</Alert>
+      )}
+
+      <div className="qs-choices">
+        {featErr && <Alert tone="warn" title="Couldn't load the ready-made contracts">You can still add your own contract below.</Alert>}
+        {featured?.map((f) => (
+          <Choice key={f.id} selected={pick === f.id} onSelect={() => setPick(f.id)} title={f.title} tag={f.origin === "ours" ? "Deployed by us" : "Real, other team"} tagTone={f.origin === "ours" ? "accent" : ""}>
+            <span className="qs-blurb">{f.blurb}</span>
+            <span className="qs-meta mono">{shortHash(f.address, 10, 6)} · you'll see: {f.events.join(", ")}</span>
+            {f.evidence && <span className="qs-meta mono">deployed in block #{f.evidence.deployBlock.toLocaleString()}</span>}
+          </Choice>
+        ))}
+        <Choice selected={pick === "own"} onSelect={() => setPick("own")} title="My own contract" tag="Advanced">
+          <span className="qs-blurb">Paste the address of a contract on the Portaldot testnet.</span>
+        </Choice>
+      </div>
+
+      {pick === "own" && (
+        <div className="qs-own">
+          <Field label="Contract address" error={fe.address} hint="Starts with 0x, 42 characters. Must be on the Portaldot V3.0 testnet.">
+            <input className="input mono" placeholder="0x…" value={own.address} onChange={(e) => setOwn({ ...own, address: e.target.value })} />
+          </Field>
+          <Field label="How should its events be read?" hint="PortalOps needs the contract's ABI (its list of events) to show readable names. Not sure? Choose 'Show raw data': events are still captured.">
+            <select className="select" value={own.exampleId} onChange={(e) => setOwn({ ...own, exampleId: e.target.value })}>
+              <option value="">Paste my own ABI below, or show raw data</option>
+              {examples?.map((x) => <option key={x.id} value={x.id}>It's a copy of the "{x.title}" example</option>)}
+            </select>
+          </Field>
+          {!own.exampleId && (
+            <Field label="ABI (optional)" error={fe.abi} hint="The JSON from your compiler. Leave empty to capture events as raw data.">
+              <textarea className="textarea mono" value={own.abi} onChange={(e) => setOwn({ ...own, abi: e.target.value })} />
+            </Field>
+          )}
+          <Field label="Start from block (optional)" error={fe.startBlock} hint="Capture history from this block. Leave empty for roughly the last 1,000 blocks.">
+            <input className="input mono" inputMode="numeric" value={own.startBlock} onChange={(e) => setOwn({ ...own, startBlock: e.target.value })} />
+          </Field>
         </div>
       )}
-      <ExamplePicker onUse={(ex) => setF((cur) => ({ ...cur, name: cur.name || ex.title, abi: JSON.stringify(ex.abi) }))} />
-      <form noValidate onSubmit={add}>
-        <Field label="Contract address" error={fe.address} hint="A 0x-prefixed 20-byte address on the Portaldot V3.0 testnet."><input className="input mono" placeholder="0x…" value={f.address} onChange={set("address")} required /></Field>
-        <Field label="Name (optional)" error={fe.name}><input className="input" value={f.name} onChange={set("name")} /></Field>
-        <Field label="ABI (optional)" error={fe.abi} hint="Paste the ABI array or a compiler artifact. Skip to receive undecoded logs."><textarea className="textarea mono" value={f.abi} onChange={set("abi")} /></Field>
-        <Field label="Start block (optional)" error={fe.startBlock} hint="Capture history from this block. Defaults to roughly the last 1,000 blocks."><input className="input mono" inputMode="numeric" value={f.startBlock} onChange={set("startBlock")} /></Field>
-        {err && !err.details && <div className="banner error"><div>{err.message}{err.code === "contract_exists" ? " Choose it from the list above instead." : ""}</div></div>}
-        {check && <div className={"banner " + (check.codeFound ? "ok" : "warn")}><div>{check.note}</div></div>}
-        <button className="btn primary" disabled={busy}>{busy ? "Registering…" : "Register contract"}</button>
-      </form>
+
+      {problem && !problem.details && <div style={{ marginTop: 14 }}><Alert tone="error" title="That didn't work">{problem.message}</Alert></div>}
+      <div className="qs-actions">
+        <button className="btn primary" disabled={busy || !ready} onClick={start}>{busy ? "Starting…" : watching ? "Watch this one too" : "Start watching"}</button>
+      </div>
     </div>
   );
 }
 
-function EventsStep({ contract, selected, setSelected }) {
-  const names = contract?.events ?? [];
-  const toggle = (n) => { const s = new Set(selected); s.has(n) ? s.delete(n) : s.add(n); setSelected(s); };
-  return (
-    <div>
-      <h2 className="h2">Choose which events to receive</h2>
-      <Why>Your endpoint only gets the events you pick, so it never has to ignore noise. Leaving everything unchecked means <em>all</em> events, including logs that cannot be decoded.</Why>
-      {!contract && <div className="banner info"><div>No contract chosen yet, so there are no event names to pick from. Every event will be delivered; you can narrow this later on the webhook.</div></div>}
-      {contract && names.length === 0 && <div className="banner info"><div>This contract has no ABI, so event names are unknown. Every log will be delivered as an undecoded event. Add an ABI to the contract later to filter by name.</div></div>}
-      {names.length > 0 && (
-        <div className="stack" style={{ gap: 8 }}>
-          {names.map((n) => (
-            <label key={n} className="replay-row" style={{ cursor: "pointer" }}>
-              <span><input type="checkbox" checked={selected.has(n)} onChange={() => toggle(n)} style={{ accentColor: "#b9a7ff", marginRight: 10 }} /><span className="mono">{n}</span></span>
-            </label>
-          ))}
-          <div className="field-hint">{selected.size === 0 ? "Nothing checked: all events will be delivered." : `${selected.size} selected: only these will be delivered.`}</div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function DeliveryStep({ projectId, filter, hook, setHook, secretShown, setSecretShown, existing }) {
+// ------------------------------------------------------------------------------------------------------------- step 2
+function DeliverStep({ projectId, events, hook, setHook, existing }) {
   const [mode, setMode] = useState("builtin");
   const [url, setUrl] = useState("");
-  const [err, setErr] = useState(null);
+  const [chosen, setChosen] = useState(() => new Set());
+  const [showFilter, setShowFilter] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState(null);
+  const [copied, setCopied] = useState(false);
+  const fe = fieldErrors(problem);
 
-  async function create(ev) {
-    ev.preventDefault(); setBusy(true); setErr(null);
+  async function create() {
+    setBusy(true); setProblem(null);
     try {
-      const body = { eventFilter: [...filter], description: mode === "builtin" ? "Setup wizard · built-in receiver" : "Setup wizard" };
+      const body = { eventFilter: showFilter ? [...chosen] : [], description: mode === "builtin" ? "Quick start · test receiver" : "Quick start" };
       if (mode === "builtin") body.builtinReceiver = true; else body.url = url.trim();
-      const w = await api.createWebhook(projectId, body);
-      setHook(w); setSecretShown(false);
-    } catch (e) { setErr(e); } finally { setBusy(false); }
+      setHook(await api.createWebhook(projectId, body));
+    } catch (e) { setProblem(e); } finally { setBusy(false); }
   }
-  const fe = fieldErrors(err);
+  const toggle = (n) => setChosen((s) => { const x = new Set(s); x.has(n) ? x.delete(n) : x.add(n); return x; });
 
   if (hook) {
     return (
       <div>
-        <h2 className="h2">Webhook created</h2>
-        <Why>Deliveries are signed with this webhook's secret. Your receiver uses it to prove a request really came from PortalOps.</Why>
-        <div className="banner ok"><div><strong>{hook.builtinReceiver ? "Built-in test receiver ready." : "Endpoint registered."}</strong><div className="banner-sub mono" style={{ wordBreak: "break-all" }}>{hook.builtinReceiver ? "hosted by PortalOps" : hook.url}</div></div></div>
+        <h2 className="h2">{hook.builtinReceiver ? "Your test receiver is ready" : "Your webhook is set up"}</h2>
+        <Explain>{hook.builtinReceiver ? "PortalOps will send every event to a receiver we host, check its signature, and show you what arrived. Nothing for you to run." : "PortalOps will send each event to your address. Your server should verify the signature (see the docs) and answer with a 2xx status."}</Explain>
+        <Alert tone="ok" title="Events will be delivered here">{hook.builtinReceiver ? "Hosted by PortalOps" : <span className="mono" style={{ wordBreak: "break-all" }}>{hook.url}</span>}</Alert>
         {hook.secret && (
-          <div className="banner warn" style={{ display: "block" }}>
-            <strong>Signing secret (shown once).</strong>
-            <div className="secret-box" style={{ margin: "10px 0" }}>{hook.secret}</div>
-            <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-              <span onClick={() => setSecretShown(true)}><CopyButton text={hook.secret} label="Copy secret" className="btn primary small" /></span>
-              <span style={{ fontSize: 12.5 }}>{secretShown ? "Copied. Store it somewhere safe: it cannot be shown again." : "Copy it now: it cannot be shown again."}</span>
-            </div>
+          <div style={{ marginTop: 14 }}>
+            <Alert tone={hook.builtinReceiver ? "info" : "warn"} title="Signing secret (shown only once)">
+              {hook.builtinReceiver ? "You don't need this for the test receiver. Keep it only if you later point the webhook at your own server." : "Your server uses this to prove a request really came from PortalOps. Copy it now: it can't be shown again."}
+              <div className="secret-box" style={{ margin: "10px 0" }}>{hook.secret}</div>
+              <span onClick={() => setCopied(true)}><CopyButton text={hook.secret} label="Copy secret" className="btn secondary small" /></span>
+              {copied && <span style={{ fontSize: 12.5, marginLeft: 10 }}>Copied.</span>}
+            </Alert>
           </div>
         )}
       </div>
@@ -202,180 +221,147 @@ function DeliveryStep({ projectId, filter, hook, setHook, secretShown, setSecret
   return (
     <div>
       <h2 className="h2">Where should events be delivered?</h2>
-      <Why>A webhook is how captured events reach your application. Each delivery is signed, retried on failure, recorded, and replayable.</Why>
-      {existing?.length > 0 && <div className="banner info"><div>You already have {existing.length} webhook{existing.length > 1 ? "s" : ""} in this project. Creating another is optional; you can also continue with the existing one on the Webhooks screen.</div></div>}
-      <form noValidate onSubmit={create}>
-        <label className={"replay-row" + (mode === "builtin" ? " on" : "")} style={{ cursor: "pointer" }}>
-          <span><input type="radio" checked={mode === "builtin"} onChange={() => setMode("builtin")} style={{ accentColor: "#b9a7ff", marginRight: 10 }} /><strong>Built-in test receiver</strong><br /><span style={{ color: "var(--muted)", fontSize: 12.5, marginLeft: 24 }}>No backend needed. PortalOps verifies signatures and shows what it received.</span></span>
-        </label>
-        <label className={"replay-row" + (mode === "url" ? " on" : "")} style={{ cursor: "pointer", marginBottom: 14 }}>
-          <span><input type="radio" checked={mode === "url"} onChange={() => setMode("url")} style={{ accentColor: "#b9a7ff", marginRight: 10 }} /><strong>My own endpoint</strong><br /><span style={{ color: "var(--muted)", fontSize: 12.5, marginLeft: 24 }}>An HTTPS URL on your backend.</span></span>
-        </label>
-        {mode === "url" && <Field label="Endpoint URL" error={fe.url} hint="HTTPS only in production. Private and loopback addresses are blocked."><input className="input mono" placeholder="https://api.example.com/portal-events" value={url} onChange={(e) => setUrl(e.target.value)} required /></Field>}
-        <div className="field-hint" style={{ marginBottom: 12 }}>Events: {filter.size ? [...filter].join(", ") : "all events"}</div>
-        {err && !err.details && <div className="banner error"><div>{err.message}</div></div>}
-        <button className="btn primary" disabled={busy}>{busy ? "Creating…" : "Create webhook"}</button>
-      </form>
+      <Explain>A webhook is a web address that receives each event. Don't have a server yet? Use our test receiver: it accepts events, checks they're genuine, and shows you what arrived.</Explain>
+      {existing?.length > 0 && <Alert tone="info" title={`This project already has ${existing.length} webhook${existing.length > 1 ? "s" : ""}`}>You can continue to the next step, or add another here.</Alert>}
+      <div className="qs-choices">
+        <Choice selected={mode === "builtin"} onSelect={() => setMode("builtin")} title="Test receiver" tag="Recommended">
+          <span className="qs-blurb">Nothing to set up. Perfect for trying PortalOps, and for breaking things on purpose to see retries and replay.</span>
+        </Choice>
+        <Choice selected={mode === "url"} onSelect={() => setMode("url")} title="My own server">
+          <span className="qs-blurb">An https address on your backend, like https://api.myapp.dev/portal-events.</span>
+        </Choice>
+      </div>
+      {mode === "url" && (
+        <div className="qs-own">
+          <Field label="Your server's address" error={fe.url} hint="Must start with https://. Addresses that only work on your own computer are blocked.">
+            <input className="input mono" placeholder="https://api.example.com/portal-events" value={url} onChange={(e) => setUrl(e.target.value)} />
+          </Field>
+        </div>
+      )}
+      <div style={{ marginTop: 16 }}>
+        <label className="qs-check"><input type="checkbox" checked={showFilter} onChange={(e) => setShowFilter(e.target.checked)} /> Only send some events <span style={{ color: "var(--dim)" }}>(default: all of them)</span></label>
+        {showFilter && (
+          <div className="qs-events">
+            {(events?.length ? events : []).map((n) => <label key={n} className="qs-check"><input type="checkbox" checked={chosen.has(n)} onChange={() => toggle(n)} /> <span className="mono">{n}</span></label>)}
+            {!events?.length && <span style={{ fontSize: 12.5, color: "var(--muted)" }}>This contract's events aren't known, so everything will be sent.</span>}
+          </div>
+        )}
+      </div>
+      {problem && !problem.details && <div style={{ marginTop: 14 }}><Alert tone="error" title="That didn't work">{problem.message}</Alert></div>}
+      <div className="qs-actions">
+        <button className="btn primary" disabled={busy || (mode === "url" && !url.trim())} onClick={create}>{busy ? "Creating…" : "Create webhook"}</button>
+      </div>
     </div>
   );
 }
 
-function TestStep({ projectId, hook, testResult, setTestResult, go }) {
+// ------------------------------------------------------------------------------------------------------------- step 3
+function SeeStep({ projectId, hook, hooks, go }) {
   const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState(null);
   const [err, setErr] = useState(null);
-  const [replayMsg, setReplayMsg] = useState(null);
-  const ov = useApi(() => api.overview(projectId), [projectId], { refreshMs: 5000 });
-  const rcv = useApi(() => api.receiver(hook.id), [hook?.id, testResult?.at], { enabled: !!hook?.builtinReceiver });
+  const ov = useApi(() => api.overview(projectId), [projectId], { refreshMs: 4000 });
+  const target = hook ?? hooks?.[0] ?? null;
+  const rcv = useApi(() => api.receiver(target.id), [target?.id, result?.at], { enabled: !!target && (hook?.builtinReceiver ?? target?.builtinReceiver ?? false) });
+  const setup = ov.data?.setup;
 
-  async function send() {
+  async function test() {
     setBusy(true); setErr(null);
-    try { const r = await api.testWebhook(hook.id); setTestResult({ ...r, at: Date.now() }); }
-    catch (e) { setErr(e); } finally { setBusy(false); }
-  }
-  async function replayLatest() {
-    setReplayMsg(null);
-    try {
-      const evs = await api.events(projectId, { limit: 1 });
-      if (!evs.items[0]) { setReplayMsg({ ok: false, text: "No captured events to replay yet." }); return; }
-      await api.replay(evs.items[0].id, hook.id);
-      setReplayMsg({ ok: true, text: "Queued a replay of your latest event. Check the delivery on the Events screen in a few seconds." });
-    } catch (e) { setReplayMsg({ ok: false, text: e.message }); }
+    try { setResult({ ...(await api.testWebhook(target.id)), at: Date.now() }); } catch (e) { setErr(e); } finally { setBusy(false); }
   }
   const sig = rcv.data?.requests?.[0];
-  const m = ov.data?.metrics;
-  return (
-    <div>
-      <h2 className="h2">Test the integration</h2>
-      <Why>A test delivery proves the full path (signing, network, your endpoint) works before real events depend on it. Confirmation comes from the response, not from this page.</Why>
-      {!hook ? <div className="banner info"><div>You skipped the webhook step, so there is nothing to test yet. Add one on the Webhooks screen when you're ready.</div></div> : (
-        <>
-          <button className="btn primary" disabled={busy} onClick={send}>{busy ? "Sending…" : testResult ? "Send another test delivery" : "Send test delivery"}</button>
-          <ErrorBox error={err} />
-          {testResult && (
-            <div className={"banner " + (testResult.ok ? "ok" : "error")} style={{ marginTop: 14 }}>
-              <div>
-                <strong>{testResult.ok ? "Test delivery succeeded" : "Test delivery failed"}</strong>
-                <div className="banner-sub">{testResult.ok ? `HTTP ${testResult.status} in ${testResult.durationMs}ms` : `${testResult.status ? "HTTP " + testResult.status : testResult.errorCode} after ${testResult.durationMs}ms${testResult.response ? ": " + testResult.response : ""}`}</div>
-                {hook.builtinReceiver && sig && <div className="banner-sub">Receiver saw it: signature {sig.signatureOk ? "verified ✓" : `FAILED (${sig.signatureReason})`}</div>}
-                {!testResult.ok && <div className="banner-sub" style={{ marginTop: 6 }}>Check the URL is reachable from the PortalOps worker, that it returns 2xx, and that it verifies the signature with this webhook's secret.</div>}
-              </div>
-            </div>
-          )}
-          <div className="panel" style={{ marginTop: 18 }}>
-            <h2 className="h2 sm">Real events</h2>
-            {!m ? <Loading /> : (
-              <div style={{ fontSize: 13, color: "var(--fg-2)", lineHeight: 1.6, marginTop: 8 }}>
-                {m.eventsReceived} event{m.eventsReceived === 1 ? "" : "s"} captured so far{ov.data?.network.lastEventObservedAt ? ` (last ${timeAgo(ov.data.network.lastEventObservedAt)})` : ""}; {m.delivered} delivered, {m.failed} failed.
-                {m.eventsReceived === 0 && <div style={{ color: "var(--muted)" }}>Trigger a transaction on your contract and it will appear here within a few seconds. This page updates automatically.</div>}
-              </div>
-            )}
-            {m?.eventsReceived > 0 && <button className="btn secondary small" style={{ marginTop: 10 }} onClick={replayLatest}>Replay latest event to this webhook</button>}
-            {replayMsg && <div className={"banner " + (replayMsg.ok ? "ok" : "error")} style={{ marginTop: 10, marginBottom: 0 }}>{replayMsg.text}</div>}
-          </div>
-        </>
-      )}
-      <button className="link-btn" style={{ marginTop: 14 }} onClick={() => go("events")}>Open the Events screen →</button>
-    </div>
-  );
-}
-
-function FinishStep({ net, contract, selected, hook, testResult, ov, go }) {
-  const m = ov?.metrics;
-  const rows = [
-    ["Network verified", !!net?.chainIdVerified, net?.chainIdVerified ? `chain ${net.reportedChainId}, head #${net.headBlock?.toLocaleString()}` : "not verified"],
-    ["Contract registered", !!contract, contract ? (contract.name || contract.address) : "skipped"],
-    ["Event selection", !!contract, selected.size ? [...selected].join(", ") : "all events"],
-    ["Webhook configured", !!hook, hook ? (hook.builtinReceiver ? "built-in test receiver" : hook.url) : "skipped"],
-    ["Test delivery succeeded", !!testResult?.ok, testResult ? (testResult.ok ? `HTTP ${testResult.status}` : "failed") : "not run"],
-    ["A real event was captured", (m?.eventsReceived ?? 0) > 0, m ? `${m.eventsReceived} captured` : "…"],
-    ["A real event was delivered", (m?.delivered ?? 0) > 0, m ? `${m.delivered} delivered` : "…"],
+  const items = [
+    ["Connected to the Portaldot testnet", setup?.networkConnected],
+    ["Watching a contract", setup?.contractAdded],
+    ["A webhook is ready", setup?.webhookConfigured],
+    ["First event captured", setup?.firstEventReceived],
+    ["First delivery succeeded", setup?.firstDeliverySucceeded],
   ];
-  const doneCount = rows.filter((r) => r[1]).length;
   return (
     <div>
-      <h2 className="h2">{doneCount === rows.length ? "You're set up" : "Setup summary"}</h2>
-      <Why>This is an honest status, not a celebration: each line is derived from what actually happened. Anything unchecked still needs attention, but you can finish it from the matching screen at any time.</Why>
-      <div className="panel">
-        {rows.map(([label, ok, detail]) => (
-          <div key={label} className={"check" + (ok ? " done" : "")} style={{ padding: "9px 0", borderTop: "1px solid #1a1a1a" }}>
-            <span className="box">{ok ? "✓" : ""}</span>
-            <span style={{ flex: 1 }}>{label}</span>
-            <span className="mono" style={{ fontSize: 11.5, color: "var(--dim)", textAlign: "right", maxWidth: 260, overflow: "hidden", textOverflow: "ellipsis" }}>{detail}</span>
-          </div>
-        ))}
+      <h2 className="h2">Watch it work</h2>
+      <Explain>Here's the whole loop. Events appear below as PortalOps captures them from the chain, and each one is sent to your webhook. If nothing shows yet, give it up to a minute: it's reading the contract's history.</Explain>
+
+      <div className="qs-check-list">
+        {items.map(([label, ok]) => <div key={label} className={"check" + (ok ? " done" : "")}><span className="box">{ok ? "✓" : ""}</span>{label}</div>)}
       </div>
-      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 18 }}>
-        <button className="btn primary" onClick={() => go("overview")}>Go to Overview</button>
-        <button className="btn secondary" onClick={() => go("events")}>View events</button>
-        <button className="btn secondary" onClick={() => go("aisetup")}>Set up with an AI agent</button>
+
+      <div className="qs-test">
+        <button className="btn primary" disabled={busy || !target} onClick={test}>{busy ? "Sending…" : result ? "Send another test" : "Send a test delivery"}</button>
+        <span style={{ fontSize: 12.5, color: "var(--muted)" }}>Sends one signed message to your webhook to prove the path works. It isn't a real chain event.</span>
+      </div>
+      {!target && <div style={{ marginTop: 12 }}><Alert tone="info" title="No webhook yet">Go back one step to create one, then test it here.</Alert></div>}
+      {err && <div style={{ marginTop: 12 }}><Alert tone="error" title="Couldn't send the test">{err.message}</Alert></div>}
+      {result && (
+        <div style={{ marginTop: 12 }}>
+          <Alert tone={result.ok ? "ok" : "error"} title={result.ok ? "Test delivery succeeded" : "Test delivery failed"}>
+            {result.ok ? `Your webhook answered ${result.status} in ${result.durationMs}ms.` : `${result.status ? "HTTP " + result.status : result.errorCode} after ${result.durationMs}ms. Check the address is reachable from the internet and returns a 2xx.`}
+            {result.ok && sig && <> The receiver checked the signature: <strong>{sig.signatureOk ? "verified ✓" : `failed (${sig.signatureReason})`}</strong>.</>}
+          </Alert>
+        </div>
+      )}
+
+      <div style={{ marginTop: 22 }}>
+        <LiveTimeline projectId={projectId} headBlock={ov.data?.network?.headBlock ?? null} openEvent={(id) => go("eventDetail", { id })} go={go} />
+      </div>
+
+      <div className="qs-next">
+        <div className="eyebrow">What next</div>
+        <ul>
+          <li><button className="link-btn" onClick={() => go("overview")}>Open the Overview</button>: your dashboard, with a live timeline of everything.</li>
+          <li><button className="link-btn" onClick={() => go("webhooks")}>Break it on purpose</button>: set the test receiver to fail, then replay an event to see retries.</li>
+          <li><button className="link-btn" onClick={() => go("aisetup")}>Set up with Claude</button>: let an AI assistant do all of this for you.</li>
+        </ul>
       </div>
     </div>
   );
 }
 
+// ------------------------------------------------------------------------------------------------------------- page
 export default function Setup({ go }) {
   const { projectId, readOnly, project } = useSession();
   const contracts = useApi(() => api.contracts(projectId), [projectId], { enabled: !!projectId && !readOnly });
   const hooks = useApi(() => api.webhooks(projectId), [projectId], { enabled: !!projectId && !readOnly });
-  const ov = useApi(() => api.overview(projectId), [projectId], { enabled: !!projectId && !readOnly, refreshMs: 6000 });
-
   const [step, setStep] = useState(0);
-  const [done, setDone] = useState(() => new Set());
-  const [net, setNet] = useState(null);
-  const [chosen, setChosen] = useState(null);
-  const [selected, setSelected] = useState(() => new Set());
+  const [reached, setReached] = useState(0);
+  const [watching, setWatching] = useState(null);
   const [hook, setHook] = useState(null);
-  const [secretShown, setSecretShown] = useState(false);
-  const [testResult, setTestResult] = useState(null);
+  const [net, setNet] = useState(null);
 
-  if (readOnly) return <NeedsProject what="run the guided setup" />;
+  // the network is checked quietly in the background; it only becomes visible if something is wrong
+  useEffect(() => {
+    if (!projectId || readOnly) return;
+    api.testNetwork(projectId).then(setNet).catch(() => setNet({ chainIdVerified: false, error: "The PortalOps server could not be reached." }));
+  }, [projectId, readOnly]);
+
+  const events = useMemo(() => watching?.events ?? [], [watching]);
+  if (readOnly) return <NeedsProject what="run the quick start" />;
   if (contracts.loading && !contracts.data) return <Loading />;
 
-  const contract = contracts.data?.find((c) => c.id === chosen) ?? null;
-  const markDone = (id) => setDone((d) => new Set(d).add(id));
-  const cur = STEPS[step];
-  const next = () => { markDone(cur.id); setStep((s) => Math.min(STEPS.length - 1, s + 1)); };
-  const back = () => setStep((s) => Math.max(0, s - 1));
-
-  // Per-step gate for the primary action: what must be true before moving on.
-  const gate = {
-    network: !net?.chainIdVerified ? "Verify the network connection to continue." : null,
-    delivery: hook && hook.secret && !secretShown ? "Copy the signing secret before continuing: it cannot be shown again." : null,
-  }[cur.id] ?? null;
-  const canSkip = cur.optional && cur.id !== "finish";
+  const go1 = (i) => { setStep(i); setReached((r) => Math.max(r, i)); };
+  const canContinue = step === 0 ? !!watching || contracts.data?.length > 0 : step === 1 ? !!hook || hooks.data?.length > 0 : true;
 
   return (
     <div>
-      <h1 className="h1">Guided setup</h1>
-      <p className="sub">{project?.name} · seven short steps from an empty project to a verified delivery.</p>
-      <Stepper step={step} done={done} goTo={setStep} />
+      <h1 className="h1">Quick start</h1>
+      <p className="sub">{project?.name} · three short steps from an empty project to your first delivered event. About two minutes.</p>
+      {net && !net.chainIdVerified && (
+        <div style={{ marginTop: 14 }}><Alert tone="warn" title="Can't reach the Portaldot testnet right now">{net.error ?? "The network didn't answer as expected."} You can still set things up; events start flowing once it's back.</Alert></div>
+      )}
+      {net?.chainIdVerified && <div className="qs-net"><span className="dot green" /> Connected to the Portaldot testnet · block #{net.headBlock?.toLocaleString()}</div>}
+      <Stepper step={step} goTo={setStep} reached={reached} />
 
-      <div className="panel tight" style={{ marginTop: 22, maxWidth: 720 }}>
-        {cur.id === "welcome" && (
-          <div>
-            <h2 className="h2">Let's get a real event delivered</h2>
-            <Why>You will connect the network, register a contract, choose events, add a webhook and send a test delivery. Optional steps can be skipped and finished later.</Why>
-            <ol style={{ margin: 0, paddingLeft: 20, fontSize: 13.5, color: "var(--fg-2)", lineHeight: 1.9 }}>
-              {STEPS.slice(1).map((s) => <li key={s.id}>{s.title}{s.optional ? <span style={{ color: "var(--dim)" }}> (optional)</span> : null}</li>)}
-            </ol>
-          </div>
-        )}
-        {cur.id === "network" && <NetworkStep projectId={projectId} net={net} setNet={setNet} onVerified={() => markDone("network")} />}
-        {cur.id === "contract" && <ContractStep projectId={projectId} contracts={contracts.data} reload={contracts.reload} chosen={chosen} setChosen={setChosen} onDone={() => markDone("contract")} />}
-        {cur.id === "events" && <EventsStep contract={contract} selected={selected} setSelected={setSelected} />}
-        {cur.id === "delivery" && <DeliveryStep projectId={projectId} filter={selected} hook={hook} setHook={(h) => { setHook(h); hooks.reload(); markDone("delivery"); }} secretShown={secretShown} setSecretShown={setSecretShown} existing={hooks.data} />}
-        {cur.id === "test" && <TestStep projectId={projectId} hook={hook} testResult={testResult} setTestResult={(r) => { setTestResult(r); if (r.ok) markDone("test"); }} go={go} />}
-        {cur.id === "finish" && <FinishStep net={net} contract={contract} selected={selected} hook={hook} testResult={testResult} ov={ov.data} go={go} />}
+      <div className="panel tight" style={{ marginTop: 20, maxWidth: 760 }}>
+        {step === 0 && <WatchStep projectId={projectId} contracts={contracts.data} reloadContracts={contracts.reload} watching={watching} onWatching={(w) => { setWatching(w); setReached((r) => Math.max(r, 1)); }} />}
+        {step === 1 && <DeliverStep projectId={projectId} events={events} hook={hook} setHook={(h) => { setHook(h); hooks.reload(); setReached((r) => Math.max(r, 2)); }} existing={hooks.data} />}
+        {step === 2 && <SeeStep projectId={projectId} hook={hook} hooks={hooks.data} go={go} />}
 
-        {cur.id !== "finish" && (
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 24, paddingTop: 16, borderTop: "1px solid #1a1a1a", flexWrap: "wrap" }}>
-            <button className="btn secondary small" disabled={step === 0} onClick={back}>← Back</button>
-            <span style={{ flex: 1 }} />
-            {gate && <span style={{ fontSize: 12, color: "var(--amber)" }}>{gate}</span>}
-            {canSkip && <button className="btn secondary small" onClick={() => setStep((s) => s + 1)}>Skip this step</button>}
-            <button className="btn primary small" disabled={!!gate} onClick={next}>{cur.id === "welcome" ? "Start" : "Continue →"}</button>
-          </div>
-        )}
+        <div className="qs-nav">
+          <button className="btn secondary small" disabled={step === 0} onClick={() => setStep(step - 1)}>← Back</button>
+          <span style={{ flex: 1 }} />
+          {step < 2 && <button className="btn primary small" disabled={!canContinue} onClick={() => go1(step + 1)}>Continue →</button>}
+          {step === 2 && <button className="btn primary small" onClick={() => go("overview")}>Finish and open the Overview</button>}
+        </div>
       </div>
     </div>
   );
