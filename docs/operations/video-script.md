@@ -98,15 +98,15 @@ diagram (the landing page's flow card works), then to a clock/blinking "server o
 
 **On screen:** signed-in account → **Quick start**. Step 1: click **PortalOps Quest board** → **Start watching**. Step 2: choose the **test receiver** → **Create webhook**. Step 3: the checklist ticks off and the timeline fills with `QuestCreated`, `QuestCompleted`, `RewardIssued`. Zoom on the contract address `0x274F…c649`.
 
-> "Setup is three steps. One: pick what to watch. I'll choose the Quest board, a contract we deployed on the testnet. Two: choose where events go. The built-in test receiver needs no server. Three: watch it work. There: QuestCreated, QuestCompleted, RewardIssued. Real transactions, decoded and delivered."
+> "Setup is three steps. One: pick what to watch. I'll choose the Quest board, a contract we deployed on the testnet. Two: choose where events go. The built-in test receiver needs no server. Three: watch it work. There: Quest created, Quest completed, Reward issued. Real transactions from the real testnet, decoded and delivered."
 
 (about 55 words) The first events can take up to a minute: have the account pre-warmed (see **Before you record**) and cut the wait.
 
 ### Beat 4: One event, closely (1:50 to 2:12)
 
-**On screen:** click `QuestCreated`. Pan across the decoded payload, the block and transaction, the **Finality** panel (seen → confirmed → finalized), then **Delivery history** (attempt 1, delivered, signature header).
+**On screen:** click `QuestCreated`. Pan across the decoded payload, the block and transaction, the **Finality** panel (seen → confirmed → finalized), press **Replay to all endpoints**, then show **Delivery history** (queued → attempt 1 → delivered).
 
-> "Open one. The decoded payload, the block it came from, and a finality panel: seen, confirmed, then finalized by the network, so you know when it's safe to act. Every delivery is signed, and every attempt is recorded."
+> "Open one. The decoded payload, the block it came from, and a finality panel: seen, confirmed, then finalized by the network, so you know when it's safe to act. Press replay, and the signed webhook goes out: delivered, with every attempt recorded."
 
 (about 38 words)
 
@@ -152,6 +152,8 @@ diagram (the landing page's flow card works), then to a clock/blinking "server o
 ---
 
 ## Part 3: Video B, the full walkthrough (8 to 10 minutes)
+
+> The detailed, chaptered 9-minute script now lives in [Video B: the full developer walkthrough](walkthrough-script.md). The outline below is the earlier draft.
 
 Goal: someone who has never used PortalOps can follow along and finish with a delivered event. Say what you are about to click **before** you click.
 

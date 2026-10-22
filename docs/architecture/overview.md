@@ -144,5 +144,5 @@ only [the API reference](../reference/api.md) and an API key.
 
 - One worker per database, and in-memory rate limiters mean one API instance.
 - Only the EVM view of the Portaldot V3.0 testnet is ingested; native-runtime events are not.
-- No email verification, password reset or OAuth yet; account recovery is manual.
-- The Docker image, compose files and Render blueprint have been written and unit-checked but not run on a real host.
+- Email verification, password reset and GitHub sign-in are built, but only work once a mail provider and a GitHub OAuth app are configured (see [Accounts](../guides/accounts.md)). There is no MFA.
+- The public instance runs this Docker image on Render's free plan with a Neon PostgreSQL database, so it sleeps when idle ([Put it live](../operations/live-deploy.md)).

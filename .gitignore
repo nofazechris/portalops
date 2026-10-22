@@ -16,3 +16,6 @@ backups/
 backups/
 data/
 .claude/
+
+# local demo-video renders (large binaries)
+demo-video/
