@@ -5,7 +5,7 @@ whole product, so make **two** videos from this one document:
 
 | Video | Length | Purpose | Where it goes |
 |---|---|---|---|
-| **A. The submission cut** | 3:00 max | The problem, the product working on the real testnet, Claude setting it up | DoraHacks "Demo" field |
+| **A. The submission cut** | 2:55 (hard limit 3:00) | The problem, the product working on the real testnet, Claude setting it up | DoraHacks "Demo" field |
 | **B. The full walkthrough** | about 8 to 10 minutes | Everything from the problem to every screen and the quick start, step by step | README, YouTube/Loom link, "Project progress" field |
 
 Everything in quotes below is **narration**: lines for you to say in your own voice over a screen recording. If you would rather send me
@@ -57,23 +57,94 @@ source on screen.
 
 ---
 
-## Part 2: Video A, the submission cut (3:00 max)
+## Part 2: Video A, the submission cut (target 2:55, hard limit 3:00)
 
-Record in one take per beat, then trim. Prepare first (see **Before you record** at the end).
+A Vox-style explainer: it opens with a surprising observation, builds the problem one plain-language step at a time, brings in our own
+measurement as the "so how bad is it really?" beat, then turns to the solution and shows it working. Total narration is about 320 words
+(about 2:15 of speaking at a calm 145 words a minute) so the demos have room to breathe. If you run over 3:00, cut the **Replay** beat first.
 
-| Time | On screen | Narration (say this) |
-|---|---|---|
-| 0:00 to 0:25 | Title card, then the landing page | The problem (shortened): "Contracts emit events, but reading them, trusting them and never missing one is hard. Every team rebuilds the same plumbing. I built PortalOps so they don't have to." |
-| 0:25 to 0:50 | `/app` signed out: the **Live timeline** and the network pill | "This is the live Portaldot V3.0 testnet. On our scan, 32 contracts had emitted 225 events, all raw hex. PortalOps captures all of them, and shows how final each one is." Click one event: the **Finality** panel. |
-| 0:50 to 1:25 | New account, **Create your first project**, **Quick start** step 1: pick **PortalOps Quest board** | "Setup is three steps. First: what to watch. I'll watch a contract we deployed on this testnet. Here is its address and the transactions that created it." |
-| 1:25 to 1:50 | Step 2: the test receiver, then step 3 | "Second: where events go. I'll use the built-in receiver so there is nothing to run. Third: watch it work." Events appear: `QuestCreated`, `QuestCompleted`, `RewardIssued`. "Real events from our contract, decoded and delivered." |
-| 1:50 to 2:30 | **Claude** | "Now the same setup by just asking." Paste the prompt below. Let the tools scroll. "Claude registered the contract, created the webhook and tested it. Notice the signing secret went to a local file. Claude never saw it." |
-| 2:30 to 2:55 | Event page: **Delivery history**; switch the receiver to fail; replay | "Break it on purpose: the receiver fails, PortalOps retries with backoff. Fix it, replay, delivered. The chain was never touched." |
-| 2:55 to 3:00 | README architecture diagram | "Open source, tested against the real testnet. PortalOps." |
+Tone: curious, warm, a little dry. Short sentences. Pause after every question and after "zero". Smile on the last line.
+Music: soft, low, instrumental, under the voice; drop it out at the start of each demo beat.
+Captions: burn them in (many judges watch muted). One idea per caption.
+
+### Beat 1: Cold open, the problem (0:00 to 1:00)
+
+**On screen:** black, then slow-scrolling lines of raw hex (screen-record the explorer's "undecoded" log view or a block explorer). Cut to a contract
+diagram (the landing page's flow card works), then to a clock/blinking "server offline" icon, then back to the hex. No faces, no talking head.
+
+> "Here's a strange thing about blockchains: they remember everything, and tell no one.
+>
+> Every time something happens in a smart contract, a token moves, a quest is completed, the contract writes a note on chain. It's called an event. It's public. It's permanent. And it's the most useful signal a developer has.
+>
+> So why is it so hard to use? Because the note is raw hex. Chains reorganise, so the newest notes can change. And if your server goes offline for ten minutes, the chain doesn't wait.
+>
+> So every team rebuilds the same plumbing: polling, decoding, signing, retrying. Usually after the first event they miss.
+>
+> We measured it. On the Portaldot testnet, thirty-two contracts had already emitted two hundred and twenty-five events, of sixty-five different kinds. How many were readable out of the box? Zero.
+>
+> PortalOps is the missing layer. Give it a contract. It gives your app clean, signed, retried, replayable webhooks."
+
+(about 145 words) Caption the numbers as they are said: **32 contracts · 225 events · 65 kinds · 0 readable**. Show the date: "measured 2026-10-22".
+
+### Beat 2: The live explorer (1:00 to 1:12)
+
+**On screen:** `https://portalops.onrender.com/app` signed out: the Live timeline, the network pill ("Connected · block #…").
+
+> "This is the live explorer, no account needed. Real Portaldot events, decoded, with how final each one is."
+
+(about 20 words)
+
+### Beat 3: Quick start in three steps (1:12 to 1:50)
+
+**On screen:** signed-in account → **Quick start**. Step 1: click **PortalOps Quest board** → **Start watching**. Step 2: choose the **test receiver** → **Create webhook**. Step 3: the checklist ticks off and the timeline fills with `QuestCreated`, `QuestCompleted`, `RewardIssued`. Zoom on the contract address `0x274F…c649`.
+
+> "Setup is three steps. One: pick what to watch. I'll choose the Quest board, a contract we deployed on the testnet. Two: choose where events go. The built-in test receiver needs no server. Three: watch it work. There: QuestCreated, QuestCompleted, RewardIssued. Real transactions, decoded and delivered."
+
+(about 55 words) The first events can take up to a minute: have the account pre-warmed (see **Before you record**) and cut the wait.
+
+### Beat 4: One event, closely (1:50 to 2:12)
+
+**On screen:** click `QuestCreated`. Pan across the decoded payload, the block and transaction, the **Finality** panel (seen → confirmed → finalized), then **Delivery history** (attempt 1, delivered, signature header).
+
+> "Open one. The decoded payload, the block it came from, and a finality panel: seen, confirmed, then finalized by the network, so you know when it's safe to act. Every delivery is signed, and every attempt is recorded."
+
+(about 38 words)
+
+### Beat 5: Ask Claude instead (2:12 to 2:38)
+
+**On screen:** Claude Code with the PortalOps connection. Type or paste: *"Watch my Quest contract and send its events to the test receiver."* Let the tool calls scroll: `portalops_setup_status`, `portalops_register_contract`, `portalops_create_webhook`, `portalops_send_test_delivery`. Highlight the line "signing secret saved to .env.portalops".
+
+> "Or skip the clicking. Ask Claude. It checks the project, registers the contract, creates the webhook, and sends a signed test. The signing secret goes to a local file. Claude never sees it."
+
+(about 33 words) Use a **real** run here. The animated "Run" on the landing page is an illustrated replay: do not present it as live footage.
+
+### Beat 6: Break it, then replay (2:38 to 2:52)
+
+**On screen:** Webhooks → test receiver → **Fail with HTTP 500**; the event's delivery history shows retries; switch back to healthy; **Replay** → delivered.
+
+> "Now break it. The receiver fails; PortalOps retries with backoff. Fix it, press replay: delivered. Same event. The chain was never touched."
+
+(about 25 words)
+
+### Beat 7: Close (2:52 to 2:59)
+
+**On screen:** the evidence card (contract address, deploy transaction), then the README architecture diagram, then the repo URL and `portalops.onrender.com`.
+
+> "PortalOps. Watch any contract. Never miss an event."
+
+(about 9 words) End on the logo for one second of silence.
+
+### Checks before you record Video A
+
+- **Numbers are dated.** The 32 / 225 / 65 figures were measured on 2026-10-22 over blocks 91,528 to 145,105. Re-run them (signed-out explorer) on the day and update the narration and captions if they moved. "Zero readable" means *we had no ABIs for them*, so say "out of the box", never "nobody can read them".
+- **Do not say** "nobody is watching these contracts": we did not measure that.
+- **Rust/ink! contracts** are *planned*, not supported. If you mention them, say so.
+- **Never show** a key, a signing secret, `.env`, Render settings or your wallet.
+- Time it with a stopwatch: read the narration aloud once without the demos. It should take about 2:15. If it is under 2:00, you are rushing; if over 2:40, trim words, not demo time.
 
 ### The prompt for Claude
 
-> Set up PortalOps for me. Watch the contract `0x274F8AbeCAa7FE3772A2cB92F67F2ed4A64bc649` using the Quest example's ABI, starting from block 145090, and send all events to the built-in test receiver. Then send a test delivery and show me the events.
+> Watch my Quest contract `0x274F8AbeCAa7FE3772A2cB92F67F2ed4A64bc649` using the Quest example's ABI, starting from block 145090, and send its events to the built-in test receiver. Then send a test delivery and show me the events.
 
 (Claude should call `portalops_setup_status`, `portalops_register_contract` with `example: "quest"`, `portalops_create_webhook` with
 `builtinReceiver: true`, `portalops_send_test_delivery` and `portalops_list_events`. If it ever asks you for a key or a secret, that is a bug.)
