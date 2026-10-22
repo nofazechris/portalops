@@ -1,9 +1,11 @@
 import { Component, useEffect, useRef, useState } from "react";
 import { Link } from "./router.jsx";
 import { useSession } from "./state.jsx";
+import Orb from "./orb.jsx";
 
-export const Loading = ({ label = "Loading…" }) => (
-  <div className="state-box"><span className="spinner" />{label}</div>
+/** The thinking orb stands in for a spinner: `state` says what is going on (searching: fetching, connecting: reaching a server). */
+export const Loading = ({ label = "Loading…", state = "searching" }) => (
+  <div className="state-box loading" role="status"><Orb size={64} state={state} label="" /><span>{label}</span></div>
 );
 
 export function ErrorBox({ error, onRetry }) {

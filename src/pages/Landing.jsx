@@ -5,6 +5,7 @@ import { shortHash, timeAgo, useApi } from "../state.jsx";
 import { signatureSnippet } from "../data.js";
 import featured from "../../packages/examples/featured.json";
 import Orb from "../orb.jsx";
+import StageArt from "../stageArt.jsx";
 import Reveal from "../reveal.jsx";
 import LandingAi from "./LandingAi.jsx";
 import "./pages.css";
@@ -22,9 +23,9 @@ const walk = [
 
 const stages = [
   { orb: "searching", title: "Watch", desc: "Follows the Portaldot testnet block by block and spots logs from the contracts you register." },
-  { orb: "working", title: "Decode", desc: "Turns raw logs into named, typed events using the contract ABI, stored once even after restarts." },
-  { orb: "connecting", title: "Deliver", desc: "Posts each event to your endpoint as a signed webhook and records exactly what came back." },
-  { orb: "solving", title: "Recover", desc: "Retries with backoff when you are down, and replays any event later without touching the chain." },
+  { art: "decode", title: "Decode", desc: "Turns raw logs into named, typed events using the contract ABI, stored once even after restarts." },
+  { art: "deliver", title: "Deliver", desc: "Posts each event to your endpoint as a signed webhook and records exactly what came back." },
+  { art: "recover", title: "Recover", desc: "Retries with backoff when you are down, and replays any event later without touching the chain." },
 ];
 
 const compare = {
@@ -262,7 +263,7 @@ export default function Landing() {
         <div className="stages">
           {stages.map((s, i) => (
             <Reveal key={s.title} delay={i * 90} className="stage">
-              <Orb size={64} state={s.orb} label={`${s.title}: ${s.orb}`} />
+              {s.art ? <StageArt kind={s.art} size={64} label={`${s.title}: animation`} /> : <Orb size={64} state={s.orb} label={`${s.title}: animation`} />}
               <span className="stage-n">0{i + 1}</span>
               <h3>{s.title}</h3>
               <p>{s.desc}</p>

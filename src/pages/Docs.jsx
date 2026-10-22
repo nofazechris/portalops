@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, navigate, usePath } from "../router.jsx";
 import { DEFAULT_DOC, DOC_LIST, DOC_SECTIONS, findDoc } from "./docsNav.js";
 import { renderDoc, searchDocs } from "./docsRender.js";
+import Orb from "../orb.jsx";
 import "./pages.css";
 
 // Each markdown file is its own chunk, fetched only when that page (or a search) needs it.
@@ -145,7 +146,7 @@ export default function Docs() {
             </div>
           )}
           {meta && error && <div className="dx-notfound"><h1>{meta.title}</h1><p>{error}</p></div>}
-          {meta && !error && !doc && <div className="dx-loading">Loading…</div>}
+          {meta && !error && !doc && <div className="dx-loading"><Orb size={20} state="searching" label="" />Loading…</div>}
           {meta && doc && doc.slug === slug && (
             <>
               <div className="dx-crumb">{meta.section}</div>

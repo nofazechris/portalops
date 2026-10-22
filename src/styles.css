@@ -179,6 +179,7 @@ pre { margin: 0; }
 /* ---------- live-data UI ---------- */
 .state-box { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 40px 16px; color: var(--muted); font-size: 14px; background: #0f0f0f; border: 1px solid #1f1f1f; border-radius: 14px; }
 .state-box.empty { flex-direction: column; gap: 6px; text-align: center; }
+.state-box.loading { flex-direction: column; gap: 10px; padding: 28px 16px; }
 .empty-title { color: var(--fg-2); font-weight: 500; }
 .empty-sub { font-size: 13px; max-width: 460px; line-height: 1.5; }
 .banner { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 16px; border-radius: 12px; font-size: 13.5px; margin-bottom: 16px; }

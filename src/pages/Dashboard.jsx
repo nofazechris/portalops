@@ -162,7 +162,7 @@ export default function Dashboard() {
   const nextTour = () => (tourStep + 1 >= tourSteps.length ? endTour() : setTourStep(tourStep + 1));
   useEffect(() => { if (tour) setView({ screen: "overview", params: {} }); }, [tour]);
 
-  if (loading) return <div style={{ padding: 60 }}><Loading label="Loading workspace…" /></div>;
+  if (loading) return <div style={{ padding: 60 }}><Loading label="Loading your workspace…" state="working" /></div>;
 
   const { screen, params } = view;
   const activeId = screen === "eventDetail" ? "events" : screen === "webhookDetail" ? "webhooks" : screen;

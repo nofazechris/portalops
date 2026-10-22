@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "./api.js";
 import { shortHash, timeAgo, useApi } from "./state.jsx";
-import { DeliveryBadge, Empty, ErrorBox } from "./ui.jsx";
+import { DeliveryBadge, Empty, ErrorBox, Loading } from "./ui.jsx";
 import { bucketByMinute, deliveryFlow, finalityProgress, fmtMs, groupByBlock, newIds } from "./viz.js";
 
 /** Re-renders every `everyMs` so countdowns and "x ago" labels stay live. */
@@ -154,7 +154,7 @@ export function LiveTimeline({ projectId, headBlock, openEvent, go }) {
         </span>
       </div>
       <ErrorBox error={error && !items ? error : null} onRetry={reload} />
-      {loading && !items && <div className="state-box"><span className="spinner" />Loading events…</div>}
+      {loading && !items && <Loading label="Loading events…" />}
       {items && shown.length === 0 && <Empty title="No events captured yet">Register a contract and trigger a transaction, and it will appear here within seconds.</Empty>}
       <div className="tl" aria-live={paused ? "off" : "polite"}>
         {groups.map((g) => {

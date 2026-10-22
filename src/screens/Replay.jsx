@@ -3,6 +3,7 @@ import { api } from "../api.js";
 import { timeAgo, useApi, useSession } from "../state.jsx";
 import { Empty, ErrorBox, Loading, NeedsProject, deliveryColor, deliveryLabel } from "../ui.jsx";
 import { eventTitle } from "./Overview.jsx";
+import Orb from "../orb.jsx";
 
 export default function Replay({ go }) {
   const { projectId, readOnly } = useSession();
@@ -116,7 +117,7 @@ export default function Replay({ go }) {
             {run.phase === "idle" && <button className="btn primary block" style={{ marginTop: 20, fontSize: 14, padding: 14, borderRadius: 11 }} onClick={replay}>Replay to this endpoint</button>}
             {run.phase === "running" && (
               <div style={{ marginTop: 20, background: "#151515", border: "1px solid #2a2740", color: "var(--accent)", fontWeight: 600, fontSize: 14, textAlign: "center", padding: 14, borderRadius: 11, display: "flex", alignItems: "center", justifyContent: "center", gap: 10 }}>
-                <span className="spinner" />Re-delivering…
+                <Orb size={20} state="connecting" label="" />Re-delivering…
               </div>
             )}
             {run.phase === "done" && run.error && <div className="banner error" style={{ marginTop: 20, marginBottom: 0 }}>{run.error}</div>}
