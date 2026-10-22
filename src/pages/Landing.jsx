@@ -3,18 +3,62 @@ import { Link } from "../router.jsx";
 import { api } from "../api.js";
 import { shortHash, timeAgo, useApi } from "../state.jsx";
 import { signatureSnippet } from "../data.js";
+import featured from "../../packages/examples/featured.json";
+import Orb from "../orb.jsx";
+import Reveal from "../reveal.jsx";
+import LandingAi from "./LandingAi.jsx";
 import "./pages.css";
+import "./landing.css";
 
+// Every step links somewhere that explains or starts it. None of them drops a visitor into the dashboard by surprise.
 const walk = [
   { k: "01", title: "Sign up", desc: "Create your account with email or GitHub.", panelTitle: "Create your account", panelBody: "No infrastructure to provision. Sign in and your workspace is ready.", code: "→ Continue with GitHub · Email", cta: "Create account", href: "/auth#signup" },
-  { k: "02", title: "Create a project", desc: "Name it and default to Portaldot Testnet.", panelTitle: "New project", panelBody: "Pick an environment and you're dropped straight into guided setup.", code: "project: portalops-demo · Testnet", cta: "Start setup", href: "/app#tour" },
-  { k: "03", title: "Connect your contract", desc: "Paste an address or use the demo contract.", panelTitle: "Add a contract", panelBody: "Addresses are validated against the selected network before you continue.", code: "0x… your contract address", cta: "Connect contract", href: "/app#tour" },
-  { k: "04", title: "Choose your events", desc: "Select the events your application cares about.", panelTitle: "Select events", panelBody: "Discovered from the contract ABI — pick what PortalOps should process.", code: "QuestCompleted · RewardMinted · AccessGranted", cta: "Choose events", href: "/app#tour" },
+  { k: "02", title: "Create a project", desc: "Name it and default to Portaldot Testnet.", panelTitle: "New project", panelBody: "Pick an environment and you're dropped straight into guided setup.", code: "project: portalops-demo · Testnet", cta: "Read the quick start", href: "/docs/guides/quickstart" },
+  { k: "03", title: "Connect your contract", desc: "Paste an address or use the demo contract.", panelTitle: "Add a contract", panelBody: "Addresses are validated against the selected network before you continue.", code: "0x… your contract address", cta: "How contracts are added", href: "/docs/guides/contracts-and-examples" },
+  { k: "04", title: "Choose your events", desc: "Select the events your application cares about.", panelTitle: "Select events", panelBody: "Discovered from the contract ABI — pick what PortalOps should process.", code: "QuestCompleted · RewardMinted · AccessGranted", cta: "How events work", href: "/docs/guides/concepts" },
   { k: "05", title: "Test a real event", desc: "Trigger a transaction and watch it flow end to end.", panelTitle: "Send your first event", panelBody: "Transaction → decoded → stored → delivered, with real references.", code: "expected: HTTP 2xx from your endpoint", cta: "Try the live demo", href: "/app" },
-  { k: "06", title: "Let AI help (optional)", desc: "Hand setup to your coding agent and verify.", panelTitle: "Connect an AI agent", panelBody: "Copy a project-specific prompt into Claude Code or Codex. It builds the receiver; a test delivery confirms it.", code: "prompt → your agent → test delivery", cta: "Set up with AI", href: "/app#aisetup" },
+  { k: "06", title: "Let AI help (optional)", desc: "Hand setup to your coding agent and verify.", panelTitle: "Connect an AI agent", panelBody: "Give Claude one sentence. It registers the contract, creates the webhook and sends a signed test delivery. Watch the replay above.", code: "prompt → your agent → test delivery", cta: "Watch it run", href: "#ai" },
 ];
 
-const pipeline = ["Decode", "→", "Normalize", "→", "Store", "→", "Deliver", "→", "Monitor", "→", "Retry", "→", "Replay", "→", "Automate"];
+const stages = [
+  { orb: "searching", title: "Watch", desc: "Follows the Portaldot testnet block by block and spots logs from the contracts you register." },
+  { orb: "working", title: "Decode", desc: "Turns raw logs into named, typed events using the contract ABI, stored once even after restarts." },
+  { orb: "connecting", title: "Deliver", desc: "Posts each event to your endpoint as a signed webhook and records exactly what came back." },
+  { orb: "solving", title: "Recover", desc: "Retries with backoff when you are down, and replays any event later without touching the chain." },
+];
+
+const compare = {
+  without: ["Poll the chain and remember the last block you saw", "Decode every log from the ABI by hand", "Skip duplicates after a restart or a reorg", "Sign webhooks and retry them with backoff", "Keep a delivery log so you can debug a miss", "Build a replay tool for the day your server is down"],
+  with: ["Paste a contract address", "Pick the events you care about", "Receive signed webhooks at your endpoint", "See every attempt and replay any event in one click"],
+};
+
+const faq = [
+  { q: "Do I need to deploy a contract first?", a: "No. The live explorer already shows real events from the Portaldot V3.0 testnet. To get webhooks for your own contract, register its address and PortalOps starts capturing from the block you choose." },
+  { q: "Which contracts does it support?", a: "Solidity and other EVM contracts on Portaldot V3 (pallet-revive). ink! contracts built on the older Contracts pallet are not ingested yet; an adapter is planned." },
+  { q: "Does Claude ever see my signing secret?", a: "No. The tool server writes the secret straight into a git-ignored .env.portalops file and only reports a masked preview back to the model. API keys are shown once and stored hashed." },
+  { q: "How do I trust a webhook is really from PortalOps?", a: "Every delivery carries an HMAC-SHA256 signature in the form t=…,v1=…. Recompute it with your signing secret and compare. The docs include a ready-made verifier." },
+  { q: "What happens if my server is down?", a: "Deliveries are retried with backoff and every attempt is logged. When you are back, replay the event: it is sent again exactly as it happened, with the same payload." },
+  { q: "Is this production ready?", a: "It is a hackathon build running on the testnet, on free hosting that sleeps when idle, so the first load can take up to a minute. The pipeline, security checks and test suite are real; treat the rest as a preview." },
+];
+
+const demo = featured.find((f) => f.origin === "ours");
+
+const Copy = ({ text }) => {
+  const [done, setDone] = useState(false);
+  const click = async () => {
+    try { await navigator.clipboard.writeText(text); setDone(true); setTimeout(() => setDone(false), 1500); } catch { /* clipboard refused; the text is visible to select */ }
+  };
+  return <button type="button" className="ev-copy" onClick={click} aria-label="Copy to clipboard">{done ? "Copied ✓" : "Copy"}</button>;
+};
+
+/** Lets the cursor light up the card it is over (the spotlight reads --mx/--my set here). */
+const spotlight = (e) => {
+  const card = e.target.closest?.(".feature");
+  if (!card) return;
+  const r = card.getBoundingClientRect();
+  card.style.setProperty("--mx", `${e.clientX - r.left}px`);
+  card.style.setProperty("--my", `${e.clientY - r.top}px`);
+};
 
 const features = [
   { glyph: "⇥", title: "Event ingestion", desc: "Decode and normalize on-chain events into clean, application-ready records.", meta: "block tracker · idempotent storage" },
@@ -45,7 +89,7 @@ export default function Landing() {
   const cur = walk[step];
   const status = useApi(() => api.publicStatus(), [], { refreshMs: 10_000 });
   const demoId = status.data?.demo?.projectId;
-  const live = useApi(() => api.events(demoId, { limit: 3 }), [demoId], { enabled: !!demoId, refreshMs: 10_000 });
+  const live = useApi(() => api.events(demoId, { limit: 10 }), [demoId], { enabled: !!demoId, refreshMs: 10_000 });
   const conn = status.data?.connection ?? (status.error ? "disconnected" : "checking");
   const connText = { connected: "Connected", disconnected: "Disconnected", wrong_chain: "Wrong chain", checking: "Checking…" }[conn];
   const connDot = { connected: "green", disconnected: "red", wrong_chain: "amber", checking: "grey" }[conn];
@@ -59,6 +103,7 @@ export default function Landing() {
           <Brand href="#top" />
           <div className="lp-nav-links" style={{ display: "flex", gap: 28, fontSize: 14 }}>
             <a className="top-link" href="#pipeline">Product</a>
+            <a className="top-link nav-ai" href="#ai"><Orb size={20} state="breathing" label="" />Set up with AI</a>
             <a className="top-link" href="#replay">Replay</a>
             <a className="top-link" href="#sdk">Developers</a>
             <Link className="top-link" href="/docs">Docs</Link>
@@ -115,7 +160,9 @@ export default function Landing() {
                 <div style={{ position: "relative", background: "linear-gradient(160deg,#1a1726,#111016)", border: "1px solid #3a355a", borderRadius: 14, padding: "14px 16px" }}>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                     <span style={{ fontSize: 14, fontWeight: 600 }}>PortalOps</span>
-                    <span className="mono" style={{ fontSize: 10.5, color: "var(--accent)", border: "1px solid #37325a", padding: "2px 7px", borderRadius: 999 }}>processing</span>
+                    <span className="mono" style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 10.5, color: "var(--accent)", border: "1px solid #37325a", padding: "1px 8px 1px 3px", borderRadius: 999 }}>
+                      <Orb size={20} state={conn === "connected" ? "working" : "searching"} label="" />processing
+                    </span>
                   </div>
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 7, marginTop: 12 }}>
                     {["Decode", "Store", "Monitor", "Deliver"].map((c) => <span key={c} className="flow-chip">{c}</span>)}
@@ -128,7 +175,7 @@ export default function Landing() {
 
             <div className="mono" style={{ marginTop: 18, borderTop: "1px solid #1d1d1d", paddingTop: 14, display: "flex", flexDirection: "column", gap: 7, fontSize: 11.5 }}>
               <div style={{ color: "var(--dim)", fontSize: 10.5, letterSpacing: "0.06em", textTransform: "uppercase" }}>Latest captured on the testnet (live)</div>
-              {live.data?.items?.length ? live.data.items.map((e) => (
+              {live.data?.items?.length ? live.data.items.slice(0, 3).map((e) => (
                 <div key={e.id} className="log-line">
                   <span style={{ color: "var(--dim)" }}>{timeAgo(e.observedAt)}</span>
                   <span style={{ color: "var(--green)" }}>{e.eventName ?? "UNDECODED_LOG"}</span>
@@ -140,16 +187,42 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* AI-NATIVE CALLOUT */}
-      <section id="ai" style={{ background: "linear-gradient(120deg,#0d0d0d,#141019)", border: "1px solid #231d33", borderRadius: 16, padding: "22px 26px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 24, flexWrap: "wrap" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
-          <span className="mono" style={{ fontSize: 11.5, color: "var(--accent)", border: "1px solid #37325a", background: "rgba(185,167,255,0.06)", padding: "7px 12px", borderRadius: 999, whiteSpace: "nowrap" }}>✧ AI-native</span>
-          <div>
-            <div style={{ fontSize: 16, fontWeight: 600 }}>Already building with Claude Code or Codex?</div>
-            <div style={{ fontSize: 14, color: "#9a968e", marginTop: 3, lineHeight: 1.45 }}>Connect PortalOps to your coding agent and set up your integration directly from your development environment.</div>
+      {/* LIVE TICKER: the most recent real events, scrolling by (only when there are enough to be worth it) */}
+      {live.data?.items?.length >= 3 ? (
+        <div className="ticker" aria-label="Recent events captured from the Portaldot testnet">
+          <span className="ticker-label"><span className="dot green" style={{ animation: "blink 2s infinite" }} />live</span>
+          <div className="ticker-track">
+            {[0, 1].map((copy) => (
+              <div key={copy} className="ticker-run" aria-hidden={copy === 1}>
+                {live.data.items.map((e) => (
+                  <span key={e.id} className="ticker-item"><b>{e.eventName ?? "contract log"}</b> #{e.blockNumber} <em>{shortHash(e.transactionHash, 6, 4)}</em></span>
+                ))}
+              </div>
+            ))}
           </div>
         </div>
-        <Link className="pbtn btn-lg" href="/app#aisetup" style={{ fontSize: 14.5, padding: "11px 20px", whiteSpace: "nowrap" }}>Set Up With AI →</Link>
+      ) : null}
+
+      {/* SET UP WITH AI: an explorable replay, and the real commands */}
+      <LandingAi />
+
+      {/* WHY */}
+      <section id="why" className="why">
+        <Reveal className="lp-section-head">
+          <h2 className="lp-h2">The boring part of every Portaldot app, already built.</h2>
+          <p className="lp-aside">// why PortalOps</p>
+        </Reveal>
+        <div className="why-grid">
+          <Reveal className="why-card without">
+            <div className="why-tag">Without PortalOps, you build</div>
+            <ul>{compare.without.map((t) => <li key={t}><span aria-hidden="true">✕</span>{t}</li>)}</ul>
+          </Reveal>
+          <Reveal className="why-card with" delay={110}>
+            <div className="why-tag">With PortalOps, you do</div>
+            <ul>{compare.with.map((t) => <li key={t}><span aria-hidden="true">✓</span>{t}</li>)}</ul>
+            <Link className="pbtn btn-lg" href="/auth#signup" style={{ marginTop: 22, fontSize: 14.5, padding: "11px 20px" }}>Start Building →</Link>
+          </Reveal>
+        </div>
       </section>
 
       {/* WALKTHROUGH */}
@@ -186,14 +259,21 @@ export default function Landing() {
           <h2 className="lp-h2">Everything that happens after an on-chain event exists.</h2>
           <p className="lp-aside">// the operational event layer</p>
         </div>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginTop: 34, alignItems: "center" }}>
-          {pipeline.map((s, i) => <span key={i} className="pipe-chip">{s}</span>)}
+        <div className="stages">
+          {stages.map((s, i) => (
+            <Reveal key={s.title} delay={i * 90} className="stage">
+              <Orb size={64} state={s.orb} label={`${s.title}: ${s.orb}`} />
+              <span className="stage-n">0{i + 1}</span>
+              <h3>{s.title}</h3>
+              <p>{s.desc}</p>
+            </Reveal>
+          ))}
         </div>
       </section>
 
       {/* FEATURES */}
       <section id="features" style={{ padding: "48px 0 20px" }}>
-        <div className="lp-grid-3" style={{ display: "grid", gridTemplateColumns: "repeat(3,minmax(0,1fr))", gap: 16 }}>
+        <div className="lp-grid-3" style={{ display: "grid", gridTemplateColumns: "repeat(3,minmax(0,1fr))", gap: 16 }} onMouseMove={spotlight}>
           {features.map((f) => (
             <div key={f.title} className="feature">
               <span className="ico">{f.glyph}</span>
@@ -203,6 +283,34 @@ export default function Landing() {
             </div>
           ))}
         </div>
+      </section>
+
+      {/* PROOF: the contract we deployed on the testnet and the transactions that produced real events */}
+      <section id="proof" className="proof">
+        <Reveal className="lp-section-head">
+          <h2 className="lp-h2">Not a mock-up. Real transactions on the Portaldot testnet.</h2>
+          <p className="lp-aside">// evidence</p>
+        </Reveal>
+        <Reveal className="proof-card">
+          <div className="proof-top">
+            <div>
+              <div className="proof-k">Contract · {demo.title}</div>
+              <code className="proof-addr">{demo.address}</code>
+            </div>
+            <Copy text={demo.address} />
+          </div>
+          <div className="proof-rows">
+            {[["deploy", demo.evidence.deployTransactionHash, demo.evidence.deployBlock], ...demo.evidence.transactions.map((t) => [t.label, t.hash, t.block])].map(([label, hash, block]) => (
+              <div key={hash} className="proof-row">
+                <span className="proof-label">{label}</span>
+                <code>{shortHash(hash, 12, 8)}</code>
+                <span className="proof-block">block #{block.toLocaleString()}</span>
+                <Copy text={hash} />
+              </div>
+            ))}
+          </div>
+          <p className="proof-foot">PortalOps decoded these as <b>QuestCreated</b>, <b>QuestCompleted</b> and <b>RewardIssued</b> and delivered them as signed webhooks. Look them up on any Portaldot V3 testnet explorer.</p>
+        </Reveal>
       </section>
 
       {/* LIVE STATUS */}
@@ -269,10 +377,27 @@ export default function Landing() {
         </div>
       </section>
 
+      {/* FAQ */}
+      <section id="faq" className="faq">
+        <Reveal className="lp-section-head">
+          <h2 className="lp-h2">Questions people ask first.</h2>
+          <p className="lp-aside">// straight answers</p>
+        </Reveal>
+        <Reveal className="faq-list">
+          {faq.map((f) => (
+            <details key={f.q} className="faq-item">
+              <summary>{f.q}<span className="faq-plus" aria-hidden="true" /></summary>
+              <p>{f.a}</p>
+            </details>
+          ))}
+        </Reveal>
+      </section>
+
       {/* CLOSING */}
       <section id="start" className="lp-closing" style={{ margin: "40px 0 72px", position: "relative", background: "linear-gradient(160deg,#0a0a0a 0%,#121016 55%,#1a1530 100%)", border: "1px solid #221d33", borderRadius: 20, padding: "72px 48px", textAlign: "center", overflow: "hidden" }}>
         <div style={{ position: "absolute", inset: 0, background: "radial-gradient(50% 80% at 50% 120%, rgba(185,167,255,0.22), transparent 70%)", pointerEvents: "none" }} />
         <div style={{ position: "relative" }}>
+          <div style={{ display: "flex", justifyContent: "center", marginBottom: 22 }}><Orb size={64} state="breathing" label="PortalOps is watching" /></div>
           <h2 className="lp-closing-h2" style={{ fontSize: 40, letterSpacing: "-0.03em", fontWeight: 600, margin: 0, lineHeight: 1.08, textWrap: "balance" }}>
             Build the application.<br />Let PortalOps handle the operations.
           </h2>
@@ -281,6 +406,7 @@ export default function Landing() {
           </p>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 12, justifyContent: "center", marginTop: 32 }}>
             <Link className="pbtn btn-lg" href="/auth#signup" style={{ padding: "13px 24px" }}>Start Building</Link>
+            <a className="sbtn soft btn-lg" href="#ai" style={{ gap: 9 }}><Orb size={20} state="breathing" label="" />Set up with AI</a>
             <Link className="sbtn soft btn-lg" href="/docs">View Documentation</Link>
           </div>
         </div>
@@ -303,8 +429,10 @@ export default function Landing() {
           <div className="foot-col">
             <span className="h">Developers</span>
             <a className="muted-link" href="#sdk">API / SDK</a>
-            <Link className="muted-link" href="/app#aisetup">AI Setup</Link>
+            <a className="muted-link" href="#ai">Set up with AI</a>
             <Link className="muted-link" href="/docs">Docs</Link>
+            <Link className="muted-link" href="/docs/guides/claude-setup">Claude tools</Link>
+            <a className="muted-link" href="https://github.com/nofazechris/portalops" target="_blank" rel="noopener noreferrer">GitHub ↗</a>
           </div>
         </div>
         <div className="mono" style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 11.5, color: "var(--muted)" }}>

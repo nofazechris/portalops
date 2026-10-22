@@ -3,6 +3,7 @@ import { Link } from "../router.jsx";
 import { signatureSnippet } from "../data.js";
 import { useSession } from "../state.jsx";
 import { CopyButton } from "../ui.jsx";
+import Orb from "../orb.jsx";
 
 const AGENTS = [
   { id: "claude", name: "Claude Code", status: "Copy & paste", color: "#6ee7a8", desc: "Paste the prompt into Claude Code in your repository. It inspects your code and implements the receiver." },
@@ -65,7 +66,10 @@ export default function AiSetup() {
 
   return (
     <div>
-      <h1 className="h1">Let your coding agent set up PortalOps.</h1>
+      <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+        <Orb size={64} state="listening" label="Waiting for your coding agent" />
+        <h1 className="h1" style={{ margin: 0 }}>Let your coding agent set up PortalOps.</h1>
+      </div>
       <p className="sub" style={{ maxWidth: 640, lineHeight: 1.5 }}>
         Copy a project-specific prompt into your coding agent. It will add a verified webhook receiver to your repository. PortalOps cannot see inside your editor, so completion is confirmed by a real delivery, not by copying the prompt.
       </p>
