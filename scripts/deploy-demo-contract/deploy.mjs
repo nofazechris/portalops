@@ -29,7 +29,7 @@ console.log(`nonce     ${nonce}`);
 console.log(`gas price ${gasPrice} wei · head #${head}`);
 
 if (balance === 0n) {
-  fail("This account has zero balance on the EVM side. Confirm how native tPOT maps to this 0x address before deploying (see docs/architecture/network-compatibility.md, open question 2).");
+  fail("This account has zero balance on the EVM side. Fund the NATIVE 5… address that owns this 0x account: its 32-byte id is the 20-byte 0x address followed by twelve 0xEE bytes (see docs/architecture/network-compatibility.md, open question 2).");
 }
 
 let gas = config.gasLimit;

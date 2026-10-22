@@ -51,7 +51,7 @@ These are PRD Phase 0 exit criteria and are **not proven**:
 ## Open questions
 
 1. **No EVM WebSocket URL** was announced, so `eth_subscribe` is untested. The EVM ingestion worker should poll `eth_getLogs` by block range (cheap here: 6 s blocks, wide ranges allowed).
-2. **Account model.** The announcement asks for a native `5…` address, while the EVM side uses `0x…`. How tPOT funding maps to an EVM account must be confirmed before promising anything about gas.
+2. **Account model (resolved).** The runtime has `Balances`, `Contracts` and `Revive` (no `EVM`/`Ethereum` pallet): EVM execution is **pallet-revive** (`allowEVMBytecode = true`, `chainId = 420420777`, `nativeToEthRatio = 10000`). An Ethereum account is a native account whose 32-byte id is `<20-byte 0x address> ++ 0xEE × 12`; fund *that* `5…` address and `eth_getBalance` shows the balance. Verified on 2026-10-22 against a real funded EVM account (native free `82060166227314765` at 14 decimals ≈ EVM balance `820501662273147651250` at 18 decimals, less the 0.1 tPOT existential deposit). The standard Frontier mapping (`blake2("evm:" ++ h160)`) is **not** used here: an address derived that way holds nothing. `npm run contract:fund-address` prints the right address. Costs: `depositPerByte` is 0.06 tPOT, so contract code carries a refundable deposit of roughly 0.06 tPOT per byte.
 3. Whether `debug_*` / `trace_*` exist: `debug_traceTransaction` is recognised (returns "No Ethereum extrinsic found" for an unknown hash), so it is probably available.
 
 ## Decision (provisional)
