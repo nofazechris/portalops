@@ -55,7 +55,7 @@ export class SqlStore {
     await this.run(this.ignore("INSERT OR IGNORE INTO projects (id, name, network_id, created_at) VALUES (?, ?, ?, ?)"), [id, name, networkId, new Date().toISOString()]);
   }
 
-  async createProject(p: { ownerId: string | null; name: string; description?: string | null; networkId: string; kind?: "user" | "public_demo" }): Promise<ProjectRecord> {
+  async createProject(p: { ownerId: string | null; name: string; description?: string | null; networkId: string; kind?: "user" | "public_demo" | "playground" }): Promise<ProjectRecord> {
     const id = uid("prj_", 20);
     const createdAt = new Date().toISOString();
     await this.run("INSERT INTO projects (id, name, description, owner_id, kind, network_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)", [id, p.name, p.description ?? null, p.ownerId, p.kind ?? "user", p.networkId, createdAt]);
@@ -81,6 +81,11 @@ export class SqlStore {
 
   async getPublicDemoProject(): Promise<ProjectRecord | null> {
     const r = await this.get("SELECT * FROM projects WHERE kind = 'public_demo' LIMIT 1");
+    return r ? this.rowToProject(r) : null;
+  }
+
+  async getPlaygroundProject(): Promise<ProjectRecord | null> {
+    const r = await this.get("SELECT * FROM projects WHERE kind = 'playground' LIMIT 1");
     return r ? this.rowToProject(r) : null;
   }
 

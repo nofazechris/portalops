@@ -3,8 +3,8 @@ import { timeAgo, shortHash, useApi, useSession } from "../state.jsx";
 import { ErrorBox, Loading, NeedsProject, ReadOnlyNote } from "../ui.jsx";
 import { LiveTimeline } from "../viz.jsx";
 
-export const eventTitle = (e) => e.eventName ?? "Undecoded log";
-export const eventSub = (e) => (e.eventName ? e.contractAddress : `topic0 ${shortHash(e.topics?.[0] ?? "", 10, 4)}`);
+export const eventTitle = (e) => e.eventName ?? "Raw log";
+export const eventSub = (e) => (e.eventName ? e.contractAddress : `event signature ${shortHash(e.topics?.[0] ?? "", 10, 4)} · no ABI`);
 
 const connDot = { connected: "green", disconnected: "red", wrong_chain: "amber" };
 const connText = { connected: "Connected", disconnected: "Disconnected", wrong_chain: "Wrong chain" };
@@ -80,7 +80,7 @@ export default function Overview({ openEvent, go }) {
               <h2 className="h2 sm" style={{ marginBottom: 8 }}>Recent delivery failures</h2>
               {recentFailures.map((f) => (
                 <div key={f.deliveryId} className="row-sep">
-                  <span style={{ fontSize: 13, color: "var(--fg-2)" }}>{f.eventName ?? "Undecoded log"}</span>
+                  <span style={{ fontSize: 13, color: "var(--fg-2)" }}>{f.eventName ?? "Raw log"}</span>
                   <span className="mono" style={{ fontSize: 11.5, color: "var(--red)" }}>{f.lastResponseStatus ?? f.lastError}</span>
                 </div>
               ))}

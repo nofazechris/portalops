@@ -81,7 +81,7 @@ export default function Replay({ go }) {
             {items.map((d) => (
               <div key={d.id} className={"replay-row" + (sel && d.id === sel.id ? " on" : "")} onClick={() => { setSelected(d.id); setRun({ phase: "idle", deliveryId: null, error: null }); }}>
                 <div style={{ minWidth: 0 }}>
-                  <div style={{ fontSize: 13.5, fontWeight: 500 }}>{d.event.eventName ?? "Undecoded log"}</div>
+                  <div style={{ fontSize: 13.5, fontWeight: 500 }}>{d.event.eventName ?? "Raw log"}</div>
                   <div className="mono" style={{ fontSize: 11, color: "var(--dim)", marginTop: 2 }}>{d.lastResponseStatus ? `HTTP ${d.lastResponseStatus}` : d.lastError} · {timeAgo(d.updatedAt)}</div>
                 </div>
                 <span className="mono" style={{ fontSize: 11, color: deliveryColor(d.status) }}>×{d.attemptCount}</span>

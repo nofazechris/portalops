@@ -10,7 +10,7 @@ export interface Project {
   name: string;
   description: string | null;
   ownerId: string | null;
-  kind: "user" | "public_demo";
+  kind: "user" | "public_demo" | "playground";
   networkId: string;
   createdAt: string;
 }

@@ -303,6 +303,98 @@ export function createApp(deps: AppDeps): (req: IncomingMessage, res: ServerResp
     };
   }, "none");
 
+  // ---------------------------------------------------- public playground (no signup)
+  // A shared sandbox: anyone can watch a contract and fire a SIGNED test delivery to the built-in receiver,
+  // with no account. Hardened for public write: rate-limited per IP, hard-capped, built-in receiver only
+  // (no arbitrary URLs, so the SSRF surface is nil), and no secrets are ever returned.
+  const PLAYGROUND_MAX_CONTRACTS = 20; // visitor-added, on top of the pinned examples
+  const playgroundLimiter = new RateLimiter(12, 60_000); // write actions per IP per minute
+  const pgWatchSchema = z.object({
+    address: z.string().trim().regex(/^0x[0-9a-fA-F]{40}$/, "An address is 0x followed by 40 hex characters."),
+    example: z.string().trim().optional(),
+  });
+  const pinnedAddresses = () => new Set(listFeatured().map((f) => f.address.toLowerCase()));
+  let playgroundReady: { project: ProjectRecord; endpoint: WebhookEndpoint } | null = null;
+  async function ensurePlayground() {
+    if (playgroundReady) return playgroundReady;
+    const project = await store.getPlaygroundProject();
+    if (!project) throw new ApiError(503, "unavailable", "The playground is not available right now.");
+    // One built-in-receiver webhook for the whole playground.
+    let endpoint = (await store.listEndpoints(project.id))[0] ?? null;
+    if (!endpoint) {
+      if (!config.receiverBaseUrl) throw new ApiError(503, "unavailable", "The playground receiver is not configured on this server.");
+      const token = randomBytes(24).toString("base64url");
+      const url = `${config.receiverBaseUrl.replace(/\/+$/, "")}/api/v1/hooks/${token}`;
+      await checkWebhookUrl(url);
+      endpoint = await store.createEndpoint(
+        { projectId: project.id, url, description: "Playground built-in receiver", enabled: true, eventFilter: [], retryPolicy: DEFAULT_RETRY_POLICY },
+        encryptSecret(generateWebhookSecret(), config.encryptionKey),
+      );
+      await store.createReceiver(endpoint.id, hashReceiverToken(token));
+    }
+    // Pin the featured example contracts so there is always something live to watch.
+    const have = new Set((await store.listContracts(project.id)).map((c) => c.address.toLowerCase()));
+    for (const f of listFeatured()) {
+      if (have.has(f.address.toLowerCase())) continue;
+      const ex = f.example ? getExample(f.example) : null;
+      await store.createContract({ projectId: project.id, address: f.address, name: f.title, abi: ex?.abi ?? null, startBlock: f.startBlock ?? null });
+    }
+    playgroundReady = { project, endpoint };
+    return playgroundReady;
+  }
+
+  router.add("GET", "/api/v1/playground", async () => {
+    const { project, endpoint } = await ensurePlayground();
+    const [contracts, recent, receiver] = await Promise.all([
+      withCounts(project.id),
+      store.searchEvents({ projectId: project.id, limit: 12 }),
+      store.getReceiverByEndpoint(endpoint.id),
+    ]);
+    const requests = receiver ? await store.listReceiverRequests(receiver.id, 8) : [];
+    return {
+      projectId: project.id,
+      network: config.networkLabel,
+      pinned: [...pinnedAddresses()],
+      maxContracts: PLAYGROUND_MAX_CONTRACTS,
+      contracts,
+      events: recent.items.map(eventView),
+      receiver: requests.map((r) => ({ outcome: r.outcome, httpStatus: r.httpStatus, signatureOk: r.signatureOk, eventId: r.eventId, receivedAt: r.receivedAt })),
+    };
+  }, "none");
+
+  router.add("POST", "/api/v1/playground/watch", async (ctx) => {
+    const { project } = await ensurePlayground();
+    const wait = playgroundLimiter.hit("pgwatch:" + ctx.ip);
+    if (wait) throw new ApiError(429, "rate_limited", `Easy there — try again in ${wait}s.`);
+    const body = parse(pgWatchSchema, ctx.body);
+    const existing = await store.listContracts(project.id);
+    const match = existing.find((c) => c.address.toLowerCase() === body.address.toLowerCase());
+    if (match) return contractView(match, (await store.contractEventCounts(project.id))[match.address] ?? 0);
+    const pinned = pinnedAddresses();
+    if (existing.filter((c) => !pinned.has(c.address.toLowerCase())).length >= PLAYGROUND_MAX_CONTRACTS) {
+      throw new ApiError(409, "playground_full", "The playground is watching its maximum number of contracts right now. Try again later, or sign up for your own project.");
+    }
+    const ex = body.example ? getExample(body.example) : null;
+    if (body.example && !ex) throw new ApiError(422, "validation_failed", `Unknown example "${body.example}".`);
+    const c = await store.createContract({ projectId: project.id, address: body.address, abi: ex?.abi ?? null, startBlock: null });
+    if (!c) throw new ApiError(409, "contract_exists", "That contract is already being watched.");
+    await store.log("info", "config", `Playground watch ${c.address}`, undefined, project.id);
+    return { __status: 201, data: contractView(c) };
+  }, "none");
+
+  router.add("POST", "/api/v1/playground/test-delivery", async (ctx) => {
+    const { endpoint } = await ensurePlayground();
+    const wait = playgroundLimiter.hit("pgtest:" + ctx.ip);
+    if (wait) throw new ApiError(429, "rate_limited", `Easy there — try again in ${wait}s.`);
+    const found = await store.getEndpointWithSecret(endpoint.id);
+    if (!found) throw new ApiError(503, "unavailable", "The playground receiver is not ready.");
+    const secret = decryptSecret(found.encryptedSecret, config.encryptionKey);
+    const payload = JSON.stringify({ id: "evt_test_" + randomUUID().replaceAll("-", "").slice(0, 16), type: "webhook.test", network: config.networkId, data: { message: "PortalOps playground test delivery. Not a blockchain event." } });
+    const { timestamp, header } = signHeader(secret, payload, now());
+    const r = await sendWebhook(endpoint.url, payload, { "portalops-signature": header, "portalops-timestamp": String(timestamp), "portalops-event-id": "test", "portalops-delivery-id": "test", "portalops-attempt": "1" }, { timeoutMs: endpoint.retryPolicy.timeoutMs, guard });
+    return { ok: r.status !== null && r.status >= 200 && r.status < 300, status: r.status, errorCode: r.errorCode, durationMs: r.durationMs };
+  }, "none");
+
   // ------------------------------------------------------------------- auth
   const publicUrl = (config.publicUrl ?? "http://localhost:5173").replace(/\/+$/, "");
   const outbound = config.fetch ?? fetch;

@@ -44,6 +44,10 @@ export const api = {
   example: (id) => request("GET", `/examples/${encodeURIComponent(id)}`),
   featured: () => request("GET", "/examples/featured"),
 
+  playground: () => request("GET", "/playground"),
+  playgroundWatch: (address, example) => request("POST", "/playground/watch", { address, ...(example ? { example } : {}) }),
+  playgroundTest: () => request("POST", "/playground/test-delivery", {}),
+
   me: () => request("GET", "/auth/me"),
   signup: (email, password) => request("POST", "/auth/signup", { email, password }),
   login: (email, password) => request("POST", "/auth/login", { email, password }),

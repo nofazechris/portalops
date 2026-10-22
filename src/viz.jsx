@@ -166,7 +166,7 @@ export function LiveTimeline({ projectId, headBlock, openEvent, go }) {
                 <button key={e.id} type="button" className={"tl-event" + (fresh.has(e.id) ? " fresh" : "") + (e.finalityStatus === "orphaned" ? " orphaned" : "")} onClick={() => openEvent(e.id)}>
                   <FinalityMeter status={e.finalityStatus} blockNumber={e.blockNumber} headBlock={headBlock} />
                   <span className="tl-main">
-                    <span className="tl-name">{e.eventName ?? "Undecoded log"}{fresh.has(e.id) && <em className="new-tag">new</em>}</span>
+                    <span className="tl-name">{e.eventName ?? "Raw log"}{fresh.has(e.id) && <em className="new-tag">new</em>}</span>
                     <span className="mono tl-sub">{shortHash(e.contractAddress, 8, 6)} · {shortHash(e.transactionHash, 8, 4)}</span>
                   </span>
                   <span className="tl-right">

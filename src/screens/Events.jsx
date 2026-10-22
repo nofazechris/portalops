@@ -127,7 +127,7 @@ export function EventDetail({ id, go }) {
       <div className="grid" style={{ gridTemplateColumns: "minmax(0,1.5fr) minmax(0,1fr)", gap: 16, marginTop: 16 }}>
         <div className="stack" style={{ gap: 16 }}>
           <div className="code-box">
-            <div className="code-head"><span>{payload ? "decoded payload" : "raw log (no ABI registered for this contract)"}</span><CopyButton text={payload ?? JSON.stringify({ topics: e.topics, data: e.data }, null, 2)} /></div>
+            <div className="code-head"><span>{payload ? "decoded payload" : "raw log · register this contract's ABI to decode it into named fields"}</span><CopyButton text={payload ?? JSON.stringify({ topics: e.topics, data: e.data }, null, 2)} /></div>
             <pre>{payload ?? JSON.stringify({ topics: e.topics, data: e.data }, null, 2)}</pre>
           </div>
           {payload && <div className="code-box"><div className="code-head"><span>raw log</span></div><pre>{JSON.stringify({ topics: e.topics, data: e.data }, null, 2)}</pre></div>}

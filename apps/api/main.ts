@@ -44,6 +44,12 @@ if (!await store.getPublicDemoProject()) {
   await store.createProject({ ownerId: null, name: "Public testnet explorer", description: "Read-only view of live Portaldot V3.0 testnet events.", networkId: NETWORK_ID, kind: "public_demo" });
 }
 
+// Seed the public, no-signup PLAYGROUND project once. Unlike the demo, visitors can add contracts and fire test deliveries
+// (rate-limited, built-in receiver only); its webhook and pinned example contracts are set up lazily on first use by the API.
+if (!await store.getPlaygroundProject()) {
+  await store.createProject({ ownerId: null, name: "Playground", description: "No-signup sandbox: watch a contract and send a signed test delivery.", networkId: NETWORK_ID, kind: "playground" });
+}
+
 const chain = new EvmAdapter(RPC, CHAIN_ID, 10_000);
 const network: NetworkProbe = {
   async check() {

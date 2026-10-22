@@ -1,0 +1,11 @@
+<svg width="820" height="200" viewBox="0 0 410 100" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="PortalOps">
+  <defs>
+    <linearGradient id="g" x1="0.15" y1="0.05" x2="0.85" y2="0.95">
+      <stop offset="0" stop-color="#b9a7ff"/>
+      <stop offset="1" stop-color="#6f5fb0"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="14" width="72" height="72" rx="21" fill="url(#g)"/>
+  <rect x="24.1" y="38.1" width="23.8" height="23.8" rx="6.5" fill="#080808"/>
+  <text x="92" y="63" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="46" font-weight="600" letter-spacing="-1" fill="#14121c">PortalOps</text>
+</svg>

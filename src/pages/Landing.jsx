@@ -105,6 +105,7 @@ export default function Landing() {
           <div className="lp-nav-links" style={{ display: "flex", gap: 28, fontSize: 14 }}>
             <a className="top-link" href="#pipeline">Product</a>
             <a className="top-link nav-ai" href="#ai"><Orb size={20} state="breathing" label="" />Set up with AI</a>
+            <Link className="top-link" href="/playground">Playground</Link>
             <a className="top-link" href="#replay">Replay</a>
             <a className="top-link" href="#sdk">Developers</a>
             <Link className="top-link" href="/docs">Docs</Link>

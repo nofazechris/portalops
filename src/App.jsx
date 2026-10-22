@@ -4,12 +4,14 @@ import Landing from "./pages/Landing.jsx";
 import Docs from "./pages/Docs.jsx";
 import Auth from "./pages/Auth.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
+import Playground from "./pages/Playground.jsx";
 
 const routes = {
   "/": Landing,
   "/docs": Docs,
   "/auth": Auth,
   "/app": Dashboard,
+  "/playground": Playground,
 };
 
 export default function App() {

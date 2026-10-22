@@ -264,7 +264,7 @@ export function Diagnostics({ go }) {
             <span style={{ fontSize: 15, fontWeight: 600 }}>Why did this delivery fail?</span>
             {failed.data.length > 1 && (
               <select className="select" style={{ width: 240, marginLeft: "auto" }} value={sel.id} onChange={(e) => setPick(e.target.value)}>
-                {failed.data.map((d) => <option key={d.id} value={d.id}>{d.event.eventName ?? "Undecoded log"} · {timeAgo(d.updatedAt)}</option>)}
+                {failed.data.map((d) => <option key={d.id} value={d.id}>{d.event.eventName ?? "Raw log"} · {timeAgo(d.updatedAt)}</option>)}
               </select>
             )}
           </div>

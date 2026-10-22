@@ -144,7 +144,7 @@ export function PageHead({ title, sub, action }) {
 
 export const ReadOnlyNote = () => (
   <div className="banner info">
-    <div><strong>Read-only public explorer.</strong><div className="banner-sub">Live events from the Portaldot V3.0 testnet. Sign in to monitor your own contracts and webhooks.</div></div>
+    <div><strong>Read-only public explorer.</strong><div className="banner-sub">Live events from every contract on the Portaldot V3.0 testnet. They show as <em>raw logs</em> because the explorer has no ABIs to decode them. Sign in and register a contract with its ABI (or try the playground) to see named events, webhooks and replay.</div></div>
     <span style={{ display: "flex", gap: 8, flexShrink: 0 }}>
       <Link className="btn secondary small" href="/auth#signin">Sign in</Link>
       <Link className="btn primary small" href="/auth#signup">Create account</Link>

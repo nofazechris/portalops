@@ -85,6 +85,15 @@ contact the outside (replay, test delivery, contract test). The SDK retries `GET
 ### GET /api/v1/examples/:id
 **Public.** One example with `description`, `eventDetails` (meaning, sample payload, typical use), `source`, `abi`, `bytecode`, `deployCommand`, a ready `handler` (Node.js receiver) and the `compiler` used. `404` for an unknown id.
 
+### GET /api/v1/playground
+**Public, no signup.** The shared sandbox: `{ projectId, network, pinned: [address…], maxContracts, contracts: […], events: […], receiver: [{ outcome, httpStatus, signatureOk, eventId, receivedAt }…] }`. No secrets are ever returned.
+
+### POST /api/v1/playground/watch
+**Public, no signup.** Body `{ address (0x + 40 hex), example? }`. Adds a contract to the shared playground (rate-limited per IP; built-in receiver only; capped, with the example contracts always pinned). Returns the contract. `409 playground_full` when the sandbox is at its cap.
+
+### POST /api/v1/playground/test-delivery
+**Public, no signup.** Sends one signed test delivery to the playground's built-in receiver (rate-limited per IP). Returns `{ ok, status, errorCode, durationMs }`.
+
 ---
 
 ## Accounts
