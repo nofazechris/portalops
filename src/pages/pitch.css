@@ -121,3 +121,25 @@
   .pt-controls { display: none; }
   * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
+
+/* status badge on each slide: what is real today vs. what is planned */
+.pt-body > .pt-badge { position: absolute; top: -34px; right: 0; margin: 0; animation: none; }
+.pt-badge { font-family: var(--mono); font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase; padding: 7px 14px; border-radius: 999px; border: 1px solid; }
+.pt-badge.built { color: var(--green); border-color: #1f3a2a; background: rgba(110, 231, 168, 0.07); }
+.pt-badge.part { color: #e3a24c; border-color: #4a3a22; background: rgba(227, 162, 76, 0.07); }
+.pt-badge.next { color: var(--accent); border-color: #37325a; background: rgba(185, 167, 255, 0.07); }
+
+/* bigger flow strip and chips on the future slides */
+.pt-flow.big { margin: 34px 0 6px; font-size: 18px; gap: 12px; }
+.pt-flow.big span { padding: 12px 18px; }
+.pt-chips.big { margin: 30px 0 0; }
+.pt-chips.big span { font-size: 18px; padding: 12px 20px; border-color: #3a355a; }
+
+/* roadmap columns */
+.pt-cols3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-top: 42px; }
+.pt-col { border-radius: 16px; padding: 26px 28px; background: #101014; border: 1px solid #202028; }
+.pt-col h3 { margin: 0 0 16px; font-size: 20px; font-weight: 600; }
+.pt-col ul { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 12px; font-size: 19px; line-height: 1.4; color: var(--fg-2); }
+.pt-col.now { border-color: #1f3a2a; } .pt-col.now h3 { color: var(--green); } .pt-col.now li::marker { color: var(--green); }
+.pt-col.next { border-color: #37325a; } .pt-col.next h3 { color: var(--accent); } .pt-col.next li::marker { color: var(--accent); }
+.pt-col.later h3 { color: var(--muted); } .pt-col.later li::marker { color: var(--faint); } .pt-col.later li { color: var(--fg-3); }

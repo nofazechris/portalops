@@ -103,6 +103,15 @@ test("web build: every file the web app imports from outside src/ is copied into
   assert.deepEqual(problems, []);
 });
 
+test("web build: public/ (static files such as the pitch PDF) is copied into the Docker build stage and not ignored", () => {
+  const docker = read("Dockerfile");
+  const buildStage = docker.slice(docker.indexOf("AS build"), docker.indexOf("AS runtime"));
+  assert.ok(existsSync(resolve(ROOT, "public")), "public/ exists in the repository");
+  assert.match(buildStage, /^COPY public \.\/public$/m, "the build stage copies public/");
+  const ignore = read(".dockerignore").split(/\r?\n/).map((l) => l.trim());
+  assert.ok(!ignore.includes("public") && !ignore.includes("public/") && !ignore.includes("/public"), ".dockerignore must not exclude public/");
+});
+
 test("docs site: the Docker build stage receives the markdown it bundles (otherwise every docs page fails to load in production)", () => {
   const docker = read("Dockerfile");
   const buildStage = docker.slice(docker.indexOf("AS build"), docker.indexOf("AS runtime"));

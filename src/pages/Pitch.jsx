@@ -4,8 +4,12 @@ import StageArt from "../stageArt.jsx";
 import "./pitch.css";
 
 // The pitch deck, served from the product's own site (/pitch) so the link is public and never depends on a third-party host.
-// 16:9 slides on a fixed 1280x720 stage that scales to the window; arrow keys / space / swipe-friendly buttons; #N deep-links a slide;
+// 16:9 slides on a fixed 1280x720 stage that scales to the window; arrow keys / space / buttons; #N deep-links a slide;
 // printing (or ?print) lays every slide on its own page, which is how the PDF is made.
+//
+// Story: where Portaldot is heading (agents, games, fast builders) -> the gap today -> what PortalOps is today (proof) ->
+// where it goes next (agents, fast deploy, security watching) -> why Portaldot should back it.
+// Every slide is tagged Built today / Part built / Next, so roadmap is never presented as shipped.
 
 const REPO = "https://github.com/nofazechris/portalops";
 const SITE = "https://portalops.onrender.com";
@@ -14,6 +18,7 @@ const PING = "0x6a8705e4621dd87a261b1c5f97b73871616537ec";
 
 const Hl = ({ children, tone = "blue" }) => <span className={"pt-hl " + tone}>{children}</span>;
 const Kicker = ({ children }) => <div className="pt-kicker">{children}</div>;
+const Badge = ({ kind }) => <span className={"pt-badge " + kind}>{{ built: "Built today", part: "Part built", next: "On the roadmap" }[kind]}</span>;
 
 const slides = [
   {
@@ -21,24 +26,24 @@ const slides = [
     el: (
       <div className="pt-center">
         <div className="pt-logo"><span className="pt-mark"><i /></span>PortalOps</div>
-        <h1 className="pt-h1">The operational event layer<br />for <Hl>Portaldot</Hl>.</h1>
-        <p className="pt-lede">Watch any contract. Get clean, signed, retried, replayable webhooks.</p>
+        <h1 className="pt-h1">The nervous system<br />for <Hl>Portaldot</Hl>.</h1>
+        <p className="pt-lede">Today: signed, retried, replayable events for any contract. Next: the layer that AI agents, games and security tools build on.</p>
         <div className="pt-foot-row"><span>Portaldot Hacker House</span><span>·</span><span>Track: Modular Cloud &amp; Middleware</span></div>
       </div>
     ),
   },
   {
-    id: "problem",
+    id: "vision",
     el: (
       <>
-        <Kicker>The problem</Kicker>
-        <h2 className="pt-h2">Contracts write down everything they do.<br /><Hl tone="gold">Apps barely see it.</Hl></h2>
+        <Kicker>Where Portaldot is heading</Kicker>
+        <h2 className="pt-h2">The next apps on Portaldot will be <Hl>agents and games</Hl>.</h2>
         <div className="pt-cards3">
-          <div className="pt-card"><b>Raw hex</b><p>An on-chain event is just topics and data. You need the contract's ABI to read it.</p></div>
-          <div className="pt-card"><b>Reorganisations</b><p>The newest blocks can be replaced. Act too early, and you act on something that never happened.</p></div>
-          <div className="pt-card red"><b>Downtime</b><p>Your server goes offline for ten minutes. The chain does not wait. Those events are gone.</p></div>
+          <div className="pt-card"><b>AI agents</b><p>They act on-chain and react to what happens on-chain, all day, with no human watching.</p></div>
+          <div className="pt-card"><b>Games</b><p>Every move, quest and reward is an event. Games live and die by how fast they can react.</p></div>
+          <div className="pt-card"><b>Builders</b><p>They need to ship contracts fast, and know right away if something is going wrong.</p></div>
         </div>
-        <p className="pt-note">So every team rebuilds the same plumbing: polling, decoding, signing, retrying. Usually after the first event they miss.</p>
+        <p className="pt-note">All three need the same thing: to know, reliably and in real time, <b>what just happened on the chain</b>. That is the layer PortalOps provides.</p>
       </>
     ),
   },
@@ -46,23 +51,25 @@ const slides = [
     id: "gap",
     el: (
       <>
-        <Kicker>The gap, measured</Kicker>
-        <h2 className="pt-h2">We pointed PortalOps at the testnet <Hl>and just listened</Hl>.</h2>
+        <Kicker>The gap today</Kicker>
+        <h2 className="pt-h2">But a contract's events are <Hl tone="gold">unreadable</Hl> out of the box.</h2>
         <div className="pt-stats">
           <div><b>32</b><span>contracts</span></div>
           <div><b>225</b><span>events</span></div>
           <div><b>65</b><span>kinds</span></div>
-          <div className="zero"><b>0</b><span>readable out of the box</span></div>
+          <div className="zero"><b>0</b><span>readable without an ABI</span></div>
         </div>
+        <div className="pt-chips"><span>raw hex</span><span>reorganised blocks</span><span>servers that go down</span></div>
         <p className="pt-src">Portaldot V3.0 testnet · blocks 91,528 to 145,105 · measured 2026-10-22 with PortalOps' public explorer (no ABIs registered, so every event is raw)</p>
       </>
     ),
   },
   {
-    id: "solution",
+    id: "today",
     el: (
       <>
-        <Kicker>The solution</Kicker>
+        <Badge kind="built" />
+        <Kicker>What PortalOps is today</Kicker>
         <h2 className="pt-h2">Watch. Decode. Deliver. <Hl>Recover.</Hl></h2>
         <div className="pt-stages">
           {[
@@ -72,35 +79,7 @@ const slides = [
             { v: <StageArt kind="recover" size={64} label="Recover" />, t: "Recover", d: "Retries with backoff when you are down. Replays any event later, without touching the chain." },
           ].map((s) => <div key={s.t} className="pt-stage">{s.v}<b>{s.t}</b><p>{s.d}</p></div>)}
         </div>
-        <div className="pt-chips"><span>Signed (HMAC-SHA256)</span><span>Retried with backoff</span><span>Replayable, same event id</span></div>
-      </>
-    ),
-  },
-  {
-    id: "why",
-    el: (
-      <>
-        <Kicker>Why Portaldot needs it</Kicker>
-        <h2 className="pt-h2">A young network. <Hl>Event tooling that has to be built.</Hl></h2>
-        <div className="pt-two">
-          <div className="pt-panel">
-            <h3>What we found</h3>
-            <ul>
-              <li>32 contracts already emitting 65 kinds of events, none readable without their ABI.</li>
-              <li>Builders get raw logs, then write ingestion, retries and signing themselves.</li>
-              <li>The EVM layer means standard ABIs work: decoding and webhooks fit naturally.</li>
-            </ul>
-          </div>
-          <div className="pt-panel">
-            <h3>Built around how Portaldot really behaves</h3>
-            <ul>
-              <li>pallet-revive EVM (V3.0): account mapping handled and documented.</li>
-              <li>Only ~256 recent blocks are served by number, so backfill uses log queries.</li>
-              <li>Finality comes from the node's finalized head, never guessed: <i>seen, confirmed, finalized</i>.</li>
-              <li>Weight-based gas: a full contract deploy costs ~180 tPOT, which shaped our demo contracts.</li>
-            </ul>
-          </div>
-        </div>
+        <div className="pt-chips"><span>Dashboard</span><span>No-signup playground</span><span>REST API</span><span>TypeScript SDK</span><span>Claude (MCP)</span></div>
       </>
     ),
   },
@@ -108,13 +87,14 @@ const slides = [
     id: "proof",
     el: (
       <>
+        <Badge kind="built" />
         <Kicker>Proof it works</Kicker>
         <h2 className="pt-h2">Not a mock-up. <Hl>Live on the Portaldot testnet.</Hl></h2>
         <div className="pt-two">
           <div className="pt-contract">
             <div className="pt-ck">PortalQuest · deployed by us</div>
             <code>{QUEST}</code>
-            <p>Block 145,098 · 3 real events: <b>QuestCreated</b>, <b>QuestCompleted</b>, <b>RewardIssued</b></p>
+            <p>Block 145,098 · real events: <b>QuestCreated</b>, <b>QuestCompleted</b>, <b>RewardIssued</b></p>
           </div>
           <div className="pt-contract">
             <div className="pt-ck">PortalPing · deployed by us</div>
@@ -123,85 +103,149 @@ const slides = [
           </div>
         </div>
         <div className="pt-flow"><span>captured</span>→<span>decoded</span>→<span>delivered ✓ signature verified</span>→<span className="bad">fails (500)</span>→<span>retried</span>→<span>replayed ✓</span></div>
-        <p className="pt-note">170+ automated tests, including against real testnet logs and a real PostgreSQL. A secret scan runs in CI.</p>
+        <div className="pt-chips"><span>170+ tests, incl. real testnet logs</span><span>HMAC-signed</span><span>SSRF-safe</span><span>AES-256-GCM secrets</span><span>Reorg-aware, honest finality</span></div>
       </>
     ),
   },
   {
-    id: "product",
+    id: "agents-today",
     el: (
       <>
-        <Kicker>The product</Kicker>
-        <h2 className="pt-h2">Easy at every level, <Hl>from click to code to chat</Hl>.</h2>
-        <div className="pt-cards4">
-          <div className="pt-card"><b>Dashboard</b><p>A three-step quick start: pick a contract, choose where events go, watch it work.</p></div>
-          <div className="pt-card"><b>Playground</b><p>No signup. Paste a contract, watch events decode live, send a signed test delivery.</p></div>
-          <div className="pt-card"><b>REST API + SDK</b><p>The same API the dashboard uses, plus a typed TypeScript SDK and webhook verification.</p></div>
-          <div className="pt-card"><b>Claude</b><p>Ten MCP tools: ask in plain English and it registers, wires and tests. Secrets never enter the chat.</p></div>
-        </div>
-      </>
-    ),
-  },
-  {
-    id: "arch",
-    el: (
-      <>
-        <Kicker>Architecture</Kicker>
-        <h2 className="pt-h2">Two small processes. <Hl>One database.</Hl></h2>
-        <div className="pt-arch">
-          <div className="pt-node"><b>Portaldot</b><span>logs · blocks</span></div><i>→</i>
-          <div className="pt-node hot"><b>Worker</b><span>decode · finality · deliver</span></div><i>→</i>
-          <div className="pt-node"><b>Store</b><span>SQLite or PostgreSQL</span></div><i>→</i>
-          <div className="pt-node"><b>Your app</b><span>signed webhook</span></div>
-        </div>
-        <div className="pt-chips"><span>Dashboard</span><span>REST API</span><span>TypeScript SDK</span><span>Claude / MCP</span></div>
-        <p className="pt-note">The API and worker share only the database. Chains plug in through a small <code>ChainAdapter</code> interface, so new sources are an adapter, not a rewrite.</p>
-      </>
-    ),
-  },
-  {
-    id: "trust",
-    el: (
-      <>
-        <Kicker>Reliability &amp; security</Kicker>
-        <h2 className="pt-h2">Built to be <Hl>trusted</Hl>.</h2>
-        <div className="pt-grid6">
-          {[
-            ["Atomic writes", "Events, deliveries and the read position move together or not at all."],
-            ["Signed deliveries", "HMAC-SHA256 with a timestamp; verified with constant-time compare."],
-            ["Honest finality", "Seen, confirmed, finalized by the network. Never guessed from depth."],
-            ["SSRF-safe", "Deliveries cannot reach internal addresses, checked when saved and on every send."],
-            ["Secrets encrypted", "AES-256-GCM at rest, shown once. Claude writes them to a local file only."],
-            ["Reorg-aware", "A reorganised log becomes a different event; the old one is marked orphaned."],
-          ].map(([t, d]) => <div key={t} className="pt-card"><b>{t}</b><p>{d}</p></div>)}
-        </div>
-      </>
-    ),
-  },
-  {
-    id: "next",
-    el: (
-      <>
-        <Kicker>Why keep supporting it</Kicker>
-        <h2 className="pt-h2">The core is built and live. <Hl>Here is what comes next.</Hl></h2>
+        <Badge kind="built" />
+        <Kicker>AI agents, already</Kicker>
+        <h2 className="pt-h2">An agent can <Hl>operate PortalOps</Hl> today.</h2>
         <div className="pt-two">
           <div className="pt-panel">
-            <h3>Roadmap</h3>
+            <h3>Ten Claude (MCP) tools</h3>
             <ul>
-              <li><b>Native Rust / ink! adapter</b> through the existing ChainAdapter interface.</li>
-              <li><b>More Portaldot networks</b> and other chains.</li>
-              <li><b>SDK on npm</b> and a hosted multi-tenant service.</li>
-              <li><b>More delivery targets</b>: chat, email and queues, on the same retry and replay engine.</li>
+              <li>Ask in plain English: <i>"Watch my Quest contract and send its events to the test receiver."</i></li>
+              <li>The agent checks the project, registers the contract with the right ABI, creates the webhook and sends a signed test.</li>
+              <li>Signing secrets are written to a local file. They never enter the chat.</li>
             </ul>
           </div>
           <div className="pt-panel">
-            <h3>Why it matters to Portaldot</h3>
+            <h3>Why this matters</h3>
             <ul>
-              <li>Every app on the network needs this layer, and none should have to rebuild it.</li>
-              <li>It makes Portaldot contracts usable from ordinary backends, bots and agents.</li>
-              <li>Open source, documented, and already running against the live testnet.</li>
+              <li>Setting up chain monitoring is a conversation, not a project.</li>
+              <li>Agents get a safe, scoped way in: project-limited keys, read or write.</li>
+              <li>It is the first step toward agents that <b>watch</b> the chain, not just write to it.</li>
             </ul>
           </div>
+        </div>
+      </>
+    ),
+  },
+  {
+    id: "agents-next",
+    el: (
+      <>
+        <Badge kind="next" />
+        <Kicker>The future: agents on Portaldot</Kicker>
+        <h2 className="pt-h2">PortalOps becomes the <Hl>eyes of every agent</Hl> on the chain.</h2>
+        <div className="pt-cards4">
+          <div className="pt-card"><b>Events as triggers</b><p>On-chain events flow straight into an agent's loop as signed, decoded messages.</p></div>
+          <div className="pt-card"><b>Finality-gated actions</b><p>An agent acts only on <i>finalized</i> data, so it never moves money on a reorganised block.</p></div>
+          <div className="pt-card"><b>Crash recovery</b><p>If an agent goes down, replay catches it up exactly, with nothing missed or doubled.</p></div>
+          <div className="pt-card"><b>Agent audit trail</b><p>Watch what each agent's wallet does on-chain, as readable events with full history.</p></div>
+        </div>
+        <div className="pt-flow"><span>event on chain</span>→<span>PortalOps: decoded, finalized</span>→<span>agent decides</span>→<span>contract call</span>→<span>PortalOps confirms</span></div>
+      </>
+    ),
+  },
+  {
+    id: "deploy-next",
+    el: (
+      <>
+        <Badge kind="part" />
+        <Kicker>The future: building on Portaldot, fast</Kicker>
+        <h2 className="pt-h2">From idea to a <Hl>live game contract in minutes</Hl>.</h2>
+        <div className="pt-flow big"><span>describe it</span>→<span>template</span>→<span>compile</span>→<span>deploy</span>→<span>watch</span>→<span>webhooks live</span></div>
+        <div className="pt-two">
+          <div className="pt-panel">
+            <h3>Built today</h3>
+            <ul>
+              <li>Game-shaped starter contracts: a quest board, a bounty board and a token, each with ABI and a ready receiver.</li>
+              <li>Scripts that compile and deploy a contract, with gas and balance checks for Portaldot's weight-based costs, then the dashboard watches it once you paste the address and ABI.</li>
+            </ul>
+          </div>
+          <div className="pt-panel">
+            <h3>Next</h3>
+            <ul>
+              <li>One command, or one sentence to Claude, that deploys <b>and</b> starts watching.</li>
+              <li>More templates for common game and agent patterns, with events already wired to webhooks.</li>
+            </ul>
+          </div>
+        </div>
+      </>
+    ),
+  },
+  {
+    id: "security-next",
+    el: (
+      <>
+        <Badge kind="next" />
+        <Kicker>The future: security that never sleeps</Kicker>
+        <h2 className="pt-h2">Real-time <Hl>security watching</Hl> for every contract.</h2>
+        <div className="pt-chips big"><span>unlimited approvals</span><span>ownership transferred</span><span>mint / burn spikes</span><span>repeated failed calls</span><span>admin functions called</span></div>
+        <div className="pt-two">
+          <div className="pt-panel">
+            <h3>How it works</h3>
+            <ul>
+              <li>Alert rules run over the same live event stream, as soon as an event is captured.</li>
+              <li>Reorg- and finality-aware, so alerts are not false alarms.</li>
+              <li>Delivered to Slack, Discord, email, a webhook, or an agent that can react.</li>
+            </ul>
+          </div>
+          <div className="pt-panel">
+            <h3>Built on what exists</h3>
+            <ul>
+              <li>The event stream and decoding.</li>
+              <li>Automations that already route events by rule.</li>
+              <li>The delivery engine with signing, retries and replay.</li>
+            </ul>
+          </div>
+        </div>
+      </>
+    ),
+  },
+  {
+    id: "why",
+    el: (
+      <>
+        <Kicker>Why Portaldot should back this</Kicker>
+        <h2 className="pt-h2">Make Portaldot the chain where <Hl>agents and games ship fastest</Hl>.</h2>
+        <div className="pt-two">
+          <div className="pt-panel">
+            <h3>What it does for the ecosystem</h3>
+            <ul>
+              <li>Every developer and every agent gets observability from day one, instead of rebuilding it.</li>
+              <li>Faster building and safer contracts means more apps, and apps that last.</li>
+              <li>A visible reason to build here: events are readable, reliable and secure by default.</li>
+            </ul>
+          </div>
+          <div className="pt-panel">
+            <h3>Built around how Portaldot really behaves</h3>
+            <ul>
+              <li>pallet-revive EVM: account mapping handled and documented.</li>
+              <li>Only ~256 recent blocks are served by number, so backfill uses log queries.</li>
+              <li>Finality comes from the node's finalized head, never guessed.</li>
+              <li>Weight-based gas shaped our deploy tooling.</li>
+            </ul>
+          </div>
+        </div>
+      </>
+    ),
+  },
+  {
+    id: "roadmap",
+    el: (
+      <>
+        <Kicker>Roadmap</Kicker>
+        <h2 className="pt-h2">The core is live. <Hl>Support turns it into the platform.</Hl></h2>
+        <div className="pt-cols3">
+          <div className="pt-col now"><h3>Now · live</h3><ul><li>Watch, decode, deliver, recover</li><li>Dashboard, playground, REST API</li><li>Claude (MCP) setup</li><li>Live on the testnet, open source</li></ul></div>
+          <div className="pt-col next"><h3>Next</h3><ul><li>SDK on npm</li><li>Security alert rules</li><li>Agent triggers and audit trail</li><li>One-step deploy and watch</li></ul></div>
+          <div className="pt-col later"><h3>Later</h3><ul><li>Native Rust / ink! adapter</li><li>Hosted multi-tenant service</li><li>More Portaldot networks and chains</li><li>Chat, email and queue targets</li></ul></div>
         </div>
       </>
     ),

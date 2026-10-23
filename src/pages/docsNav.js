@@ -55,4 +55,4 @@ export const DOC_LIST = DOC_SECTIONS.flatMap((s) => s.items.map((i) => ({ ...i, 
 export const findDoc = (path) => DOC_LIST.find((d) => d.path === path) ?? null;
 
 /** Markdown files in /docs that are deliberately NOT on the public site (internal runbooks, scripts, the index for GitHub readers). */
-export const INTERNAL_DOCS = ["README", "operations/demo-script", "operations/video-script", "operations/walkthrough-script", "operations/submission-answers", "operations/crash-investigation"];
+export const INTERNAL_DOCS = ["README", "operations/demo-script", "operations/video-script", "operations/walkthrough-script", "operations/crash-investigation"];
