@@ -4,6 +4,10 @@ Operational event layer for Portaldot applications: ingest on-chain events, deli
 Targets the **Portaldot V3.0 testnet** (EVM chain id 420420777). See `docs/architecture/network-compatibility.md` for what has
 and has not been verified against the real network.
 
+**Try it:** [live app](https://portalops.onrender.com) · [playground (no signup)](https://portalops.onrender.com/playground) ·
+[docs](https://portalops.onrender.com/docs) · [pitch deck](https://portalops.onrender.com/pitch) ([PDF](https://portalops.onrender.com/pitch/portalops-pitch.pdf)).
+The live site runs on a free plan that sleeps when idle, so the first load can take up to a minute.
+
 ## Run locally
 
 ```bash
@@ -59,6 +63,9 @@ Deployed and exercised on the **Portaldot V3.0 testnet** (EVM chain id 420420777
 | `createQuest` → `QuestCreated` | `0xd267e8a0610c73a4f21e24d0d69319307e52346dc65ad2e72ed280a26630f17c` (block 145,103) |
 | `completeQuest` → `QuestCompleted` | `0x11a6d7a86de919ad2b5da0c5098e3904cf23683733d53ff30b13c86d6af1c4b3` (block 145,104) |
 | `issueReward` → `RewardIssued` | `0x999f0cb2a1c04bce8edcd2b1ac37a3f98408162277428ada87b56b5fed7d32fb` (block 145,105) |
+| Contract (2026-10-22) | `PortalPing` at `0x6a8705e4621dd87a261b1c5f97b73871616537ec`, one `Ping(from, seq, note)` event; source in `contracts/examples/PortalPing.sol` |
+| Deployment transaction | `0xb6809eeee11d1b4a1a98113da824cfd763131028b4048608883ab3bdb8aee7b8` (block 152,078) |
+| `ping("Hello from PortalOps — live demo")` | `0x2e603ac3d0b6219098060152af1b5253e38b86bd2bcd654f49d3cfc36ef30cfb` (block 152,082) |
 
 The three events were read back with `eth_getLogs`, then captured, decoded and delivered by PortalOps itself. The contracts are written in
 Solidity; see [network compatibility](docs/architecture/network-compatibility.md) for how Portaldot's EVM layer works.
