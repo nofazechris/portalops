@@ -49,7 +49,7 @@ test("mcp: example tools work with no API key; big fields only on request; unkno
   const dir = tmp(); t.after(() => rmSync(dir, { recursive: true, force: true }));
   const m = await connect({ portal: null, cwd: dir }); t.after(() => m.close());
   const list = await m.call("portalops_list_examples");
-  assert.deepEqual(list.json.map((e: any) => e.id).sort(), ["bounty", "quest", "token"]);
+  assert.deepEqual(list.json.map((e: any) => e.id).sort(), ["arena", "bounty", "quest", "token"]);
 
   const lean = await m.call("portalops_get_example", { id: "token" });
   assert.equal(lean.json.contractName, "PortalToken");
@@ -60,7 +60,7 @@ test("mcp: example tools work with no API key; big fields only on request; unkno
 
   const bad = await m.call("portalops_get_example", { id: "nope" });
   assert.equal(bad.isError, true);
-  assert.match(bad.text, /quest, token, bounty/);
+  assert.match(bad.text, /quest, token, bounty, arena/);
 });
 
 test("mcp: without a key, setup status explains how to get one and every other tool refuses politely", async (t) => {

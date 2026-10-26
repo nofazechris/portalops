@@ -821,6 +821,250 @@
     }
    ],
    "bytecode": "0x6080604052348015600f57600080fd5b506107588061001f6000396000f3fe608060405234801561001057600080fd5b506004361061007d5760003560e01c8063b759f9541161005b578063b759f954146100bb578063da8accf9146100ce578063dc2f8744146100e1578063f18f761b1461013857600080fd5b80630effdd26146100825780633e362c961461009d57806340e58ee5146100a6575b600080fd5b61008a608c81565b6040519081526020015b60405180910390f35b61008a60005481565b6100b96100b4366004610536565b61014b565b005b6100b96100c9366004610536565b6101fc565b6100b96100dc366004610598565b6102cc565b6101286100ef366004610536565b600160208190526000918252604090912080549181015460028201546003909201546001600160a01b0393841693909116919060ff1684565b60405161009494939291906105fa565b61008a610146366004610646565b6103c9565b6000610156826104eb565b80549091506001600160a01b0316331461018357604051630edd024760e11b815260040160405180910390fd5b6001600382015460ff16600481111561019e5761019e6105e4565b146101bc57604051638e78f0cb60e01b815260040160405180910390fd5b60038101805460ff19166004179055604051339083907fbe34663bc2803ca9be398afdbd7e0bd537378360b743b76b170e3421fbe3845090600090a35050565b6000610207826104eb565b80549091506001600160a01b0316331461023457604051630edd024760e11b815260040160405180910390fd5b6002600382015460ff16600481111561024f5761024f6105e4565b1461026d57604051638e78f0cb60e01b815260040160405180910390fd5b6003818101805460ff19169091179055600181015460028201546040519081526001600160a01b039091169083907f3461928d99d63b85da6f68825e7685d5fdde0b639ba59e41bfc043a7282794c49060200160405180910390a35050565b60006102d7846104eb565b90506001600382015460ff1660048111156102f4576102f46105e4565b1461031257604051638e78f0cb60e01b815260040160405180910390fd5b8054336001600160a01b039091160361033e5760405163c72b86c760e01b815260040160405180910390fd5b608c8211156103605760405163d88051b560e01b815260040160405180910390fd5b600181018054336001600160a01b0319909116811790915560038201805460ff1916600217905560405185907fd5d9bc882dc95f198786a74e52a0b87e49a07c80921b74821ba374339e394d30906103bb90879087906106bb565b60405180910390a350505050565b6000608c8311156103ed5760405163d88051b560e01b815260040160405180910390fd5b60008081546103fb906106d7565b918290555060408051608081018252338152600060208201529081018490529091506060810160019052600082815260016020818152604092839020845181546001600160a01b03199081166001600160a01b0392831617835592860151828501805490941691161790915591830151600283015560608301516003830180549192909160ff191690836004811115610496576104966105e4565b0217905550905050336001600160a01b0316817f61e8a38ccd4a18cfad06023a19fdd46a2869d6058e1cbe52caab0dcfc6730bb38686866040516104dc939291906106fe565b60405180910390a39392505050565b600081815260016020526040812090600382015460ff166004811115610513576105136105e4565b0361053157604051633c58dd7f60e11b815260040160405180910390fd5b919050565b60006020828403121561054857600080fd5b5035919050565b60008083601f84011261056157600080fd5b50813567ffffffffffffffff81111561057957600080fd5b60208301915083602082850101111561059157600080fd5b9250929050565b6000806000604084860312156105ad57600080fd5b83359250602084013567ffffffffffffffff8111156105cb57600080fd5b6105d78682870161054f565b9497909650939450505050565b634e487b7160e01b600052602160045260246000fd5b6001600160a01b0385811682528416602082015260408101839052608081016005831061063757634e487b7160e01b600052602160045260246000fd5b82606083015295945050505050565b60008060006040848603121561065b57600080fd5b833567ffffffffffffffff81111561067257600080fd5b61067e8682870161054f565b909790965060209590950135949350505050565b81835281816020850137506000828201602090810191909152601f909101601f19169091010190565b6020815260006106cf602083018486610692565b949350505050565b6000600182016106f757634e487b7160e01b600052601160045260246000fd5b5060010190565b604081526000610712604083018587610692565b905082602083015294935050505056fea2646970667358221220ab407e657bf6e426f13141a8a7c69ce43507ddddfd7685af4a0aa0897f1c36d064736f6c63430008250033"
+  },
+  "arena": {
+   "name": "PortalArena",
+   "source": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.24;\n\n/// @title PortalArena: a tiny on-chain game. Join, fight other players, earn XP, level up, find loot.\n/// @notice Demo only. It holds no value, and the \"randomness\" (a hash of the previous block) is predictable: never use it for real stakes.\n/// Every move emits an event, which is what makes a game a good fit for webhooks: a Discord bot, a leaderboard or a loot feed can react in seconds.\ncontract PortalArena {\n    struct Player {\n        uint32 level;\n        uint32 xp;\n        uint32 wins;\n        uint32 losses;\n        bool joined;\n    }\n\n    uint256 public battleCount;\n    uint256 public lootCount;\n    uint256 public constant MAX_NAME_BYTES = 32;\n    uint32 public constant XP_PER_LEVEL = 100;\n    mapping(address => Player) public players;\n\n    event PlayerJoined(address indexed player, string name);\n    event BattleResolved(uint256 indexed battleId, address indexed winner, address indexed loser, uint32 xpGained);\n    event LevelUp(address indexed player, uint32 level);\n    event LootDropped(address indexed player, uint256 indexed itemId, string item);\n\n    error NameTooLong();\n    error AlreadyJoined();\n    error NotJoined();\n    error CannotFightYourself();\n\n    function join(string calldata name) external {\n        if (bytes(name).length > MAX_NAME_BYTES) revert NameTooLong();\n        Player storage p = players[msg.sender];\n        if (p.joined) revert AlreadyJoined();\n        p.joined = true;\n        p.level = 1;\n        emit PlayerJoined(msg.sender, name);\n    }\n\n    function fight(address opponent) external returns (uint256 battleId) {\n        if (opponent == msg.sender) revert CannotFightYourself();\n        Player storage a = players[msg.sender];\n        Player storage b = players[opponent];\n        if (!a.joined || !b.joined) revert NotJoined();\n\n        battleId = ++battleCount;\n        // Higher level wins more often, but never always. Predictable on purpose: it is a demo.\n        uint256 roll = uint256(keccak256(abi.encodePacked(blockhash(block.number - 1), battleId, msg.sender, opponent)));\n        bool attackerWins = roll % (uint256(a.level) + uint256(b.level)) < a.level;\n\n        (address winner, address loser) = attackerWins ? (msg.sender, opponent) : (opponent, msg.sender);\n        Player storage w = players[winner];\n        Player storage l = players[loser];\n        w.wins += 1;\n        l.losses += 1;\n        uint32 gained = 25 + l.level * 5;\n        emit BattleResolved(battleId, winner, loser, gained);\n        _grantXp(winner, w, gained);\n\n        // Every third battle the winner finds loot.\n        if (battleId % 3 == 0) {\n            uint256 itemId = ++lootCount;\n            emit LootDropped(winner, itemId, itemId % 2 == 0 ? \"Iron Sword\" : \"Healing Potion\");\n        }\n    }\n\n    function _grantXp(address who, Player storage p, uint32 amount) private {\n        p.xp += amount;\n        while (p.xp >= XP_PER_LEVEL * p.level) {\n            p.xp -= XP_PER_LEVEL * p.level;\n            p.level += 1;\n            emit LevelUp(who, p.level);\n        }\n    }\n}\n",
+   "abi": [
+    {
+     "inputs": [],
+     "name": "AlreadyJoined",
+     "type": "error"
+    },
+    {
+     "inputs": [],
+     "name": "CannotFightYourself",
+     "type": "error"
+    },
+    {
+     "inputs": [],
+     "name": "NameTooLong",
+     "type": "error"
+    },
+    {
+     "inputs": [],
+     "name": "NotJoined",
+     "type": "error"
+    },
+    {
+     "anonymous": false,
+     "inputs": [
+      {
+       "indexed": true,
+       "internalType": "uint256",
+       "name": "battleId",
+       "type": "uint256"
+      },
+      {
+       "indexed": true,
+       "internalType": "address",
+       "name": "winner",
+       "type": "address"
+      },
+      {
+       "indexed": true,
+       "internalType": "address",
+       "name": "loser",
+       "type": "address"
+      },
+      {
+       "indexed": false,
+       "internalType": "uint32",
+       "name": "xpGained",
+       "type": "uint32"
+      }
+     ],
+     "name": "BattleResolved",
+     "type": "event"
+    },
+    {
+     "anonymous": false,
+     "inputs": [
+      {
+       "indexed": true,
+       "internalType": "address",
+       "name": "player",
+       "type": "address"
+      },
+      {
+       "indexed": false,
+       "internalType": "uint32",
+       "name": "level",
+       "type": "uint32"
+      }
+     ],
+     "name": "LevelUp",
+     "type": "event"
+    },
+    {
+     "anonymous": false,
+     "inputs": [
+      {
+       "indexed": true,
+       "internalType": "address",
+       "name": "player",
+       "type": "address"
+      },
+      {
+       "indexed": true,
+       "internalType": "uint256",
+       "name": "itemId",
+       "type": "uint256"
+      },
+      {
+       "indexed": false,
+       "internalType": "string",
+       "name": "item",
+       "type": "string"
+      }
+     ],
+     "name": "LootDropped",
+     "type": "event"
+    },
+    {
+     "anonymous": false,
+     "inputs": [
+      {
+       "indexed": true,
+       "internalType": "address",
+       "name": "player",
+       "type": "address"
+      },
+      {
+       "indexed": false,
+       "internalType": "string",
+       "name": "name",
+       "type": "string"
+      }
+     ],
+     "name": "PlayerJoined",
+     "type": "event"
+    },
+    {
+     "inputs": [],
+     "name": "MAX_NAME_BYTES",
+     "outputs": [
+      {
+       "internalType": "uint256",
+       "name": "",
+       "type": "uint256"
+      }
+     ],
+     "stateMutability": "view",
+     "type": "function"
+    },
+    {
+     "inputs": [],
+     "name": "XP_PER_LEVEL",
+     "outputs": [
+      {
+       "internalType": "uint32",
+       "name": "",
+       "type": "uint32"
+      }
+     ],
+     "stateMutability": "view",
+     "type": "function"
+    },
+    {
+     "inputs": [],
+     "name": "battleCount",
+     "outputs": [
+      {
+       "internalType": "uint256",
+       "name": "",
+       "type": "uint256"
+      }
+     ],
+     "stateMutability": "view",
+     "type": "function"
+    },
+    {
+     "inputs": [
+      {
+       "internalType": "address",
+       "name": "opponent",
+       "type": "address"
+      }
+     ],
+     "name": "fight",
+     "outputs": [
+      {
+       "internalType": "uint256",
+       "name": "battleId",
+       "type": "uint256"
+      }
+     ],
+     "stateMutability": "nonpayable",
+     "type": "function"
+    },
+    {
+     "inputs": [
+      {
+       "internalType": "string",
+       "name": "name",
+       "type": "string"
+      }
+     ],
+     "name": "join",
+     "outputs": [],
+     "stateMutability": "nonpayable",
+     "type": "function"
+    },
+    {
+     "inputs": [],
+     "name": "lootCount",
+     "outputs": [
+      {
+       "internalType": "uint256",
+       "name": "",
+       "type": "uint256"
+      }
+     ],
+     "stateMutability": "view",
+     "type": "function"
+    },
+    {
+     "inputs": [
+      {
+       "internalType": "address",
+       "name": "",
+       "type": "address"
+      }
+     ],
+     "name": "players",
+     "outputs": [
+      {
+       "internalType": "uint32",
+       "name": "level",
+       "type": "uint32"
+      },
+      {
+       "internalType": "uint32",
+       "name": "xp",
+       "type": "uint32"
+      },
+      {
+       "internalType": "uint32",
+       "name": "wins",
+       "type": "uint32"
+      },
+      {
+       "internalType": "uint32",
+       "name": "losses",
+       "type": "uint32"
+      },
+      {
+       "internalType": "bool",
+       "name": "joined",
+       "type": "bool"
+      }
+     ],
+     "stateMutability": "view",
+     "type": "function"
+    }
+   ],
+   "bytecode": "0x6080604052348015600f57600080fd5b506108ff8061001f6000396000f3fe608060405234801561001057600080fd5b506004361061007d5760003560e01c80637b1b06461161005b5780637b1b0646146100c5578063e00b6363146100e2578063e2eb41ff146100eb578063f81c1d611461017657600080fd5b8063644b375e14610082578063680c60c7146100a85780636a786b07146100b0575b600080fd5b6100956100903660046106cd565b61017f565b6040519081526020015b60405180910390f35b610095602081565b6100c36100be3660046106fd565b6104ba565b005b6100cd606481565b60405163ffffffff909116815260200161009f565b61009560005481565b61013e6100f93660046106cd565b60026020526000908152604090205463ffffffff808216916401000000008104821691600160401b8204811691600160601b810490911690600160801b900460ff1685565b6040805163ffffffff96871681529486166020860152928516928401929092529092166060820152901515608082015260a00161009f565b61009560015481565b6000336001600160a01b038316036101aa57604051632f50dd8760e01b815260040160405180910390fd5b336000908152600260205260408082206001600160a01b038516835291208154600160801b900460ff1615806101e957508054600160801b900460ff16155b156102075760405163c394a43360e01b815260040160405180910390fd5b600080815461021590610787565b9182905550925060006102296001436107a0565b604080519140602083015281018590526bffffffffffffffffffffffff1933606090811b82168184015287901b16607482015260880160408051601f1981840301815291905280516020909101208354835491925060009163ffffffff918216916102959116826107b9565b61029f90846107cc565b109050600080826102b15787336102b4565b33885b6001600160a01b038281166000908152600260205260408082209284168252902081549395509193509160019083906008906102fe908490600160401b900463ffffffff166107ee565b92506101000a81548163ffffffff021916908363ffffffff160217905550600181600001600c8282829054906101000a900463ffffffff1661034091906107ee565b82546101009290920a63ffffffff81810219909316918316021790915582546000925061036f9116600561080a565b61037a9060196107ee565b9050836001600160a01b0316856001600160a01b03168b7f5b79ca3bb9f851d15be04fb9e6cff8aa2affa27ccd7daa1be77775896a4f84ab846040516103cc919063ffffffff91909116815260200190565b60405180910390a46103df858483610580565b6103ea60038b6107cc565b6000036104ac57600060016000815461040290610787565b91829055509050806001600160a01b0387167fc90bced67fabb2d87781b85683c4a60be73ef42246bd7fa184c08fe50abff2926104406002846107cc565b15610471576040518060400160405280600e81526020016d2432b0b634b733902837ba34b7b760911b815250610495565b6040518060400160405280600a815260200169125c9bdb8814dddbdc9960b21b8152505b6040516104a29190610830565b60405180910390a3505b505050505050505050919050565b60208111156104dc5760405163680b6caf60e01b815260040160405180910390fd5b3360009081526002602052604090208054600160801b900460ff161561051457604051621d934160e11b815260040160405180910390fd5b805470ff000000000000000000000000ffffffff191670010000000000000000000000000000000117815560405133907fb46af3c568709a25575d501b270c4768aef802b1e39fb922a8f21cb385e2ae9b90610573908690869061087e565b60405180910390a2505050565b8154819083906004906105a2908490640100000000900463ffffffff166107ee565b92506101000a81548163ffffffff021916908363ffffffff1602179055505b81546105d49063ffffffff16606461080a565b825463ffffffff918216640100000000909104909116106106c85781546106029063ffffffff16606461080a565b82548390600490610622908490640100000000900463ffffffff166108ad565b92506101000a81548163ffffffff021916908363ffffffff16021790555060018260000160008282829054906101000a900463ffffffff1661066491906107ee565b82546101009290920a63ffffffff8181021990931691831602179091558354604051911681526001600160a01b03851691507f1d8ed0d9fe58f54d4b33312b362a91844a992e6eac548cc29a0950ebc03eeeab9060200160405180910390a26105c1565b505050565b6000602082840312156106df57600080fd5b81356001600160a01b03811681146106f657600080fd5b9392505050565b6000806020838503121561071057600080fd5b823567ffffffffffffffff81111561072757600080fd5b8301601f8101851361073857600080fd5b803567ffffffffffffffff81111561074f57600080fd5b85602082840101111561076157600080fd5b6020919091019590945092505050565b634e487b7160e01b600052601160045260246000fd5b60006001820161079957610799610771565b5060010190565b818103818111156107b3576107b3610771565b92915050565b808201808211156107b3576107b3610771565b6000826107e957634e487b7160e01b600052601260045260246000fd5b500690565b63ffffffff81811683821601908111156107b3576107b3610771565b63ffffffff818116838216029081169081811461082957610829610771565b5092915050565b602081526000825180602084015260005b8181101561085e5760208186018101516040868401015201610841565b506000604082850101526040601f19601f83011684010191505092915050565b60208152816020820152818360408301376000818301604090810191909152601f909201601f19160101919050565b63ffffffff82811682821603908111156107b3576107b361077156fea2646970667358221220c996943675322825eba80249f786f2c119907210bda19cd4b9cedc5e6443f5ac64736f6c63430008250033"
   }
  }
 }

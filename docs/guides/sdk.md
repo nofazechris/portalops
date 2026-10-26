@@ -44,7 +44,7 @@ console.log(await webhooks.test(hook.id));              // a signed test deliver
 Start from an example instead of your own ABI:
 
 ```ts
-const examples = await portal.examples.list();           // quest, token, bounty
+const examples = await portal.examples.list();           // quest, token, bounty, arena
 const token = await portal.examples.get("token");        // abi, source, handler, deployCommand…
 await contracts.add({ address: deployed, name: token.title, abi: token.abi });
 ```

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Deploys PortalQuest (or --example token|bounty) to the Portaldot V3.0 testnet.
+// Deploys PortalQuest (or --example token|bounty|arena) to the Portaldot V3.0 testnet.
 //
 //   npm run contract:deploy            dry run: checks chain, balance, gas; sends nothing
 //   npm run contract:deploy -- --send  broadcasts the deployment transaction

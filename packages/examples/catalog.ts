@@ -97,6 +97,21 @@ const META: Record<string, Meta> = {
       { name: "BountyCancelled", meaning: "The poster cancelled an open bounty.", samplePayload: { bountyId: "1", poster: "0xPoster…" }, idea: "Close the listing." },
     ],
   },
+  arena: {
+    title: "Arena game",
+    tagline: "Join, fight other players, earn XP, level up, find loot.",
+    category: "Gaming",
+    description:
+      "A tiny on-chain game with the moves every game has: players join, fight each other, gain XP, level up and find loot. " +
+      "Four events cover the whole loop, so it is the quickest way to see how a Discord bot, a leaderboard or a loot feed would react to a live game. " +
+      "Demo only: it holds no value and its randomness is predictable.",
+    events: [
+      { name: "PlayerJoined", meaning: "A new player entered the arena.", samplePayload: { player: "0xPlayer…", name: "Ada" }, idea: "Welcome them in Discord and create their profile." },
+      { name: "BattleResolved", meaning: "Two players fought; the winner earned XP.", samplePayload: { battleId: "1", winner: "0xWinner…", loser: "0xLoser…", xpGained: "40" }, idea: "Update the leaderboard and post the result to a feed." },
+      { name: "LevelUp", meaning: "A player reached a new level.", samplePayload: { player: "0xPlayer…", level: "2" }, idea: "Unlock a badge or send a congratulation." },
+      { name: "LootDropped", meaning: "A winner found an item.", samplePayload: { player: "0xPlayer…", itemId: "1", item: "Healing Potion" }, idea: "Add the item to the player's inventory in your game backend." },
+    ],
+  },
 };
 
 /** A Node.js (Express) receiver for the example: verifies the signature, ignores duplicates, and branches on the event name. */

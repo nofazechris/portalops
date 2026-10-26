@@ -141,4 +141,5 @@ The design goal: **no secret ever enters the conversation**, because conversatio
 - It is a thin layer over the public API and the [SDK](sdk.md): everything it does is one a key could do by hand, and it adds no privileges.
 - Tests (`packages/mcp/mcp.test.ts`) drive it through a real MCP client against the real API, including the guarantee that neither the key
   nor a secret appears in any tool output.
-- The SDK is currently used from this repository, not published to npm; the MCP server is likewise run from a checkout.
+- The SDK and the MCP server are both publish-ready (`npm run sdk:build`, `npm run mcp:build`; `npm pack --dry-run` in each package folder). Until they are on npm, use them from a checkout. Once `@portalops/mcp` is published, `npx -y @portalops/mcp` replaces the `node …/packages/mcp/main.ts` command above.
+- Step-by-step: [Tutorial 4](../tutorials/with-claude.md).

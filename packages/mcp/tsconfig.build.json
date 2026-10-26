@@ -1,0 +1,12 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "outDir": "dist",
+    "rootDir": "..",
+    "rewriteRelativeImportExtensions": true,
+    "allowImportingTsExtensions": false,
+    "sourceMap": false
+  },
+  "include": ["main.ts", "server.ts", "secrets.ts", "../sdk/index.ts", "../examples/catalog.ts"]
+}

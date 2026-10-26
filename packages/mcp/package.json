@@ -1,0 +1,24 @@
+{
+  "name": "@portalops/mcp",
+  "version": "0.1.0",
+  "description": "Claude (MCP) server for PortalOps: register a Portaldot contract, create signed webhooks, send tests, watch events and replay failures, without secrets ever entering the chat.",
+  "keywords": ["portaldot", "mcp", "model-context-protocol", "claude", "webhooks", "events", "blockchain"],
+  "homepage": "https://github.com/nofazechris/portalops/tree/main/packages/mcp#readme",
+  "repository": { "type": "git", "url": "git+https://github.com/nofazechris/portalops.git", "directory": "packages/mcp" },
+  "bugs": { "url": "https://github.com/nofazechris/portalops/issues" },
+  "license": "MIT",
+  "type": "module",
+  "bin": { "portalops-mcp": "./dist/mcp/main.js" },
+  "main": "./dist/mcp/main.js",
+  "files": ["dist", "README.md"],
+  "engines": { "node": ">=20.12" },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.1",
+    "zod": "^4.6.7"
+  },
+  "scripts": {
+    "build": "node build.mjs",
+    "prepublishOnly": "npm run build"
+  },
+  "publishConfig": { "access": "public" }
+}

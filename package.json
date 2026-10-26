@@ -23,6 +23,7 @@
     "worker": "node --no-warnings=ExperimentalWarning apps/worker/main.ts",
     "api": "node --no-warnings=ExperimentalWarning apps/api/main.ts",
     "sdk:build": "tsc -p packages/sdk/tsconfig.build.json",
+    "mcp:build": "node packages/mcp/build.mjs",
     "db:backup": "node --no-warnings=ExperimentalWarning scripts/backup-db.mjs"
   },
   "dependencies": {

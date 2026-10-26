@@ -16,6 +16,7 @@ const FILES = [
   { id: "quest", file: "contracts/evm/PortalQuest.sol", name: "PortalQuest" },
   { id: "token", file: "contracts/examples/PortalToken.sol", name: "PortalToken" },
   { id: "bounty", file: "contracts/examples/PortalBounty.sol", name: "PortalBounty" },
+  { id: "arena", file: "contracts/examples/PortalArena.sol", name: "PortalArena" },
 ];
 
 const out = { compiler: { name: "solc-js", version: solc.version(), evmVersion: "paris", optimizerRuns: 200 }, contracts: {} };

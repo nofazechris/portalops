@@ -87,7 +87,7 @@ export function createPortalOpsMcpServer(deps: McpDeps): McpServer {
   // ------------------------------------------------------------------------------------------------ examples (no key)
   server.registerTool("portalops_list_examples", {
     title: "List example contracts",
-    description: "Ready-made example contracts a developer can deploy and track right away (quest board, token, bounty board), with the events each emits. No API key needed.",
+    description: "Ready-made example contracts a developer can deploy and track right away (quest board, token, bounty board, arena game), with the events each emits. No API key needed.",
     annotations: READ,
   }, async () => text(listExamples()));
 
@@ -96,7 +96,7 @@ export function createPortalOpsMcpServer(deps: McpDeps): McpServer {
     description:
       "Details of one example: what each event means, a sample payload, the deploy command and a ready-to-use Node.js webhook receiver. " +
       "The Solidity source, ABI and bytecode are large, so they are only included when asked for. No API key needed.",
-    inputSchema: { id: z.string().describe('Example id: "quest", "token" or "bounty"'), include: z.array(z.enum(["source", "abi", "bytecode"])).optional() },
+    inputSchema: { id: z.string().describe('Example id: "quest", "token", "bounty" or "arena"'), include: z.array(z.enum(["source", "abi", "bytecode"])).optional() },
     annotations: READ,
   }, async ({ id, include }) => {
     const ex = getExample(id);
@@ -146,7 +146,7 @@ export function createPortalOpsMcpServer(deps: McpDeps): McpServer {
     inputSchema: {
       address: addressSchema,
       name: z.string().max(80).optional(),
-      example: z.string().optional().describe("Use the ABI of an example contract (quest, token, bounty), when the deployed contract is a copy of it"),
+      example: z.string().optional().describe("Use the ABI of an example contract (quest, token, bounty, arena), when the deployed contract is a copy of it"),
       abi: z.array(z.record(z.string(), z.unknown())).optional().describe("The contract ABI array"),
       startBlock: z.number().int().nonnegative().optional().describe("Capture history from this block (default: the last ~1,000 blocks)"),
     },

@@ -39,6 +39,7 @@ to emit real events so you can see capture, decoding, delivery, retry and replay
 | **Quest board** (`PortalQuest`) | gaming, engagement, loyalty | `QuestCreated`, `QuestCompleted`, `RewardIssued` |
 | **Token** (`PortalToken`) | DeFi, wallets, analytics: transfers and approvals | `Transfer`, `Approval` |
 | **Bounty board** (`PortalBounty`) | marketplace and workflow: post, submit, approve, cancel | `BountyPosted`, `WorkSubmitted`, `BountyApproved`, `BountyCancelled` |
+| **Arena game** (`PortalArena`) | games: join, fight, level up, find loot (see [Build a game feed](../tutorials/game-feed.md)) | `PlayerJoined`, `BattleResolved`, `LevelUp`, `LootDropped` |
 
 None of them holds value: "rewards" and "bounties" are numbers in events. They are demo contracts and are **not audited**: do not copy
 them into production.
@@ -92,7 +93,7 @@ the testnet's EVM was not verified to support later opcodes. If you compile your
 ## What has and has not been verified
 
 - Capture and decoding were verified against **real testnet logs** from other participants' contracts.
-- The three example contracts compile and their ABIs, sample payloads and handlers are covered by automated tests (including encoding real
+- The four example contracts compile and their ABIs, sample payloads and handlers are covered by automated tests (including encoding real
   logs and decoding them back).
 - Deploying them to the live testnet from this repository is **not done yet** because the project's deployer account has no testnet funds;
   the deploy scripts have only ever run as dry runs.

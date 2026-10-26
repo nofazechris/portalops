@@ -12,6 +12,7 @@ const SOURCE_FILES: Record<string, string> = {
   quest: "contracts/evm/PortalQuest.sol",
   token: "contracts/examples/PortalToken.sol",
   bounty: "contracts/examples/PortalBounty.sol",
+  arena: "contracts/examples/PortalArena.sol",
 };
 
 test("examples: the committed artifacts are not stale (they were built from the Solidity on disk)", () => {

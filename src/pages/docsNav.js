@@ -12,6 +12,17 @@ export const DOC_SECTIONS = [
     ],
   },
   {
+    title: "Tutorials",
+    items: [
+      { path: "tutorials/index", title: "Tutorials overview" },
+      { path: "tutorials/first-webhook", title: "1. Your first webhook" },
+      { path: "tutorials/game-feed", title: "2. Build a game feed" },
+      { path: "tutorials/import-your-contract", title: "3. Import your own contract" },
+      { path: "tutorials/with-claude", title: "4. Set it all up with Claude" },
+      { path: "tutorials/with-the-sdk", title: "5. Automate with the SDK" },
+    ],
+  },
+  {
     title: "Guides",
     items: [
       { path: "guides/accounts", title: "Accounts and sign-in" },
