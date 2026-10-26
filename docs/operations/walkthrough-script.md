@@ -174,7 +174,7 @@ that holds the key.
 | `confirmed` is a 12-block depth heuristic; `finalized` is the node's own finalized block **and** a verified hash | [Concepts: Finality](../guides/concepts.md#finality) |
 | Delivery is **at-least-once**, not exactly-once; de-duplicate on `PortalOps-Event-Id` | [Receiving webhooks](../guides/webhooks.md) |
 | Claude has **ten** tools; secrets go to `.env.portalops` (git-ignored), never into the chat | [Set up with Claude](../guides/claude-setup.md) |
-| The SDK is in this repository and **not on npm yet** | [SDK](../guides/sdk.md) |
+| The SDK and the Claude (MCP) server are on npm as `@portalops/sdk` and `@portalops/mcp` | [SDK](../guides/sdk.md) |
 | Rust/ink! contracts are **planned**, not supported; PortalOps reads the EVM view of the testnet | [Network compatibility](../architecture/network-compatibility.md) |
 | The public site runs on free hosting and **sleeps when idle**: open it a minute before recording | [Put it live](live-deploy.md) |
 | Test count: "more than a hundred and seventy" (173 when this was written). Re-run `npm test` and say the true number | `npm test` |

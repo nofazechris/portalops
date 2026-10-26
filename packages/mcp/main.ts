@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // PortalOps MCP server over stdio. Configure it in Claude (see docs/guides/claude-setup.md):
 //
-//   claude mcp add portalops -e PORTALOPS_API_URL=https://… -e PORTALOPS_API_KEY=pops_… -- node --no-warnings=ExperimentalWarning packages/mcp/main.ts
+//   claude mcp add portalops -e PORTALOPS_API_URL=https://… -e PORTALOPS_API_KEY=pops_… -- npx -y @portalops/mcp   (from a checkout: node --no-warnings=ExperimentalWarning packages/mcp/main.ts)
 //
 // PORTALOPS_API_KEY and PORTALOPS_API_URL are read from the environment (and from ./.env.local / ./.env if present).
 // Without a key the example tools still work and the others explain how to get one.

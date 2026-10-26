@@ -33,7 +33,7 @@ After the dashboard setup, point a webhook at your endpoint and verify every req
 
 ```ts
 import express from "express";
-import { constructEvent } from "@portalops/sdk"; // build it from this repo: npm run sdk:build
+import { constructEvent } from "@portalops/sdk"; // npm i @portalops/sdk
 
 const app = express();
 const seen = new Set<string>(); // a database table in real life

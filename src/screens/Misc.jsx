@@ -325,7 +325,7 @@ export function ApiSdk() {
         <div className="code-head"><span>app.ts</span><CopyButton text={sdkSnippet} /></div>
         <pre style={{ fontSize: 12.5 }}>{sdkSnippet}</pre>
       </div>
-      <div style={{ fontSize: 12.5, color: "var(--muted)", marginTop: 8, maxWidth: 720, lineHeight: 1.5 }}>The SDK lives in <span className="mono">packages/sdk</span> of the PortalOps repository and is not published to npm yet. Build it with <span className="mono">npm run sdk:build</span>.</div>
+      <div style={{ fontSize: 12.5, color: "var(--muted)", marginTop: 8, maxWidth: 720, lineHeight: 1.5 }}>Install the SDK with <span className="mono">npm i @portalops/sdk</span>. The Claude server is <span className="mono">npx -y @portalops/mcp</span>.</div>
 
       <div className="eyebrow" style={{ margin: "28px 0 12px" }}>Verifying webhook signatures</div>
       <div className="code-box" style={{ maxWidth: 720 }}>

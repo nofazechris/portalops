@@ -9,17 +9,16 @@ In the dashboard: **Settings → API keys → New key**, scope **write**. The ke
 
 ## 2. Connect Claude
 
-The MCP server runs on your machine. From a checkout of the PortalOps repository (`npm install` first, Node 24+):
+The MCP server runs on your machine and is published on npm as `@portalops/mcp` (Node 20.12+, nothing to clone):
 
 ```bash
 claude mcp add portalops \
   --env PORTALOPS_API_URL=https://portalops.onrender.com \
   --env PORTALOPS_API_KEY=pops_your_key_here \
-  -- node --no-warnings=ExperimentalWarning packages/mcp/main.ts
+  -- npx -y @portalops/mcp
 ```
 
-For Claude Desktop, use the config snippet in [Set up with Claude](../guides/claude-setup.md). The package is also publish-ready as
-`@portalops/mcp` (`npm run mcp:build` compiles it), so `npx` can replace the checkout once it is on npm.
+For Claude Desktop, use the config snippet in [Set up with Claude](../guides/claude-setup.md).
 
 ## 3. Ask
 

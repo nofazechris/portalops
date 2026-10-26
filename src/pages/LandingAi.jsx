@@ -7,7 +7,7 @@ import { AI_FINAL, AI_PROMPT, AI_TOTAL_MS, snapshotAt } from "./landingAi.js";
 const MCP_COMMAND = `claude mcp add portalops \\
   --env PORTALOPS_API_URL=https://portalops.onrender.com \\
   --env PORTALOPS_API_KEY=pops_your_key_here \\
-  -- node --no-warnings=ExperimentalWarning packages/mcp/main.ts`;
+  -- npx -y @portalops/mcp`;
 
 /** What the orb is "doing", in words a visitor understands. */
 const ORB_LABEL = {

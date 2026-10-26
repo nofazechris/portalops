@@ -51,7 +51,7 @@ design/         original Claude Design files
 - **Guided setup** (dashboard → *Guided setup*): seven steps from an empty project to a verified delivery, each checked against the real
   network/API (RPC chain-id check, contract code check, one-time webhook secret, test delivery with signature confirmation).
 - **API keys** (Settings → API keys): project-scoped `read`/`write` keys for servers and scripts; stored only as a SHA-256 hash, shown once, revocable.
-- **TypeScript SDK** in `packages/sdk` (typed client, retries on reads, webhook verification). See its README. Not on npm yet.
+- **TypeScript SDK** in `packages/sdk` (typed client, retries on reads, webhook verification). See its README. On npm: `npm i @portalops/sdk`; the Claude (MCP) server is `npx -y @portalops/mcp`.
 
 ## Testnet evidence
 
@@ -145,5 +145,5 @@ See [docs/security/review.md](docs/security/review.md): findings, fixes, accepte
 
 - Storage is SQLite (no Postgres/Docker was available); the schema is portable.
 - Our own demo contract is **not deployed yet** (needs a funded testnet account). Events shown today are real logs from other participants' contracts, stored undecoded.
-- No email verification / password reset / OAuth, or real AI-agent verification. The SDK is in-repo only (not on npm).
+- No email verification / password reset / OAuth, or real AI-agent verification. 
 - A contract registered after a project's cursor exists is captured from the cursor forward (no per-contract backfill).

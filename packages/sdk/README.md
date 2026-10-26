@@ -2,9 +2,14 @@
 
 > Full guide with recipes: [docs/guides/sdk.md](../../docs/guides/sdk.md)
 
-TypeScript client for the PortalOps REST API, plus webhook signature verification. Node 20+. Not published to npm yet:
-build it from this repo with `npm run sdk:build` (output in `packages/sdk/dist`) and import from there, or import the
-TypeScript source directly (`packages/sdk/index.ts`) under Node 24 / a TS-aware bundler.
+TypeScript client for the PortalOps REST API, plus webhook signature verification. Node 20+, no runtime dependencies.
+
+```bash
+npm i @portalops/sdk
+```
+
+Working from a checkout of the repository? Build it with `npm run sdk:build` (output in `packages/sdk/dist`), or import the TypeScript source
+directly (`packages/sdk/index.ts`) under Node 24 / a TS-aware bundler.
 
 ```ts
 import { PortalOps } from "@portalops/sdk";

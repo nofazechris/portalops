@@ -244,7 +244,7 @@ const slides = [
         <h2 className="pt-h2">The core is live. <Hl>Support turns it into the platform.</Hl></h2>
         <div className="pt-cols3">
           <div className="pt-col now"><h3>Now · live</h3><ul><li>Watch, decode, deliver, recover</li><li>Dashboard, playground, REST API</li><li>Claude (MCP) setup</li><li>Live on the testnet, open source</li></ul></div>
-          <div className="pt-col next"><h3>Next</h3><ul><li>SDK on npm</li><li>Security alert rules</li><li>Agent triggers and audit trail</li><li>One-step deploy and watch</li></ul></div>
+          <div className="pt-col next"><h3>Next</h3><ul><li>SDK and Claude tools on npm: done</li><li>Security alert rules</li><li>Agent triggers and audit trail</li><li>One-step deploy and watch</li></ul></div>
           <div className="pt-col later"><h3>Later</h3><ul><li>Native Rust / ink! adapter</li><li>Hosted multi-tenant service</li><li>More Portaldot networks and chains</li><li>Chat, email and queue targets</li></ul></div>
         </div>
       </>

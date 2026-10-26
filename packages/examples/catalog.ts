@@ -117,7 +117,7 @@ const META: Record<string, Meta> = {
 /** A Node.js (Express) receiver for the example: verifies the signature, ignores duplicates, and branches on the event name. */
 function handlerFor(id: string, events: ExampleEvent[]): string {
   const cases = events.map((e) => `      case "${e.name}":\n        // ${e.idea}\n        console.log("${e.name}", p);\n        break;`).join("\n");
-  return `// npm i express @portalops/sdk   (SDK: build it from the PortalOps repo with \`npm run sdk:build\`)
+  return `// npm i express @portalops/sdk
 import express from "express";
 import { constructEvent } from "@portalops/sdk";
 

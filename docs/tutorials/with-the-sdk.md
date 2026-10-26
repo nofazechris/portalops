@@ -5,8 +5,11 @@ is what you would run from a cron job or a deploy pipeline.
 
 ## 1. Install and authenticate
 
-The SDK is `@portalops/sdk` (Node 20+, no runtime dependencies). From a checkout of the repository build it with `npm run sdk:build` and
-import it by path; once it is on npm, `npm i @portalops/sdk`.
+The SDK is published on npm as `@portalops/sdk` (Node 20+, no runtime dependencies):
+
+```bash
+npm i @portalops/sdk
+```
 
 Create an API key in **Settings → API keys** (scope **write**) and keep it server-side:
 

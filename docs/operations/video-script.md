@@ -223,7 +223,7 @@ Show Claude with the PortalOps connection.
    claude mcp add portalops \
      --env PORTALOPS_API_URL=https://portalops.onrender.com \
      --env PORTALOPS_API_KEY=<your key> \
-     -- node --no-warnings=ExperimentalWarning packages/mcp/main.ts
+     -- npx -y @portalops/mcp
    ```
    Ask Claude "what PortalOps tools do you have?": ten should appear. Hide the key on screen.
 3. Rehearse once. The first events can take up to a minute to appear after you start watching a contract.

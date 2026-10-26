@@ -27,28 +27,28 @@ The key (`pops_…`) is shown **once**. Do not paste it into a chat.
 
 ## 2. Add the server to Claude
 
-The server runs on your machine and talks to your PortalOps server over HTTPS using that key.
-From a checkout of this repository:
+The server runs on your machine and talks to your PortalOps server over HTTPS using that key. It is published on npm as
+[`@portalops/mcp`](https://www.npmjs.com/package/@portalops/mcp), so there is nothing to clone or build (Node 20.12+).
 
 ### Claude Code
 
 ```bash
 claude mcp add portalops \
-  --env PORTALOPS_API_URL=https://portalops.example.com \
+  --env PORTALOPS_API_URL=https://portalops.onrender.com \
   --env PORTALOPS_API_KEY=pops_your_key_here \
-  -- node --no-warnings=ExperimentalWarning packages/mcp/main.ts
+  -- npx -y @portalops/mcp
 ```
 
-Or create a project-level `.mcp.json` (this repository git-ignores it) that reads the key from **your shell environment**, so the file contains no secret:
+Or create a project-level `.mcp.json` that reads the key from **your shell environment**, so the file contains no secret:
 
 ```json
 {
   "mcpServers": {
     "portalops": {
-      "command": "node",
-      "args": ["--no-warnings=ExperimentalWarning", "packages/mcp/main.ts"],
+      "command": "npx",
+      "args": ["-y", "@portalops/mcp"],
       "env": {
-        "PORTALOPS_API_URL": "https://portalops.example.com",
+        "PORTALOPS_API_URL": "https://portalops.onrender.com",
         "PORTALOPS_API_KEY": "${PORTALOPS_API_KEY}"
       }
     }
@@ -58,16 +58,16 @@ Or create a project-level `.mcp.json` (this repository git-ignores it) that read
 
 ### Claude Desktop
 
-Edit the config file (Settings → Developer → Edit Config) and add, with the **absolute** path to this repository:
+Edit the config file (Settings → Developer → Edit Config) and add:
 
 ```json
 {
   "mcpServers": {
     "portalops": {
-      "command": "node",
-      "args": ["--no-warnings=ExperimentalWarning", "C:/path/to/portalops/packages/mcp/main.ts"],
+      "command": "npx",
+      "args": ["-y", "@portalops/mcp"],
       "env": {
-        "PORTALOPS_API_URL": "https://portalops.example.com",
+        "PORTALOPS_API_URL": "https://portalops.onrender.com",
         "PORTALOPS_API_KEY": "pops_your_key_here"
       }
     }
@@ -75,7 +75,9 @@ Edit the config file (Settings → Developer → Edit Config) and add, with the 
 }
 ```
 
-Restart Claude. Requires **Node 24+** (the server runs TypeScript directly) and `npm install` in the repository.
+Restart Claude. Requires **Node 20.12+**; `npx` downloads the server the first time and caches it.
+
+Working on PortalOps itself? Run the server from a checkout instead (Node 24+, after `npm install`): `node --no-warnings=ExperimentalWarning packages/mcp/main.ts` in place of `npx -y @portalops/mcp`.
 
 > No key yet? The server still starts: the example tools work, and `portalops_setup_status` tells you how to get a key.
 
@@ -132,7 +134,7 @@ The design goal: **no secret ever enters the conversation**, because conversatio
 | "This key is read-only" | Create a **write** key |
 | "could not be reached" | Check `PORTALOPS_API_URL` (must be https, except `localhost`) and that the server is up: `curl …/api/v1/health` |
 | The built-in receiver "isn't available" | The server needs `PORTALOPS_API_PUBLIC_URL` set to its public https URL, or use your own endpoint |
-| Nothing shows in Claude's tool list | Run `node --no-warnings=ExperimentalWarning packages/mcp/main.ts` by hand: it should print `portalops-mcp: …` to stderr and wait. Node must be 24+ |
+| Nothing shows in Claude's tool list | Run `npx -y @portalops/mcp` by hand: it should print `portalops-mcp: …` to stderr and wait. Node must be 20.12+ |
 | Where are the server's diagnostics? | On stderr (never stdout, which carries the protocol). Most Claude clients keep an MCP log you can open |
 
 ## For developers
@@ -141,5 +143,5 @@ The design goal: **no secret ever enters the conversation**, because conversatio
 - It is a thin layer over the public API and the [SDK](sdk.md): everything it does is one a key could do by hand, and it adds no privileges.
 - Tests (`packages/mcp/mcp.test.ts`) drive it through a real MCP client against the real API, including the guarantee that neither the key
   nor a secret appears in any tool output.
-- The SDK and the MCP server are both publish-ready (`npm run sdk:build`, `npm run mcp:build`; `npm pack --dry-run` in each package folder). Until they are on npm, use them from a checkout. Once `@portalops/mcp` is published, `npx -y @portalops/mcp` replaces the `node …/packages/mcp/main.ts` command above.
+- Both are on npm: [`@portalops/mcp`](https://www.npmjs.com/package/@portalops/mcp) and [`@portalops/sdk`](https://www.npmjs.com/package/@portalops/sdk). Build them locally with `npm run mcp:build` and `npm run sdk:build`.
 - Step-by-step: [Tutorial 4](../tutorials/with-claude.md).

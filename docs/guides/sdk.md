@@ -1,10 +1,11 @@
 # TypeScript SDK
 
 `@portalops/sdk` is a typed client for the [REST API](../reference/api.md) plus webhook signature verification. Node 20+, no runtime
-dependencies. It lives in `packages/sdk` and is used from this repository (it is not published to npm yet).
+dependencies. It is published on npm and lives in `packages/sdk`.
 
 ```bash
-npm run sdk:build            # compiles to packages/sdk/dist (ES modules + .d.ts)
+npm i @portalops/sdk
+# working from a checkout instead: npm run sdk:build   (compiles to packages/sdk/dist, ES modules + .d.ts)
 ```
 
 Import `@portalops/sdk` from your project by path (a `file:` dependency or a workspace), or import the TypeScript source directly under
