@@ -10,8 +10,11 @@ import { promoteFinalized } from "./finality.ts";
 /** Cursor key for the native chain. Separate from the EVM cursor, so the two readers never share (or disturb) a position. */
 export const NATIVE_NETWORK = "portaldot-v3-native";
 
-/** The node keeps a block's events for roughly this many recent blocks; reads start inside that window. */
-export const NATIVE_STATE_WINDOW = 240;
+/**
+ * How far behind the head a read may start. A pruning node keeps only about the last 256 blocks of state; the public Portaldot testnet node
+ * is an archive node and serves far older blocks. Anything the node refuses is skipped and logged, so this is a ceiling, not a promise.
+ */
+export const DEFAULT_MAX_LOOKBACK = 100_000;
 
 export interface NativeIngestOptions {
   projectId: string;
@@ -27,6 +30,8 @@ export interface NativeIngestOptions {
   batchSize?: number;
   /** Where to start when there is no cursor yet and no contract start block (this many blocks behind the head). */
   initialLookback?: number;
+  /** The oldest block (this many behind the head) a read may start from. Default 100,000 (DEFAULT_MAX_LOOKBACK). */
+  maxLookback?: number;
   confirmationDepth?: number;
   reorgWindow?: number;
   enqueueDeliveries?: boolean;
@@ -79,7 +84,7 @@ export async function ingestNativeOnce(o: NativeIngestOptions): Promise<NativeIn
   const abis = new Map<string, InkAbi>();
   for (const c of o.contracts) abis.set(c.address, await abiFor(c.metadata));
   const watched = new Set(abis.keys());
-  const horizon = Math.max(1, head.number - NATIVE_STATE_WINDOW);
+  const horizon = Math.max(1, head.number - (o.maxLookback ?? DEFAULT_MAX_LOOKBACK));
 
   let cursor = await store.getCursor(proj, NATIVE_NETWORK);
   let reorgDetected = false;
@@ -105,9 +110,9 @@ export async function ingestNativeOnce(o: NativeIngestOptions): Promise<NativeIn
   const firstFrom = starts.length ? Math.min(...starts) : head.number - (o.initialLookback ?? 100);
   let from = cursor ? cursor.block + 1 : Math.max(horizon, firstFrom, 1);
   let skipped = 0;
-  if (from < horizon) { // the worker was away longer than the node keeps events for
+  if (from < horizon) { // further behind than we are willing to read (worker away for a very long time)
     skipped = horizon - from;
-    await store.log("warn", "ingest", `Native blocks ${from}..${horizon - 1} are older than the node keeps events for; skipping them`, undefined, proj);
+    await store.log("warn", "ingest", `Native blocks ${from}..${horizon - 1} are older than the lookback limit; skipping them`, undefined, proj);
     from = horizon;
   }
   const last = Math.min(head.number, from + maxBlocks - 1);

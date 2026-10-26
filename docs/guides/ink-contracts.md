@@ -9,7 +9,7 @@ retried, replayable webhooks as a Solidity contract's; only the way you register
 | Address | `0x…` (20 bytes) | SS58, starts with `5` (e.g. `5GrwvaEF…`) |
 | What decodes the events | the ABI | the contract **metadata** file |
 | Event source | `eth_getLogs` over the EVM RPC | `Contracts.ContractEmitted` runtime events over the native RPC |
-| How far back PortalOps can read | far (log queries reach back) | about the last **240 blocks** (the node discards older block state) |
+| How far back PortalOps can read | far (log queries reach back) | as far as the node keeps state: the public testnet node is an archive node, so your start block is honoured; a pruning node keeps only about 256 blocks |
 
 ## Register an ink! contract
 
@@ -76,12 +76,16 @@ position, separate from the EVM reader, so the two never disturb each other.
 
 ## Limits to know about
 
-- **Recent blocks only.** The node keeps each block's events only for recent blocks. PortalOps starts reading near the head (never earlier
-  than about 240 blocks back) and keeps up block by block. If the worker is stopped for longer than that window, the blocks in the gap
-  are skipped and the log says so. Register the contract **before** you call it.
+- **How far back.** PortalOps starts at the **start block** you give (or about 100 blocks behind the head if you give none) and keeps up
+  block by block. It can only read as far back as the node keeps state. The public testnet node keeps all of it, so a start block at
+  your deployment backfills everything; a pruning node (about 256 blocks) refuses older blocks, and PortalOps skips them and says so in
+  the log. `PORTALOPS_NATIVE_MAX_LOOKBACK_BLOCKS` (default 100,000) is the furthest behind the head a read may start.
 - **One RPC.** It uses `PORTALDOT_NATIVE_RPC_URL` (default `wss://test-node-v3.portaldot.dev`), connected to on first use and reconnected
   after a failure. If the native node is down, EVM ingestion for the same project carries on.
 - **Not in the playground.** The public playground watches Solidity contracts only.
-- **Verified how.** The reader is tested against real ink! 5 metadata (events with signature topics, integer, account and string
-  arguments), reorganisations, finality and pruning. Reading a live deployment on the public testnet needs a contract deployed from a
-  funded native account, which is yours to do (see above).
+- **Verified how.** The decoder is tested against real ink! 5 metadata (events with signature topics, integer, account and string
+  arguments), and the reader against reorganisations, finality and skipped blocks. On the live testnet it was run over real history:
+  two `ContractEmitted` events emitted by an ink! contract in blocks 130828 and 130847 were captured through the same code the worker uses,
+  stored as native events, marked `finalized` from the node's own finalized head, and their extrinsic hashes were confirmed inside the
+  real blocks. They are stored raw (undecoded) because that contract's metadata is not ours. Decoding a live deployment of
+  `portal_ping_ink` needs it deployed from a funded native account, which is yours to do (see above).

@@ -60,6 +60,7 @@ The OAuth App's **Authorization callback URL** must be exactly `<PORTALOPS_PUBLI
 | Variable | Default | Meaning |
 |---|---|---|
 | `PORTALOPS_POLL_MS` | `6000` | How often the worker polls for new blocks |
+| `PORTALOPS_NATIVE_MAX_LOOKBACK_BLOCKS` | `100000` | How far behind the head the native (ink!) reader may start. The public testnet node keeps old state, so a contract's start block is honoured; a pruning node only serves about the last 256 blocks and PortalOps skips (and logs) what it refuses. |
 | `ANTHROPIC_API_KEY` | unset | Turns on **AI explanations** of failed deliveries (Diagnostics → Explain with Claude). The model sees only the recorded evidence shown to the user first, never secrets or event payloads. Unset = rule-based diagnosis only. API process only. |
 | `PORTALOPS_AI_MODEL` | `claude-haiku-5-5` | Which Claude model writes the explanations. |
 | `PORTALDOT_NATIVE_RPC_URL` | `wss://test-node-v3.portaldot.dev` | The native (Substrate) node, read only for ink! contracts. Connected to on first use. |

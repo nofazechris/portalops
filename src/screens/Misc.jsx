@@ -70,7 +70,7 @@ function AddContractModal({ projectId, onClose, onAdded }) {
         <ContractSource type={type} setType={setType} text={f.abi} setText={(v) => setF((x) => ({ ...x, abi: v }))} error={fe.abi} />
         <Field label={ADDRESS_HELP[type].label} error={fe.address}><input className="input mono" placeholder={ADDRESS_HELP[type].placeholder} value={f.address} onChange={set("address")} required /></Field>
         <Field label="Name (optional)" error={fe.name}><input className="input" value={f.name} onChange={set("name")} /></Field>
-        <Field label="Start block (optional)" hint={type === "ink" ? "Capture from this block. Rust (ink!) events can only be read from about the last 240 blocks; the node discards older ones." : "Capture from this block. Defaults to roughly the last 1,000 blocks."} error={fe.startBlock}><input className="input mono" inputMode="numeric" value={f.startBlock} onChange={set("startBlock")} /></Field>
+        <Field label="Start block (optional)" hint={type === "ink" ? "Capture from this block. For a Rust (ink!) contract, use its deployment block to backfill history (the testnet node keeps old state)." : "Capture from this block. Defaults to roughly the last 1,000 blocks."} error={fe.startBlock}><input className="input mono" inputMode="numeric" value={f.startBlock} onChange={set("startBlock")} /></Field>
         {err && !err.details && <div className="field-error" style={{ marginBottom: 10 }}>{err.message}</div>}
         <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
           <button type="button" className="btn secondary" onClick={onClose}>Cancel</button>

@@ -133,19 +133,28 @@ test("native ingest: a reorganisation orphans the events of the replaced blocks"
   assert.equal((await store.listEvents({ projectId: "p1" }))[0].finalityStatus, "orphaned");
 });
 
-test("native ingest: reads are bounded per pass, start near the head, and skip blocks the node already discarded", async () => {
+test("native ingest: a contract start block is honoured on a node that keeps old state (the default lookback is generous)", async () => {
+  const chain = new FakeNative(); chain.mine(5000);
+  chain.emit(1200, pingBytes(1, 1, "old"), [topicOf("Ping")], 0);
+  const store = await makeTestStore();
+  const r = await run(chain, store, { contracts: [{ address: contractAddr, metadata: METADATA, startBlock: 1100 }], maxBlocksPerPass: 200 });
+  assert.equal(r.from, 1100, "starts at the contract's own start block, far behind the head");
+  assert.equal(r.newEvents, 1, "and backfills what happened there");
+});
+
+test("native ingest: reads are bounded per pass, start near the head, and skip blocks beyond the lookback limit", async () => {
   const chain = new FakeNative(); chain.mine(1000);
   const store = await makeTestStore();
-  const first = await run(chain, store, { maxBlocksPerPass: 50, initialLookback: 5000 });
-  assert.equal(first.from, 1000 - 240, "never starts earlier than the node keeps events for");
+  const first = await run(chain, store, { maxBlocksPerPass: 50, initialLookback: 5000, maxLookback: 240 });
+  assert.equal(first.from, 1000 - 240, "never starts earlier than the lookback limit");
   assert.equal(first.to, first.from + 49);
   assert.ok(first.lagBlocks > 0, "the rest comes on the next pass");
-  const second = await run(chain, store, { maxBlocksPerPass: 50 });
+  const second = await run(chain, store, { maxBlocksPerPass: 50, maxLookback: 240 });
   assert.equal(second.from, first.to + 1);
 
   // a worker that was away for longer than the node window: the gap is skipped and reported, not retried forever
   chain.mine(2000);
-  const third = await run(chain, store, { maxBlocksPerPass: 50 });
+  const third = await run(chain, store, { maxBlocksPerPass: 50, maxLookback: 240 });
   assert.equal(third.from, 2000 - 240);
   assert.ok(third.skippedBlocks > 0);
 });

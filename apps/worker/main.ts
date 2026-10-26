@@ -37,6 +37,7 @@ const ALLOW_PRIVATE = process.env.PORTALOPS_ALLOW_PRIVATE_WEBHOOK_TARGETS === "1
 const MAX_PARALLEL = Number(process.env.PORTALOPS_MAX_PARALLEL_DELIVERIES || 8); // deliveries attempted at once
 const MAX_PER_ENDPOINT = Number(process.env.PORTALOPS_MAX_DELIVERIES_PER_ENDPOINT || 2); // ... and at most this many to one endpoint
 const NATIVE_RPC = process.env.PORTALDOT_NATIVE_RPC_URL || "wss://test-node-v3.portaldot.dev";
+const NATIVE_MAX_LOOKBACK = Number(process.env.PORTALOPS_NATIVE_MAX_LOOKBACK_BLOCKS || 100_000);
 const DEMO_LOOKBACK = Number(process.env.PORTALOPS_DEMO_LOOKBACK_BLOCKS || 120_000); // covers the whole testnet so far
 const DEFAULT_LOOKBACK = 1_000;
 
@@ -90,7 +91,7 @@ async function ingestNativeProject(p: ProjectRecord): Promise<number> {
       console.log(`PortalOps worker · native ${NATIVE_RPC} · genesis ${nativeChain.genesisHash.slice(0, 12)}…`);
     }
     const r = await ingestNativeOnce({
-      projectId: p.id, chain: nativeChain, store, evmChainId: CHAIN_ID, enqueueDeliveries: true,
+      projectId: p.id, chain: nativeChain, store, evmChainId: CHAIN_ID, enqueueDeliveries: true, maxLookback: NATIVE_MAX_LOOKBACK,
       contracts: ink.map((c) => ({ address: c.address, metadata: c.abi, startBlock: c.startBlock })),
       onBatch: ({ block, head }) => beat({ phase: "ingesting-native", project: p.id, block, head }),
     });
