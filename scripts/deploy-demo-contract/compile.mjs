@@ -8,7 +8,7 @@ import { ROOT, ARTIFACT_PATH, fail } from "./common.mjs";
 const require = createRequire(import.meta.url);
 const solc = require("solc");
 
-const source = readFileSync(resolve(ROOT, "contracts/evm/PortalQuest.sol"), "utf8");
+const source = readFileSync(resolve(ROOT, "contracts/evm/PortalQuest.sol"), "utf8").replace(/\r\n/g, "\n"); // LF form: same bytecode on every platform
 const input = {
   language: "Solidity",
   sources: { "PortalQuest.sol": { content: source } },

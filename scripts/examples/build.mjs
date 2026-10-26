@@ -23,7 +23,8 @@ const out = { compiler: { name: "solc-js", version: solc.version(), evmVersion: 
 let failed = false;
 
 for (const f of FILES) {
-  const source = readFileSync(resolve(ROOT, f.file), "utf8");
+  // Always compile (and store) the LF form, so the artifacts are identical whichever platform built them.
+  const source = readFileSync(resolve(ROOT, f.file), "utf8").replace(/\r\n/g, "\n");
   const input = {
     language: "Solidity",
     sources: { [`${f.name}.sol`]: { content: source } },

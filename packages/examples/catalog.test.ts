@@ -18,7 +18,9 @@ const SOURCE_FILES: Record<string, string> = {
 test("examples: the committed artifacts are not stale (they were built from the Solidity on disk)", () => {
   for (const ex of listExamples()) {
     const d = getExample(ex.id)!;
-    assert.equal(d.source, readFileSync(resolve(ROOT, SOURCE_FILES[ex.id]), "utf8"), `${ex.id}: run npm run examples:build`);
+    // Line endings are not part of the contract: a checkout with CRLF files must still match artifacts built from LF ones.
+    const onDisk = readFileSync(resolve(ROOT, SOURCE_FILES[ex.id]), "utf8").replace(/\r\n/g, "\n");
+    assert.equal(d.source.replace(/\r\n/g, "\n"), onDisk, `${ex.id}: run npm run examples:build`);
     assert.match(d.bytecode, /^0x[0-9a-f]{200,}$/);
     assert.equal(d.compiler.evmVersion, "paris");
   }
