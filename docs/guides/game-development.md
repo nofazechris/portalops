@@ -9,6 +9,8 @@ player acts ─► contract emits event ─► PortalOps captures + decodes ─�
  (wallet)        (on chain)             (retried, replayable)                          (leaderboard, loot feed, rewards)
 ```
 
+**Prefer to learn by doing?** The [Arena Lab](https://portalops.onrender.com/arena) is an interactive version of this page: five coding challenges on the Arena events (leaderboard, replay safety, finality, signature checks, retries) with tests that show what failed, plus a delivery simulator where you break a game server and replay the event. No signup.
+
 ## What PortalOps gives a game
 
 | You want to | How PortalOps helps |

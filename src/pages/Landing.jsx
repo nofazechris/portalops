@@ -96,6 +96,7 @@ export default function Landing() {
             <a className="top-link" href="#why">Why</a>
             <a className="top-link" href="#pipeline">How it works</a>
             <a className="top-link nav-ai" href="#ai"><Orb size={20} state="breathing" label="" />Set up with AI</a>
+            <Link className="top-link" href="/arena">Arena Lab</Link>
             <Link className="top-link" href="/playground">Playground</Link>
             <Link className="top-link" href="/docs">Docs</Link>
           </div>
@@ -243,10 +244,10 @@ export default function Landing() {
           <span className="chap-n left"><b>04</b>Built for games</span>
           <h2 className="lp-h2-big" style={{ fontSize: 36, letterSpacing: "-0.025em", fontWeight: 600, margin: "14px 0 0", lineHeight: 1.08 }}>A game on chain. A feed, a leaderboard and a bot on top.</h2>
           <p style={{ fontSize: 17, lineHeight: 1.6, color: "var(--fg-3)", maxWidth: 470, margin: "16px 0 0" }}>
-            Every move in a game is an event. Import our Arena example, or your own game contract, and PortalOps turns each move into a signed webhook your backend can react to in seconds.
+            Every move in a game is an event. Take our Arena contract, solve five coding challenges against its events, break a delivery on purpose and replay it. Then run the same thing on the real testnet.
           </p>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginTop: 28 }}>
-            <Link className="pbtn" href="/docs/tutorials/game-feed" style={{ fontSize: 14.5, padding: "11px 20px", borderRadius: 9 }}>Build a game feed</Link>
+            <Link className="pbtn" href="/arena" style={{ fontSize: 14.5, padding: "11px 20px", borderRadius: 9 }}>Try the Arena Lab</Link>
             <Link className="sbtn soft" href="/docs/guides/game-development" style={{ fontSize: 14.5, padding: "11px 20px", borderRadius: 9 }}>Game development guide</Link>
           </div>
         </Reveal>
@@ -358,6 +359,7 @@ export default function Landing() {
             <a className="muted-link" href="#replay">Replay</a>
             <a className="muted-link" href="#proof">Proof</a>
             <Link className="muted-link" href="/playground">Playground</Link>
+            <Link className="muted-link" href="/arena">Arena Lab</Link>
           </div>
           <div className="foot-col">
             <span className="h">Developers</span>

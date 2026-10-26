@@ -11,6 +11,10 @@ Do them in order the first time; after that, jump to the one you need.
 | 4 | [Set it all up with Claude](with-claude.md) | Let Claude register a contract, create the webhook, watch events and replay failures | 10 min |
 | 5 | [Automate with the SDK](with-the-sdk.md) | Do the same from a script: register, watch for failures and replay them | 15 min |
 
+## Play first
+
+The [Arena Lab](https://portalops.onrender.com/arena) turns the ideas in these tutorials into five coding challenges and a delivery simulator you can try in the browser, no signup.
+
 ## Watch it first
 
 A full developer walkthrough (about 8 minutes) shows the dashboard, a live delivery, a failure and a replay: [watch on YouTube](https://youtu.be/fau4mVZS1iY).

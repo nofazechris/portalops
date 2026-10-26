@@ -6,6 +6,7 @@ import Auth from "./pages/Auth.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
 import Playground from "./pages/Playground.jsx";
 import Pitch from "./pages/Pitch.jsx";
+import Arena from "./pages/Arena.jsx";
 
 const routes = {
   "/": Landing,
@@ -14,6 +15,7 @@ const routes = {
   "/app": Dashboard,
   "/playground": Playground,
   "/pitch": Pitch,
+  "/arena": Arena,
 };
 
 export default function App() {
