@@ -11,8 +11,8 @@ import LandingAi from "./LandingAi.jsx";
 import "./pages.css";
 import "./landing.css";
 
-// The page is a story in six short chapters, each answering the question the reader has at that point:
-//   what is it -> why does it need to exist -> how does it work -> what if something fails -> how do I start -> can I trust it
+// The page is a story in seven short chapters, each answering the question the reader has at that point:
+//   what is it -> why does it need to exist -> how does it work -> what if something fails -> what can I build -> how do I start -> can I trust it
 
 const stages = [
   { orb: "searching", title: "Watch", desc: "Follows the Portaldot testnet block by block and spots logs from the contracts you register." },
@@ -25,6 +25,14 @@ const compare = {
   without: ["Poll the chain and remember the last block you saw", "Decode every log from the ABI by hand", "Skip duplicates after a restart or a reorg", "Sign webhooks and retry them with backoff", "Keep a delivery log so you can debug a miss", "Build a replay tool for the day your server is down"],
   with: ["Paste a contract address", "Pick the events you care about", "Receive signed webhooks at your endpoint", "See every attempt and replay any event in one click"],
 };
+
+// What a game does on chain, and what PortalOps lets the rest of the game do about it (the Arena example contract's four events).
+const gameEvents = [
+  { name: "PlayerJoined", does: "Welcome the player in Discord and create their profile" },
+  { name: "BattleResolved", does: "Update the leaderboard and post the result to a feed" },
+  { name: "LevelUp", does: "Unlock a badge and send a congratulation" },
+  { name: "LootDropped", does: "Add the item to the player's inventory" },
+];
 
 const faq = [
   { q: "Do I need to deploy a contract first?", a: "No. The live explorer already shows real events from the Portaldot V3.0 testnet. To get webhooks for your own contract, register its address and PortalOps starts capturing from the block you choose." },
@@ -229,16 +237,41 @@ export default function Landing() {
         </Reveal>
       </section>
 
-      {/* 04  GETTING STARTED: how do I start (the AI replay is the centrepiece) */}
+      {/* 04  BUILT FOR GAMES: what can I build */}
+      <section id="games" className="lp-sec lp-grid-2" style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr)", gap: 64, alignItems: "center" }}>
+        <Reveal>
+          <span className="chap-n left"><b>04</b>Built for games</span>
+          <h2 className="lp-h2-big" style={{ fontSize: 36, letterSpacing: "-0.025em", fontWeight: 600, margin: "14px 0 0", lineHeight: 1.08 }}>A game on chain. A feed, a leaderboard and a bot on top.</h2>
+          <p style={{ fontSize: 17, lineHeight: 1.6, color: "var(--fg-3)", maxWidth: 470, margin: "16px 0 0" }}>
+            Every move in a game is an event. Import our Arena example, or your own game contract, and PortalOps turns each move into a signed webhook your backend can react to in seconds.
+          </p>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginTop: 28 }}>
+            <Link className="pbtn" href="/docs/tutorials/game-feed" style={{ fontSize: 14.5, padding: "11px 20px", borderRadius: 9 }}>Build a game feed</Link>
+            <Link className="sbtn soft" href="/docs/guides/game-development" style={{ fontSize: 14.5, padding: "11px 20px", borderRadius: 9 }}>Game development guide</Link>
+          </div>
+        </Reveal>
+        <Reveal delay={110} className="game-card">
+          <div className="mono game-card-h"><span>PortalArena · example contract</span><span>4 events</span></div>
+          {gameEvents.map((g) => (
+            <div key={g.name} className="game-row">
+              <span className="mono game-ev">{g.name}</span>
+              <span className="game-arrow" aria-hidden="true">→</span>
+              <span className="game-does">{g.does}</span>
+            </div>
+          ))}
+        </Reveal>
+      </section>
+
+      {/* 05  GETTING STARTED: how do I start (the AI replay is the centrepiece) */}
       <div className="chap-bridge">
-        <span className="chap-n"><b>04</b>Get started</span>
-        <p>The fastest way in is one sentence to Claude. Press Run to watch it happen.</p>
+        <span className="chap-n"><b>05</b>Get started</span>
+        <p>The fastest way in is one sentence to Claude. Press Run to watch it happen. <a href="https://youtu.be/fau4mVZS1iY" target="_blank" rel="noopener noreferrer">Prefer to watch a video? Full walkthrough ↗</a></p>
       </div>
       <LandingAi />
 
-      {/* 05  PROOF: can I trust it */}
+      {/* 06  PROOF: can I trust it */}
       <section id="proof" className="lp-sec proof">
-        <Chapter n="05" name="The proof" title="Not a mock-up. Real transactions on the Portaldot testnet." lead="We deployed a contract, sent transactions, and PortalOps decoded and delivered every event." />
+        <Chapter n="06" name="The proof" title="Not a mock-up. Real transactions on the Portaldot testnet." lead="We deployed a contract, sent transactions, and PortalOps decoded and delivered every event." />
         <Reveal className="proof-card">
           <div className="proof-top">
             <div>
@@ -261,10 +294,10 @@ export default function Landing() {
         </Reveal>
       </section>
 
-      {/* 06  BUILD ON IT: developers */}
+      {/* 07  BUILD ON IT: developers */}
       <section id="sdk" className="lp-sec lp-grid-2" style={{ display: "grid", gridTemplateColumns: "minmax(0,0.9fr) minmax(0,1.1fr)", gap: 64, alignItems: "center" }}>
         <Reveal>
-          <span className="chap-n left"><b>06</b>Build on it</span>
+          <span className="chap-n left"><b>07</b>Build on it</span>
           <h2 className="lp-h2-big" style={{ fontSize: 34, letterSpacing: "-0.025em", fontWeight: 600, margin: "14px 0 0", lineHeight: 1.1 }}>An API, an SDK and signed webhooks.</h2>
           <p style={{ fontSize: 16, lineHeight: 1.6, color: "var(--fg-3)", maxWidth: 440, margin: "16px 0 0" }}>
             List events, replay deliveries and manage webhooks over HTTP, and verify every delivery with a documented HMAC signature. A typed TypeScript SDK wraps it with retries and verification helpers.

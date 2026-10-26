@@ -6,6 +6,7 @@ and has not been verified against the real network.
 
 **Try it:** [live app](https://portalops.onrender.com) · [playground (no signup)](https://portalops.onrender.com/playground) ·
 [docs](https://portalops.onrender.com/docs) · [pitch deck](https://portalops.onrender.com/pitch) ([PDF](https://portalops.onrender.com/pitch/portalops-pitch.pdf)).
+Full walkthrough video: [youtu.be/fau4mVZS1iY](https://youtu.be/fau4mVZS1iY).
 The live site runs on a free plan that sleeps when idle, so the first load can take up to a minute.
 
 ## Run locally

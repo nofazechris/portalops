@@ -9,11 +9,14 @@ import "./playground.css";
 
 const QUEST = "0x274F8AbeCAa7FE3772A2cB92F67F2ed4A64bc649";
 const BUSY = "0xe0114adc0a2072b602c645f5a07eefa1eadbdbc2";
+// How to read a pasted contract's events. "Raw" captures them undecoded; the others use that example's ABI (a copy of it, or a game you built on it).
+const KINDS = [["", "Show raw events (no ABI)"], ["quest", "Quest board"], ["token", "Token"], ["bounty", "Bounty board"], ["arena", "Arena game"]];
 const isAddress = (s) => /^0x[0-9a-fA-F]{40}$/.test(s.trim());
 
 export default function Playground() {
   const pg = useApi(() => api.playground(), [], { refreshMs: 6000 });
   const [addr, setAddr] = useState("");
+  const [kind, setKind] = useState("");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState(null);
   const [test, setTest] = useState(null);
@@ -66,8 +69,11 @@ export default function Playground() {
 
       <section className="pg-watch">
         <div className="pg-form">
-          <input className="pops-in mono" placeholder="0x… contract address on the Portaldot testnet" value={addr} onChange={(e) => setAddr(e.target.value)} onKeyDown={(e) => e.key === "Enter" && watch(addr)} />
-          <button className="pbtn" disabled={busy} onClick={() => watch(addr)} style={{ padding: "12px 22px", whiteSpace: "nowrap" }}>Watch</button>
+          <input className="pops-in mono" placeholder="0x… contract address on the Portaldot testnet" value={addr} onChange={(e) => setAddr(e.target.value)} onKeyDown={(e) => e.key === "Enter" && watch(addr, kind || undefined)} />
+          <select className="pops-in pg-kind" value={kind} onChange={(e) => setKind(e.target.value)} aria-label="How to decode its events">
+            {KINDS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+          </select>
+          <button className="pbtn" disabled={busy} onClick={() => watch(addr, kind || undefined)} style={{ padding: "12px 22px", whiteSpace: "nowrap" }}>Watch</button>
         </div>
         <div className="pg-quick">
           <span className="muted">Or try:</span>
