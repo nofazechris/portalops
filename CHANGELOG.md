@@ -10,10 +10,16 @@ deployed continuously from `main`.
 - **Security**: API keys expire (90 days by default); two-factor sign-in (TOTP with recovery codes); bounded parallel deliveries; optional database-backed
   rate limits for several API instances.
 - **Contract metadata upload** (ABI, compiler artifact or ink! metadata, auto-detected).
-- **Delivery diagnostics**: rule-based cause, confidence and checklist for every failed delivery; optional AI explanation that shows the exact evidence it would send.
+- **Delivery diagnostics** (also in the SDK and Claude tools, released as 0.2.0): rule-based cause, confidence and checklist for every failed delivery; optional AI explanation that shows the exact evidence it would send.
 - **`npm run verify:evidence`**: re-checks every on-chain claim against the public testnet RPC (and the live service with `--live`), including that each deployed contract's code is byte for byte what the repository's Solidity compiles to.
 - Line endings are LF everywhere (`.gitattributes`), so committed contract artifacts match their sources on every platform.
 - Node version check before `npm test`; `.nvmrc`; `LICENSE`, `CONTRIBUTING.md`, `SECURITY.md`.
+
+## 0.2.0 (SDK and Claude server)
+
+- `@portalops/sdk`: `deliveries.diagnosis(id)` and `deliveries.explain(id)`; `contracts.add` accepts `type: "ink"` with the contract metadata; the contract list reports
+  each contract's `runtimeType`.
+- `@portalops/mcp`: new tool `portalops_diagnose_delivery` (eleven tools in all); registers ink! contracts; the example catalog includes the Arena game.
 
 ## 0.1.0 (SDK and Claude server)
 

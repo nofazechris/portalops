@@ -30,7 +30,7 @@ For Claude Desktop, add this to its config file:
 }
 ```
 
-Then ask: *"Set up PortalOps for my contract."* Ten tools: setup status, list/get example contracts, register contract, create webhook,
-send test delivery, list/get events, failed deliveries, replay. Without a key the example tools still work.
+Then ask: *"Set up PortalOps for my contract."* Eleven tools: setup status, list/get example contracts, register contract, create webhook,
+send test delivery, list/get events, failed deliveries, diagnose a failed delivery, replay. Without a key the example tools still work.
 
 Full guide: https://portalops.onrender.com/docs (Set up with Claude). Requires Node 20.12+. MIT licensed.

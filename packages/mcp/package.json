@@ -1,6 +1,6 @@
 {
   "name": "@portalops/mcp",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Claude (MCP) server for PortalOps: register a Portaldot contract, create signed webhooks, send tests, watch events and replay failures, without secrets ever entering the chat.",
   "keywords": ["portaldot", "mcp", "model-context-protocol", "claude", "webhooks", "events", "blockchain"],
   "homepage": "https://github.com/nofazechris/portalops/tree/main/packages/mcp#readme",
