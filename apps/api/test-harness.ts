@@ -10,10 +10,10 @@ import { RateLimiter } from "./http.ts";
  * that creates a project and API keys exactly as a customer would. Shared by the SDK and MCP tests, so a change to the API that
  * breaks either fails here instead of in a customer's integration.
  */
-export async function startApi(limits?: Record<string, RateLimiter>) {
+export async function startApi(limits?: Record<string, RateLimiter>, overrides: Record<string, unknown> = {}) {
   const store = await makeTestStore();
   const key = randomBytes(32);
-  const config = { networkId: "portaldot-v3-testnet", networkLabel: "Portaldot V3.0 Testnet", chainId: 420420777, encryptionKey: key, allowedOrigins: [], cookieSecure: false, sessionTtlMs: 3_600_000, allowPrivateWebhookTargets: true, maxProjectsPerUser: 5, receiverBaseUrl: null as string | null, receiverTimeoutHoldMs: 200 };
+  const config = { networkId: "portaldot-v3-testnet", networkLabel: "Portaldot V3.0 Testnet", chainId: 420420777, encryptionKey: key, allowedOrigins: [], cookieSecure: false, sessionTtlMs: 3_600_000, allowPrivateWebhookTargets: true, maxProjectsPerUser: 5, receiverBaseUrl: null as string | null, receiverTimeoutHoldMs: 200, ...overrides };
   const handler = createApp({
     store, config,
     network: { check: async () => ({ chainIdVerified: true, reportedChainId: 420420777, headBlock: 5000, latencyMs: 2, error: null }), getCode: async (a) => (a.endsWith("1") ? "0x6080" : "0x") },

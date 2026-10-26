@@ -90,7 +90,7 @@ Good requests:
 
 - "What example contracts are there? I want something for a marketplace."
 - "Register the Bounty board example at `0x…` and send `BountyApproved` to the built-in test receiver."
-- "Why is my webhook failing?" (it reads failed deliveries and the receiver's responses)
+- "Why is my webhook failing?" (it reads failed deliveries and the receiver's responses, then diagnoses the worst one)
 - "Replay the last failed event now that I've fixed my server."
 - "Write me a receiver for the token example in Express."
 
@@ -107,6 +107,7 @@ Good requests:
 | `portalops_list_events` | Newest events; filter by name, finality, delivery state, or search | no |
 | `portalops_get_event` | One event with every delivery attempt | no |
 | `portalops_failed_deliveries` | Deliveries waiting for a fix | no |
+| `portalops_diagnose_delivery` | Why one delivery failed: likely cause, confidence, things to check; `ai: true` adds a written explanation from a Claude model (write key, and the server must have AI on) | no |
 | `portalops_replay_event` | Re-send a stored event; the chain is not touched | contacts your URL |
 
 Tools that only read are marked **read-only**, which lets Claude clients run them without asking each time; the others are marked as changing things, and clients normally ask you before running them.

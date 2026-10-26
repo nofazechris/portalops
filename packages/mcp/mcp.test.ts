@@ -36,11 +36,11 @@ test("mcp: exposes the expected tools, and read-only tools are marked read-only"
   const tools = (await m.client.listTools()).tools;
   const names = tools.map((x) => x.name).sort();
   assert.deepEqual(names, [
-    "portalops_create_webhook", "portalops_failed_deliveries", "portalops_get_event", "portalops_get_example", "portalops_list_events",
+    "portalops_create_webhook", "portalops_diagnose_delivery", "portalops_failed_deliveries", "portalops_get_event", "portalops_get_example", "portalops_list_events",
     "portalops_list_examples", "portalops_register_contract", "portalops_replay_event", "portalops_send_test_delivery", "portalops_setup_status",
   ]);
   const ro = (n: string) => tools.find((x) => x.name === n)!.annotations?.readOnlyHint;
-  for (const n of ["portalops_list_examples", "portalops_get_example", "portalops_setup_status", "portalops_list_events", "portalops_get_event", "portalops_failed_deliveries"]) assert.equal(ro(n), true, n);
+  for (const n of ["portalops_list_examples", "portalops_get_example", "portalops_setup_status", "portalops_list_events", "portalops_get_event", "portalops_failed_deliveries", "portalops_diagnose_delivery"]) assert.equal(ro(n), true, n);
   for (const n of ["portalops_register_contract", "portalops_create_webhook", "portalops_send_test_delivery", "portalops_replay_event"]) assert.equal(ro(n), false, n);
   assert.ok((await m.client.listPrompts()).prompts.some((p) => p.name === "set_up_portalops"));
 });

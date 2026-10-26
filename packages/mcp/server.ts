@@ -243,6 +243,21 @@ export function createPortalOpsMcpServer(deps: McpDeps): McpServer {
     annotations: READ,
   }, async ({ limit }) => withKey(async (p) => (await p.deliveries.list({ status: "failed", limit })).map((d) => ({ deliveryId: d.id, eventId: d.event.id, event: d.event.eventName, endpointId: d.endpointId, attempts: d.attemptCount, lastError: d.lastError, lastResponseStatus: d.lastResponseStatus }))));
 
+  server.registerTool("portalops_diagnose_delivery", {
+    title: "Diagnose a failed delivery",
+    description:
+      "Explains why one delivery failed, from the attempts PortalOps recorded: the likely cause, how confident it is, and concrete things to check. " +
+      "Get the delivery id from portalops_failed_deliveries. Set ai=true for a written explanation from a Claude model (needs a write key and a server with AI turned on); " +
+      "the evidence it sees never contains secrets or event payloads. Suggestions are proposals for the developer to review.",
+    inputSchema: { deliveryId: z.string(), ai: z.boolean().default(false) },
+    annotations: READ,
+  }, async ({ deliveryId, ai }) => withKey(async (p) => {
+    const d = await p.deliveries.diagnosis(deliveryId);
+    if (!ai) return { rules: d.rules, evidence: d.evidence, aiAvailable: d.ai.available };
+    const e = await p.deliveries.explain(deliveryId);
+    return { explanation: e.explanation, model: e.model, rules: e.rules, evidence: e.evidence };
+  }));
+
   server.registerTool("portalops_replay_event", {
     title: "Replay an event",
     description:

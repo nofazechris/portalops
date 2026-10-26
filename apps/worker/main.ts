@@ -26,6 +26,7 @@ loadServiceEnv(ROOT); // also drops the deploy-script private keys: this process
 // The worker never sends account email or talks to GitHub: do not hold those credentials in this process.
 delete process.env.RESEND_API_KEY;
 delete process.env.GITHUB_CLIENT_SECRET;
+delete process.env.ANTHROPIC_API_KEY; // only the API process explains failures
 
 const RPC = process.env.PORTALDOT_EVM_RPC_URL || "https://test-evm-rpc-v3.portaldot.dev";
 const CHAIN_ID = Number(process.env.PORTALDOT_EVM_CHAIN_ID || 420420777);

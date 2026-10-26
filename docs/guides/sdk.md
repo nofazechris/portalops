@@ -150,7 +150,7 @@ try {
 | `portal.events` | `list`, `get`, `replay`, `iterate` |
 | `portal.webhooks` | `list`, `create`, `update`, `delete`, `test`, `rotateSecret`, `deliveries`, `setReceiverMode` |
 | `portal.contracts` | `list`, `add`, `test` |
-| `portal.deliveries` | `list({ status })` |
+| `portal.deliveries` | `list({ status })`, `diagnosis(id)`, `explain(id)` |
 | `portal.automations` | `list`, `create`, `setEnabled`, `delete` |
 | `portal.project` | `get`, `overview`, `networkStatus` |
 | `portal.examples` | `list`, `get` (the public example catalog) |

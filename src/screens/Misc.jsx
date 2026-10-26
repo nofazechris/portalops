@@ -208,81 +208,8 @@ export function Automations() {
   );
 }
 
-// ----------------------------------------------------------- Diagnostics
-/** Deterministic reading of recorded delivery evidence. No model, no guessing beyond what the attempts show. */
-function diagnose(delivery) {
-  const attempts = delivery.attempts ?? [];
-  const last = attempts.at(-1);
-  const facts = [];
-  const statuses = attempts.map((a) => a.responseStatus ?? a.errorCode);
-  facts.push(`${attempts.length} attempt(s) recorded: ${statuses.join(", ") || "none"}.`);
-  if (attempts.length >= 2) {
-    const first = attempts[0].responseDurationMs, lastMs = last.responseDurationMs;
-    if (first > 0 && lastMs / first >= 2) facts.push(`Response time rose ${(lastMs / first).toFixed(1)}× between the first (${first}ms) and last (${lastMs}ms) attempt.`);
-  }
-  if (last?.sanitisedResponse) facts.push(`The destination replied: “${last.sanitisedResponse.slice(0, 160)}”.`);
-
-  let cause = "There is not enough recorded evidence to name a cause.";
-  const s = last?.responseStatus, code = last?.errorCode;
-  if (s === 401 || s === 403) cause = "The destination rejected the request as unauthorised. If it verifies the PortalOps signature, the secret in your receiver probably does not match this webhook's secret (rotate it and update the receiver).";
-  else if (s >= 500) cause = "The destination server returned an internal error while handling the request. The failure is on the receiving side; check its logs for the same time window.";
-  else if (s === 404 || s === 405) cause = "The destination does not serve this route or method. Check the endpoint path.";
-  else if (s >= 400) cause = "The destination rejected the payload as invalid (HTTP " + s + "). Compare its validation rules with the delivered body.";
-  else if (code === "timeout") cause = "The destination did not respond within the timeout, so no status was received.";
-  else if (code === "ECONNREFUSED") cause = "Nothing is listening at the destination address (connection refused).";
-  else if (code === "ENOTFOUND" || code === "invalid_url") cause = "The destination host could not be resolved or the URL is invalid.";
-  else if (code === "blocked_target") cause = "The destination resolves to a private or otherwise blocked address, which PortalOps refuses to contact.";
-  return { facts, cause };
-}
-
-export function Diagnostics({ go }) {
-  const { projectId, readOnly } = useSession();
-  const failed = useApi(() => api.deliveries(projectId, { status: "failed", limit: 20 }), [projectId], { enabled: !!projectId && !readOnly });
-  const [pick, setPick] = useState(null);
-  const sel = failed.data?.find((d) => d.id === pick) ?? failed.data?.[0];
-  const ev = useApi(() => api.event(sel.eventId), [sel?.eventId], { enabled: !!sel });
-  if (readOnly) return <NeedsProject what="diagnose failed deliveries" />;
-  const delivery = ev.data?.deliveries.find((d) => d.id === sel?.id);
-  const dx = delivery ? diagnose(delivery) : null;
-
-  return (
-    <div>
-      <h1 className="h1">Diagnostics</h1>
-      <p className="sub">An explanation of why a delivery failed, derived only from the attempts PortalOps recorded.</p>
-      <ErrorBox error={failed.error} onRetry={failed.reload} />
-      {failed.loading && !failed.data ? <div style={{ marginTop: 24 }}><Loading /></div> : !sel ? <div style={{ marginTop: 24 }}><Empty title="No failed deliveries">Nothing to diagnose right now.</Empty></div> : (
-        <div style={{ marginTop: 24, maxWidth: 680, background: "linear-gradient(170deg,#121016,#0d0d0d)", border: "1px solid #201d2b", borderRadius: 16, padding: 24 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-            <span style={{ fontSize: 15, fontWeight: 600 }}>Why did this delivery fail?</span>
-            {failed.data.length > 1 && (
-              <select className="select" style={{ width: 240, marginLeft: "auto" }} value={sel.id} onChange={(e) => setPick(e.target.value)}>
-                {failed.data.map((d) => <option key={d.id} value={d.id}>{d.event.eventName ?? "Raw log"} · {timeAgo(d.updatedAt)}</option>)}
-              </select>
-            )}
-          </div>
-          <div className="mono" style={{ fontSize: 11, color: "var(--dim)", marginTop: 6 }}>{deliveryLabel(sel.status)} · event {sel.eventId.slice(0, 16)}…</div>
-          {!dx ? <div style={{ marginTop: 16 }}><Loading /></div> : (
-            <>
-              <div style={{ marginTop: 16, fontSize: 11, letterSpacing: "0.04em", textTransform: "uppercase", color: "var(--dim)" }}>PortalOps recorded</div>
-              <div className="stack" style={{ gap: 8, marginTop: 10, fontSize: 14, color: "var(--fg-2)" }}>
-                {dx.facts.map((f, i) => <div key={i} style={{ display: "flex", gap: 10 }}><span style={{ color: "var(--accent)" }}>•</span><span>{f}</span></div>)}
-              </div>
-              <div style={{ marginTop: 18, background: "#0d0d0d", border: "1px solid #1f1f1f", borderRadius: 10, padding: "14px 16px" }}>
-                <div style={{ fontSize: 11, letterSpacing: "0.04em", textTransform: "uppercase", color: "var(--dim)" }}>Likely cause</div>
-                <div style={{ fontSize: 14, marginTop: 7, lineHeight: 1.5 }}>{dx.cause}</div>
-              </div>
-              <div style={{ fontSize: 11.5, color: "var(--dim)", marginTop: 10 }}>Rule-based analysis of recorded evidence; no AI model is used.</div>
-            </>
-          )}
-          <div style={{ display: "flex", gap: 9, marginTop: 18 }}>
-            <button className="btn secondary" onClick={() => go("logs")}>View logs</button>
-            <button className="btn primary" onClick={() => go("replay")}>Replay</button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
+// Diagnostics lives in its own file (server-built explanation, optional AI layer).
+export { Diagnostics } from "./Diagnostics.jsx";
 
 // --------------------------------------------------------------- API / SDK
 export function ApiSdk() {

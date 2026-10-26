@@ -188,6 +188,35 @@ export interface Contract {
   events: string[];
 }
 
+/** What PortalOps recorded about one delivery and what it makes of it. The rules are deterministic and always present. */
+export interface DeliveryDiagnosis {
+  rules: {
+    summary: string;
+    cause: string;
+    confidence: "high" | "medium" | "low";
+    facts: string[];
+    /** Things to check or change. Proposals only: nothing is applied. */
+    fixes: string[];
+    replay: string;
+  };
+  /** Exactly what an AI explanation would be given: no secrets, no event payload, no query strings. */
+  evidence: {
+    event: { name: string | null; decoded: boolean; finality: string; runtime: "evm" | "ink" };
+    endpoint: { origin: string; path: string; retryPolicy: { maxAttempts: number; baseDelayMs: number; timeoutMs: number } };
+    delivery: { kind: string; status: string; attempts: number; lastError: string | null; nextAttemptAt: string | null };
+    attempts: { n: number; at: string; status: number | null; errorCode: string | null; durationMs: number; response: string | null }[];
+  };
+  ai: { available: boolean; model: string | null };
+}
+
+export interface DeliveryAiExplanation {
+  source: "model";
+  model: string;
+  explanation: { summary: string; likelyCause: string; suggestedFixes: string[]; missingEvidence: string[] };
+  rules: DeliveryDiagnosis["rules"];
+  evidence: DeliveryDiagnosis["evidence"];
+}
+
 export interface AddContractInput {
   /** "evm" (default): a Solidity contract at a 0x address. "ink": a Rust ink! contract at an SS58 address (needs its metadata). */
   type?: "evm" | "ink";

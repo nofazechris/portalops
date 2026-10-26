@@ -60,6 +60,8 @@ The OAuth App's **Authorization callback URL** must be exactly `<PORTALOPS_PUBLI
 | Variable | Default | Meaning |
 |---|---|---|
 | `PORTALOPS_POLL_MS` | `6000` | How often the worker polls for new blocks |
+| `ANTHROPIC_API_KEY` | unset | Turns on **AI explanations** of failed deliveries (Diagnostics → Explain with Claude). The model sees only the recorded evidence shown to the user first, never secrets or event payloads. Unset = rule-based diagnosis only. API process only. |
+| `PORTALOPS_AI_MODEL` | `claude-haiku-5-5` | Which Claude model writes the explanations. |
 | `PORTALDOT_NATIVE_RPC_URL` | `wss://test-node-v3.portaldot.dev` | The native (Substrate) node, read only for ink! contracts. Connected to on first use. |
 | `PORTALOPS_RATE_LIMIT_STORE` | `memory` | `database` keeps rate-limit counters in the database so several API instances enforce one shared limit. Leave it unset for a single instance (no extra writes). |
 | `PORTALOPS_MAX_PARALLEL_DELIVERIES` | `8` | Webhook deliveries the worker attempts at the same time |

@@ -290,6 +290,20 @@ Response `{ items, total, limit, offset }`; each item is an event (below) plus `
 
 ---
 
+## Delivery diagnostics
+
+### GET /api/v1/deliveries/:deliveryId/diagnosis
+**Owner or API key (read).** Why a delivery failed, derived only from the attempts PortalOps recorded:
+`{ rules: { summary, cause, confidence, facts, fixes, replay }, evidence, ai: { available, model } }`. `rules` is deterministic and always there.
+`evidence` is **exactly what an AI explanation would be given**: the event name and finality, the destination's host and path (no credentials, no query
+string, opaque path tokens hidden), the retry settings, and up to eight attempts with status, error code, duration and a reply snippet of at most 300
+characters with secrets redacted. It never contains webhook secrets or the event payload. `404` for a delivery that is not yours.
+
+### POST /api/v1/deliveries/:deliveryId/diagnosis/ai
+**Owner or API key (write).** Asks a Claude model to explain the failure from that same evidence: `{ explanation: { summary, likelyCause, suggestedFixes, missingEvidence }, source: "model", model, rules, evidence }`. `503 ai_unavailable` when the server has no Anthropic key (`ANTHROPIC_API_KEY`); `502 ai_failed` if the model service fails (provider details are not forwarded; the rule-based diagnosis still works); `429` at 10 per minute. Suggestions are text for a person to review; nothing is applied.
+
+---
+
 ## API keys
 
 ### POST /api/v1/projects/:projectId/api-keys

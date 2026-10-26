@@ -38,6 +38,9 @@ Not covered: penetration testing of a deployed instance, TLS/hosting configurati
 - **Frontend:** no `dangerouslySetInnerHTML`, no `eval`, no third-party scripts; chain-derived strings are rendered as text. The only storage use is the selected project id.
 - **Secrets in the repo:** none found. every `.env*` file is git-ignored and **no env file of any kind is committed, not even an example**; `npm run security:scan` (also a pre-commit hook and a CI step) enforces it.
 
+- **Two-factor sign-in:** TOTP (RFC 6238, verified against the RFC's test vectors) with a 30-second step and one step of drift. The shared secret is stored AES-256-GCM encrypted; each accepted code is recorded so it cannot be replayed; recovery codes are 10 random one-time codes stored only as hashes. A correct password yields only a 5-minute single-use challenge, not a session, and guesses are rate limited per IP and per account. Turning it off needs the password and a code.
+- **Native (ink!) reader:** read-only, same finality and reorg rules as the EVM reader, separate cursor, and metadata uploads are validated by actually loading them (the compiled contract code in a `.contract` bundle is dropped client-side and never stored).
+
 ## Accepted risks and known gaps
 
 | Item | Why it is acceptable now / what would fix it |
@@ -45,13 +48,14 @@ Not covered: penetration testing of a deployed instance, TLS/hosting configurati
 | `npm audit`: `solc → tmp` (high, symlink write). | Dev-time compiler only, used through the JS API (`solc.compile`), never its CLI; not shipped. No upstream fix yet. |
 | Signup reveals whether an email exists (409). | Inherent without email verification. Email verification and password reset are **not implemented** (no mail provider). |
 | A per-email login limiter lets an attacker briefly lock a specific victim out (≈1 min windows). | Short, self-healing. A per-account lockout with notification is the production answer. |
-| No MFA, no OAuth. | Out of scope for this stage; the docs say so rather than implying otherwise. |
-| API keys: no expiry date, no per-key IP allow-list. | Keys are project-scoped, read/write, rate-limited, revocable, stored only as a SHA-256 hash and shown once. Expiry/rotation reminders are a reasonable next step. |
+| Two-factor sign-in covers email-and-password accounts only. | It is TOTP (authenticator app) with one-time recovery codes. GitHub sign-in is protected by the user's GitHub two-factor settings instead; passkeys/WebAuthn are not implemented. |
+| API keys: no per-key IP allow-list. | Keys are project-scoped, read/write, rate-limited, revocable, stored only as a SHA-256 hash and shown once, and **expire after 90 days by default** (1 to 365 days, or never by explicit choice). An IP allow-list is a reasonable next step. |
 | Webhook ports are unrestricted for public IPs. | Only public addresses are reachable, so internal services are not exposed. A port allow-list (443/8443) is a cheap tightening if desired. |
 | One static encryption key, no rotation tool. | Envelope format is versioned (`v1.`) so a rotation can be added without a data migration. |
-| Delivery runner is sequential. | A slow endpoint delays others for up to its timeout. Bounded concurrency per endpoint is the fix. |
+| Delivery concurrency is a fixed cap. | Attempts run in a bounded pool (8 at once, 2 per endpoint; both configurable) so one slow endpoint cannot starve the rest. There is no adaptive back-pressure per destination yet. |
 | SQLite file is unencrypted and not backed up. | Dev storage; production would use managed Postgres with encryption at rest. |
-| Rate limiters are in-process memory. | Correct for one API process; use Redis when scaling out. |
+| Rate limiters are in-process memory by default. | Correct for one API process. With several instances set `PORTALOPS_RATE_LIMIT_STORE=database`: counters then live in the database and every instance enforces one limit (a rate limiter that cannot reach the database lets requests through rather than failing them). |
+| AI explanations send recorded delivery evidence to a model provider. | Off unless the operator sets an Anthropic key. The evidence is shown to the user first and never contains secrets, the event payload, credentials or query strings; replies are capped and redacted; the output is advice only and nothing is applied. |
 
 ## Deployment checklist (production)
 

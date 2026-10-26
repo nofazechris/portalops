@@ -2,7 +2,7 @@
 
 PortalOps supports two ways in, and both end in the same kind of account:
 
-- **Email and password.** The address is confirmed with a link we email you.
+- **Email and password.** The address is confirmed with a link we email you. You can add [two-factor sign-in](#two-factor-sign-in).
 - **GitHub.** "Continue with GitHub" signs you in with a verified address from your GitHub account.
 
 ## Email and password
@@ -24,6 +24,17 @@ PortalOps supports two ways in, and both end in the same kind of account:
 2. The page always says "if an account exists, a link is on its way". It answers **identically for unknown addresses**, so it cannot be used to find out who has an account.
 3. The link (`/auth#reset=<token>`) works once and expires after **1 hour**. A newer request replaces the older link.
 4. Choosing a new password **signs you out everywhere** and counts as confirming your address (you proved you control the inbox). A GitHub-only account can use the same flow to add a password.
+
+## Two-factor sign-in
+
+Add a second step to password sign-in with an authenticator app (Google Authenticator, 1Password, Authy, or any TOTP app).
+
+1. **Settings → Two-factor sign-in → Set up two-factor.** Add the key it shows to your authenticator app (type it in, or open the link on your phone).
+2. Enter the 6-digit code the app shows. Two-factor is now on, and you get **ten recovery codes**. Save them now: they are shown only once.
+3. From then on, signing in asks for your password and then a code. A code works once; if it is rejected, wait for the next one (they change every 30 seconds).
+
+Lost your phone? Use a recovery code instead of the 6-digit code; each works once. **New recovery codes** (in Settings) replaces the whole set, and **Turn off** needs your password and a current code.
+Accounts that sign in with GitHub are not asked for a code by PortalOps: GitHub enforces whatever two-factor you have set there.
 
 ## GitHub sign-in
 

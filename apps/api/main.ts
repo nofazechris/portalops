@@ -8,6 +8,7 @@ import { createEmailSender } from "../../packages/email/index.ts";
 import { describeDatabase, openStore } from "../../packages/database/store.ts";
 import { parseKey } from "../../packages/database/secrets.ts";
 import { createApp, type NetworkProbe } from "./app.ts";
+import { DEFAULT_AI_MODEL } from "../../packages/diagnostics/diagnose.ts";
 import { loadServiceEnv } from "../../packages/config/env.ts";
 import { installProcessDiagnostics } from "../../packages/config/diagnostics.ts";
 import { createStaticHandler } from "./static.ts";
@@ -89,6 +90,8 @@ const handler = createApp({
     allowPrivateWebhookTargets: ALLOW_PRIVATE,
     receiverBaseUrl: API_PUBLIC_URL,
     trustedProxyHops: TRUSTED_PROXY_HOPS,
+    // Model-written explanations of failed deliveries: only when the operator provides an Anthropic key.
+    ai: process.env.ANTHROPIC_API_KEY ? { apiKey: process.env.ANTHROPIC_API_KEY, model: process.env.PORTALOPS_AI_MODEL || DEFAULT_AI_MODEL } : null,
     maxProjectsPerUser: 20,
     publicUrl: PUBLIC_URL,
     // Account emails: Resend when RESEND_API_KEY is set, otherwise printed to this log (development only; never in production).

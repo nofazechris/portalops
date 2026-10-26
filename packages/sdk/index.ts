@@ -1,5 +1,5 @@
 import type {
-  AddContractInput, Automation, Contract, ContractTestResult, CreateAutomationInput, CreateWebhookInput, CreatedWebhook, DeliveryStatus,
+  AddContractInput, Automation, Contract, ContractTestResult, CreateAutomationInput, CreateWebhookInput, CreatedWebhook, DeliveryAiExplanation, DeliveryDiagnosis, DeliveryStatus,
   DeliveryWithAttempts, EventDetail, ExampleDetail, ExampleSummary, EventListItem, EventListParams, NetworkStatus, Overview, Page, Project, ProjectDelivery,
   ReceiverMode, ReplayResult, UpdateWebhookInput, Webhook, WebhookTestResult,
 } from "./types.ts";
@@ -226,6 +226,10 @@ class ContractsApi extends Resource {
 }
 
 class DeliveriesApi extends Resource {
+  /** Why a delivery failed, from the attempts PortalOps recorded. Free and deterministic; includes the evidence an AI explanation would see. */
+  diagnosis(deliveryId: string): Promise<DeliveryDiagnosis> { return this.c.request("GET", `/deliveries/${enc(deliveryId)}/diagnosis`); }
+  /** A written explanation from a Claude model (needs a write key; `ai_unavailable` if the server has no model configured). */
+  explain(deliveryId: string): Promise<DeliveryAiExplanation> { return this.c.request("POST", `/deliveries/${enc(deliveryId)}/diagnosis/ai`, { body: {} }); }
   /** Deliveries across the whole project, e.g. `{ status: "failed" }` for everything awaiting replay. */
   async list(params: { status?: DeliveryStatus; limit?: number } = {}): Promise<ProjectDelivery[]> {
     return this.c.request("GET", `/projects/${await this.c.projectId()}/deliveries`, { query: params });

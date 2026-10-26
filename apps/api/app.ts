@@ -14,6 +14,7 @@ import { resetPasswordMessage, verifyEmailMessage } from "../../packages/email/t
 import type { EmailSender } from "../../packages/email/index.ts";
 import { ApiError, clientIp, parseCookies, parseJsonBody, RateLimiter, readRaw, Router, sendJson, MAX_BODY_BYTES, type Ctx, type Limiter } from "./http.ts";
 import { SharedRateLimiter } from "./shared-limiter.ts";
+import { buildEvidence, diagnoseRules, explainWithModel } from "../../packages/diagnostics/diagnose.ts";
 import { canonicalSs58 } from "../../packages/chain-adapters/native.ts";
 import { inkEventNames, loadInkAbi, looksLikeInkMetadata } from "../../packages/event-engine/ink.ts";
 import { hashRecoveryCode, newRecoveryCodes, newTotpSecret, otpauthUri, verifyTotp } from "./totp.ts";
@@ -34,7 +35,12 @@ export interface NetworkProbe {
   inkContractExists?(address: string): Promise<boolean>;
 }
 
+/** Optional model-written explanations of failed deliveries. Off unless the operator sets an Anthropic API key. */
+export interface AiConfig { apiKey: string; model: string; /** Injected in tests. */ fetchImpl?: typeof fetch }
+
 export interface AppConfig {
+  /** AI explanations for failed deliveries; null/absent = off (the rule-based diagnosis is always available). */
+  ai?: AiConfig | null;
   networkId: string;
   networkLabel: string;
   chainId: number;
@@ -878,6 +884,40 @@ export function createApp(deps: AppDeps): (req: IncomingMessage, res: ServerResp
     const ids = await Promise.all(targets.map((t) => replayEvent(store, e.id, t.id, now())));
     await store.audit("event.replay", ctx.userId, p.id, { eventId: e.id, deliveryIds: ids });
     return { __status: 202, data: { deliveryIds: ids, note: "Queued. The stored event payload will be re-delivered; the original transaction is not resubmitted." } };
+  });
+
+  // ------------------------------------------------------------ delivery diagnostics
+  const aiLimiter = makeLimiter("ai", 10, 60_000);
+  /** The recorded evidence for one delivery, after checking the caller owns its project (404 otherwise, like everything else). */
+  async function deliveryEvidence(ctx: Ctx) {
+    const d = await store.getDelivery(ctx.params.deliveryId);
+    const event = d ? await store.getEvent(d.eventId) : null;
+    if (!d || !event) throw notFound();
+    const p = await ownedProject(ctx, event.projectId);
+    const [attempts, endpoint] = [await store.listAttempts(d.id), await store.getEndpoint(d.endpointId)];
+    return { project: p, delivery: d, evidence: buildEvidence({ event, delivery: d, attempts, endpoint }) };
+  }
+
+  router.add("GET", "/api/v1/deliveries/:deliveryId/diagnosis", async (ctx) => {
+    const { evidence } = await deliveryEvidence(ctx);
+    // `evidence` is exactly what an AI explanation would be given, so the user can read it before asking for one.
+    return { rules: diagnoseRules(evidence), evidence, ai: { available: !!config.ai, model: config.ai?.model ?? null } };
+  });
+
+  router.add("POST", "/api/v1/deliveries/:deliveryId/diagnosis/ai", async (ctx) => {
+    if (!config.ai) throw new ApiError(503, "ai_unavailable", "AI explanations are not turned on for this server. The rule-based diagnosis is available.");
+    const { project: p, delivery, evidence } = await deliveryEvidence(ctx);
+    const wait = await aiLimiter.hit("ai:" + ctx.userId);
+    if (wait) throw new ApiError(429, "rate_limited", `Try again in ${wait}s.`);
+    const rules = diagnoseRules(evidence);
+    try {
+      const explanation = await explainWithModel(evidence, rules, config.ai);
+      await store.audit("diagnosis.ai", ctx.userId, p.id, { deliveryId: delivery.id, model: config.ai.model });
+      return { explanation, source: "model", model: config.ai.model, rules, evidence };
+    } catch (e) {
+      await store.log("warn", "diagnostics", `AI explanation for ${delivery.id} failed: ${e instanceof Error ? e.message : "unknown error"}`, undefined, p.id);
+      throw new ApiError(502, "ai_failed", "The AI service could not explain this right now. The rule-based diagnosis is still available.");
+    }
   });
 
   router.add("GET", "/api/v1/projects/:projectId/deliveries", async (ctx) => {

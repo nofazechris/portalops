@@ -128,8 +128,13 @@ before anything is stored. Use it to answer "what did the system actually do?".
 ## Diagnostics
 
 Answers "**Why did this delivery fail?**" for the failed deliveries in the project. It lists the facts PortalOps recorded (status codes,
-timings, error codes) and states a **likely cause**, for example that your server answered 401 so the signature check is probably failing.
-The analysis is rule-based on recorded evidence; no AI model is involved. Buttons jump to the Logs or to Replay.
+timings, error codes), states a **likely cause** with a confidence level (for example that your server answered 401 so the signature check is
+probably failing), and gives a short list of **what to check**. That analysis is rule-based on the recorded evidence, always available and free.
+
+If the server operator has turned on AI explanations, an **Explain with Claude** button appears. Press **See exactly what is sent** first: it
+shows the evidence a Claude model would receive (event name, destination host and path, status codes, timings and a short reply snippet),
+which never includes your signing secrets, API keys, query strings or the event payload. The written explanation comes back marked as
+AI-written, for you to check against your own logs; nothing is changed automatically. Buttons jump to the Logs or to Replay.
 
 ## AI Setup
 
