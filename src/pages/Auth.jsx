@@ -38,10 +38,42 @@ const GithubMark = () => (
 
 const field = (extra = {}) => ({ marginTop: 18, ...extra });
 
+/** The second sign-in step for accounts with two-factor on: a 6-digit authenticator code, or a one-time recovery code. */
+function MfaStep({ challenge, loginMfa, back }) {
+  const [code, setCode] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+  async function submit(e) {
+    e.preventDefault();
+    if (code.trim().length < 6) { setError("Enter the 6-digit code from your authenticator app."); return; }
+    setBusy(true); setError(null);
+    try { await loginMfa(challenge, code.trim()); navigate("/app"); }
+    catch (err) {
+      setBusy(false);
+      if (err.code === "challenge_expired") setError("That sign-in expired. Go back and enter your password again.");
+      else if (err.code === "invalid_code") setError("That code is not right, or it was already used. Codes change every 30 seconds.");
+      else if (err.code === "rate_limited") setError(err.message);
+      else setError(err.message || "Something went wrong. Please try again.");
+    }
+  }
+  return (
+    <form onSubmit={submit} noValidate>
+      <h2 style={{ fontSize: 22, fontWeight: 600, margin: "0 0 8px" }}>Two-factor code</h2>
+      <p style={{ fontSize: 14, lineHeight: 1.55, color: "var(--fg-3)", margin: "0 0 20px" }}>Open your authenticator app and enter the 6-digit code for PortalOps. Lost your phone? Use one of your recovery codes instead.</p>
+      <label className="field-label" htmlFor="mfa-code">Code</label>
+      <input id="mfa-code" className="pops-in mono" style={{ letterSpacing: "0.2em", fontSize: 18 }} inputMode="text" autoComplete="one-time-code" autoFocus maxLength={24} placeholder="123 456" value={code} onChange={(e) => { setCode(e.target.value); setError(null); }} aria-invalid={!!error} />
+      {error && <div className="field-error" role="alert" style={{ marginTop: 10 }}>{error}</div>}
+      <button className="btn primary" style={{ width: "100%", marginTop: 22, padding: 13, fontSize: 14.5, borderRadius: 11 }} disabled={busy}>{busy ? "Checking…" : "Verify and sign in"}</button>
+      <button type="button" className="link-btn" style={{ display: "block", margin: "18px auto 0", fontSize: 13 }} onClick={back}>← Back to sign in</button>
+    </form>
+  );
+}
+
 /** Email + password sign-in and sign-up, with GitHub. */
 function CredentialsForm({ mode, choose, providers, initialAlert }) {
-  const { login, signup } = useSession();
+  const { login, loginMfa, signup } = useSession();
   const signupMode = mode === "signup";
+  const [challenge, setChallenge] = useState(null); // set when the password was right but a second factor is needed
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [alert, setAlert] = useState(initialAlert ?? null);
@@ -73,7 +105,11 @@ function CredentialsForm({ mode, choose, providers, initialAlert }) {
     if (problems.email || problems.password) { (problems.email ? emailRef : passwordRef).current?.focus(); return; }
     setBusy(true);
     try {
-      if (signupMode) await signup(email.trim(), password); else await login(email.trim(), password);
+      if (signupMode) await signup(email.trim(), password);
+      else {
+        const r = await login(email.trim(), password);
+        if (r?.mfaRequired) { setChallenge(r.challenge); setBusy(false); return; }
+      }
       navigate("/app");
     } catch (err) {
       setBusy(false);
@@ -86,6 +122,8 @@ function CredentialsForm({ mode, choose, providers, initialAlert }) {
       else setAlert({ tone: "error", title: "Something went wrong", body: err.message || "Please try again." });
     }
   }
+
+  if (challenge) return <MfaStep challenge={challenge} loginMfa={loginMfa} back={() => { setChallenge(null); setPassword(""); }} />;
 
   return (
     <form onSubmit={submit} noValidate>

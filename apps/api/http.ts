@@ -65,8 +65,13 @@ export class Router {
   }
 }
 
-/** Fixed-window counter. Good enough for a single-process deployment; swap for Redis when scaling out. */
-export class RateLimiter {
+/** What the API needs from a rate limiter: seconds to wait when over the limit, otherwise 0. May be asynchronous (a shared store). */
+export interface Limiter {
+  hit(key: string): number | Promise<number>;
+}
+
+/** Fixed-window counter held in this process: right for one API instance. For several, use SharedRateLimiter (a table all instances see). */
+export class RateLimiter implements Limiter {
   private hits = new Map<string, { count: number; resetAt: number }>();
   private readonly limit: number;
   private readonly windowMs: number;

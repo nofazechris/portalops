@@ -30,6 +30,10 @@ BEGIN
 END $$;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS github_id TEXT;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS github_login TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS totp_secret TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS totp_enabled_at TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS totp_last_step BIGINT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS recovery_codes TEXT;
 CREATE UNIQUE INDEX IF NOT EXISTS users_github ON users (github_id) WHERE github_id IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS auth_tokens (
@@ -190,8 +194,10 @@ CREATE TABLE IF NOT EXISTS api_keys (
   created_by   TEXT,
   created_at   TEXT NOT NULL,
   last_used_at TEXT,
-  revoked_at   TEXT
+  revoked_at   TEXT,
+  expires_at   TEXT
 );
+ALTER TABLE api_keys ADD COLUMN IF NOT EXISTS expires_at TEXT;
 CREATE INDEX IF NOT EXISTS api_keys_project ON api_keys (project_id);
 
 CREATE TABLE IF NOT EXISTS test_receivers (
@@ -216,3 +222,10 @@ CREATE TABLE IF NOT EXISTS receiver_requests (
   body_preview     TEXT
 );
 CREATE INDEX IF NOT EXISTS receiver_requests_recv ON receiver_requests (receiver_id, id DESC);
+
+-- Request counters shared by every API instance (used when PORTALOPS_RATE_LIMIT_STORE=database). Fixed windows, pruned as they expire.
+CREATE TABLE IF NOT EXISTS rate_limits (
+  key        TEXT PRIMARY KEY,
+  hits       INTEGER NOT NULL,
+  window_end BIGINT NOT NULL
+);

@@ -56,7 +56,14 @@ export class SqliteDriver extends Ops implements SqlDriver {
     }
     if (!ucols.includes("github_id")) this.db.exec("ALTER TABLE users ADD COLUMN github_id TEXT");
     if (!ucols.includes("github_login")) this.db.exec("ALTER TABLE users ADD COLUMN github_login TEXT");
+    for (const [col, type] of [["totp_secret", "TEXT"], ["totp_enabled_at", "TEXT"], ["totp_last_step", "INTEGER"], ["recovery_codes", "TEXT"]]) {
+      if (!ucols.includes(col)) this.db.exec(`ALTER TABLE users ADD COLUMN ${col} ${type}`);
+    }
     this.db.exec("CREATE UNIQUE INDEX IF NOT EXISTS users_github ON users (github_id) WHERE github_id IS NOT NULL");
+
+    // API keys gained an optional expiry. Keys that already exist never expire (they were issued under the old rules).
+    const kcols = (this.db.prepare("PRAGMA table_info(api_keys)").all() as Row[]).map((c) => c.name as string);
+    if (!kcols.includes("expires_at")) this.db.exec("ALTER TABLE api_keys ADD COLUMN expires_at TEXT");
   }
 
   /**

@@ -337,17 +337,99 @@ export function ApiSdk() {
 }
 
 
+/** Two-factor sign-in: turn on with an authenticator app, keep recovery codes, turn off. */
+function TwoFactorPanel() {
+  const { user, refreshUser } = useSession();
+  const status = useApi(() => api.mfaStatus(), []);
+  const [step, setStep] = useState("idle"); // idle | setup | codes | regen | disable
+  const [secret, setSecret] = useState(null);
+  const [code, setCode] = useState("");
+  const [password, setPassword] = useState("");
+  const [codes, setCodes] = useState(null);
+  const [err, setErr] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const enabled = status.data?.enabled;
+  const run = async (fn) => { setBusy(true); setErr(null); try { await fn(); } catch (x) { setErr(x); } finally { setBusy(false); } };
+  const begin = () => run(async () => { setSecret(await api.mfaSetup()); setCode(""); setStep("setup"); });
+  const confirm = (e) => { e.preventDefault(); return run(async () => { const r = await api.mfaEnable(code.trim()); setCodes(r.recoveryCodes); setStep("codes"); setSecret(null); setCode(""); status.reload(); refreshUser?.(); }); };
+  const regenerate = (e) => { e.preventDefault(); return run(async () => { const r = await api.mfaRecoveryCodes(code.trim()); setCodes(r.recoveryCodes); setStep("codes"); setCode(""); status.reload(); }); };
+  const disable = (e) => { e.preventDefault(); return run(async () => { await api.mfaDisable(code.trim(), password || undefined); setStep("idle"); setCode(""); setPassword(""); status.reload(); refreshUser?.(); }); };
+  return (
+    <div className="panel" style={{ marginTop: 14, maxWidth: 560 }}>
+      <h2 className="h2 sm">Two-factor sign-in</h2>
+      <div style={{ fontSize: 12.5, color: "var(--muted)", margin: "4px 0 12px", lineHeight: 1.5 }}>
+        Ask for a code from an authenticator app (Google Authenticator, 1Password, Authy) after your password. Sign-in with GitHub is protected by your GitHub two-factor settings instead.
+      </div>
+      <ErrorBox error={status.error} />
+      {step === "idle" && (enabled ? (
+        <div>
+          <div style={{ fontSize: 13.5, color: "var(--green)" }}>On. {status.data.recoveryCodesLeft} recovery code{status.data.recoveryCodesLeft === 1 ? "" : "s"} left.</div>
+          <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
+            <button className="btn secondary small" onClick={() => { setStep("regen"); setErr(null); setCode(""); }}>New recovery codes</button>
+            <button className="btn secondary small" onClick={() => { setStep("disable"); setErr(null); setCode(""); setPassword(""); }}>Turn off</button>
+          </div>
+        </div>
+      ) : <button className="btn primary small" disabled={busy || status.loading} onClick={begin}>Set up two-factor</button>)}
+      {step === "setup" && secret && (
+        <form onSubmit={confirm} noValidate>
+          <div style={{ fontSize: 13, color: "var(--fg-2)", lineHeight: 1.6 }}>1. In your authenticator app choose <b>Add account</b> and enter this key (or open the link on your phone):</div>
+          <div className="secret-box" style={{ margin: "10px 0" }}>{secret.secret}</div>
+          <div style={{ display: "flex", gap: 10, marginBottom: 12 }}><CopyButton text={secret.secret} label="Copy key" className="btn secondary small" /><a className="btn secondary small" href={secret.otpauthUri}>Open in authenticator</a></div>
+          <div style={{ fontSize: 13, color: "var(--fg-2)", lineHeight: 1.6 }}>2. Enter the 6-digit code it shows to finish:</div>
+          <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+            <input className="input mono" style={{ flex: "1 1 140px", letterSpacing: "0.15em" }} inputMode="numeric" autoComplete="one-time-code" maxLength={8} placeholder="123456" value={code} onChange={(e) => setCode(e.target.value)} aria-label="Authenticator code" />
+            <button className="btn primary small" disabled={busy}>Turn on</button>
+            <button type="button" className="btn secondary small" onClick={() => { setStep("idle"); setSecret(null); }}>Cancel</button>
+          </div>
+        </form>
+      )}
+      {step === "codes" && codes && (
+        <div className="banner warn" style={{ display: "block" }}>
+          <strong>Save these recovery codes now.</strong> Each works once if you lose your phone. They are shown only this time.
+          <div className="secret-box" style={{ margin: "10px 0", columns: 2, lineHeight: 1.9 }}>{codes.map((c) => <div key={c}>{c}</div>)}</div>
+          <div style={{ display: "flex", gap: 10 }}>
+            <CopyButton text={codes.join("\n")} label="Copy codes" className="btn primary small" />
+            <button className="btn secondary small" onClick={() => { setCodes(null); setStep("idle"); }}>I have saved them</button>
+          </div>
+        </div>
+      )}
+      {(step === "regen" || step === "disable") && (
+        <form onSubmit={step === "regen" ? regenerate : disable} noValidate>
+          <div style={{ fontSize: 13, color: "var(--fg-2)", lineHeight: 1.6 }}>{step === "regen" ? "Enter a current code to replace your recovery codes. The old ones stop working." : "Enter your password and a current code to turn two-factor off."}</div>
+          <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
+            {step === "disable" && user?.hasPassword !== false && <input className="input" type="password" style={{ flex: "1 1 160px" }} autoComplete="current-password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} aria-label="Password" />}
+            <input className="input mono" style={{ flex: "1 1 140px", letterSpacing: "0.15em" }} autoComplete="one-time-code" maxLength={24} placeholder="123456" value={code} onChange={(e) => setCode(e.target.value)} aria-label="Code" />
+            <button className="btn primary small" disabled={busy}>{step === "regen" ? "Replace codes" : "Turn off"}</button>
+            <button type="button" className="btn secondary small" onClick={() => setStep("idle")}>Cancel</button>
+          </div>
+        </form>
+      )}
+      {err && <div className="field-error" style={{ marginTop: 8 }}>{err.message}</div>}
+    </div>
+  );
+}
+
+/** "expires in 12 days", "expired", or "never expires", for a key's list row. */
+function ExpiryNote({ at }) {
+  if (!at) return <span>never expires</span>;
+  const ms = new Date(at).getTime() - Date.now();
+  if (ms <= 0) return <span style={{ color: "var(--red)" }}>expired</span>;
+  const d = Math.ceil(ms / 86_400_000);
+  return <span style={{ color: d <= 7 ? "var(--amber)" : undefined }}>expires in {d} day{d === 1 ? "" : "s"}</span>;
+}
+
 function ApiKeysPanel({ projectId }) {
   const { data, error, reload } = useApi(() => api.apiKeys(projectId), [projectId]);
   const [name, setName] = useState("");
   const [scope, setScope] = useState("read");
+  const [days, setDays] = useState("90"); // "never" or a number of days
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
   const [fresh, setFresh] = useState(null);
 
   async function create(e) {
     e.preventDefault(); setBusy(true); setErr(null);
-    try { setFresh(await api.createApiKey(projectId, { name: name.trim(), scope })); setName(""); reload(); }
+    try { setFresh(await api.createApiKey(projectId, { name: name.trim(), scope, expiresInDays: days === "never" ? null : Number(days) })); setName(""); reload(); }
     catch (x) { setErr(x); } finally { setBusy(false); }
   }
   const [confirming, setConfirming] = useState(null);
@@ -381,13 +463,14 @@ function ApiKeysPanel({ projectId }) {
       )}
       {active.length === 0 ? <div style={{ fontSize: 13, color: "var(--muted)", marginBottom: 12 }}>No active keys.</div> : active.map((k) => (
         <div key={k.id} className="row-sep">
-          <span style={{ fontSize: 13, color: "var(--fg-2)" }}>{k.name} <span className="pill" style={{ fontSize: 11, marginLeft: 6, color: k.scope === "write" ? "var(--amber)" : "var(--fg-3)" }}>{k.scope}</span><br /><span className="mono" style={{ fontSize: 11, color: "var(--dim)" }}>{k.prefix}… · {k.lastUsedAt ? "used " + timeAgo(k.lastUsedAt) : "never used"}</span></span>
+          <span style={{ fontSize: 13, color: "var(--fg-2)" }}>{k.name} <span className="pill" style={{ fontSize: 11, marginLeft: 6, color: k.scope === "write" ? "var(--amber)" : "var(--fg-3)" }}>{k.scope}</span><br /><span className="mono" style={{ fontSize: 11, color: "var(--dim)" }}>{k.prefix}… · {k.lastUsedAt ? "used " + timeAgo(k.lastUsedAt) : "never used"} · <ExpiryNote at={k.expiresAt} /></span></span>
           <button className="link-btn danger" onClick={() => setConfirming(k)}>Revoke</button>
         </div>
       ))}
       <form noValidate onSubmit={create} style={{ display: "flex", gap: 8, marginTop: 14, flexWrap: "wrap" }}>
         <input className="input" style={{ flex: "1 1 160px" }} placeholder="Key name (e.g. CI)" value={name} onChange={(e) => setName(e.target.value)} required maxLength={60} aria-label="Key name" />
         <select className="select" style={{ width: 110 }} value={scope} onChange={(e) => setScope(e.target.value)} aria-label="Scope"><option value="read">read</option><option value="write">write</option></select>
+        <select className="select" style={{ width: 150 }} value={days} onChange={(e) => setDays(e.target.value)} aria-label="Expires"><option value="30">expires in 30 days</option><option value="90">expires in 90 days</option><option value="365">expires in 1 year</option><option value="never">never expires</option></select>
         <button className="btn primary small" disabled={busy}>Create key</button>
       </form>
       {err && <div className="field-error" style={{ marginTop: 8 }}>{err.message}</div>}
@@ -436,6 +519,7 @@ export function Settings() {
         <button className="btn secondary small" style={{ marginTop: 12 }} disabled={testing} onClick={testNet}>{testing ? "Testing…" : "Test connection"}</button>
       </div>
       <ApiKeysPanel projectId={project.id} />
+      <TwoFactorPanel />
       <div className="panel" style={{ marginTop: 14, maxWidth: 560 }}>
         <h2 className="h2 sm" style={{ marginBottom: 8 }}>Audit log</h2>
         {audit.data?.length === 0 ? <div style={{ fontSize: 13, color: "var(--muted)" }}>No changes recorded yet.</div> : audit.data?.slice(0, 15).map((a, i) => (

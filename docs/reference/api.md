@@ -99,16 +99,36 @@ contact the outside (replay, test delivery, contract test). The SDK retries `GET
 ## Accounts
 
 ### POST /api/v1/auth/signup
-**Public.** Body `{ "email", "password" }` (password 12–200 characters). `201` with `{ user }` and a session cookie. `409 email_taken`. Rate limited per IP. A verification email is sent best-effort (it never makes sign-up fail or wait more than a few seconds). The `user` object is `{ id, email, emailVerified, githubLinked, githubLogin, hasPassword }`; the password hash is never returned.
+**Public.** Body `{ "email", "password" }` (password 12–200 characters). `201` with `{ user }` and a session cookie. `409 email_taken`. Rate limited per IP. A verification email is sent best-effort (it never makes sign-up fail or wait more than a few seconds). The `user` object is `{ id, email, mfaEnabled, emailVerified, githubLinked, githubLogin, hasPassword }`; the password hash is never returned.
 
 ### POST /api/v1/auth/login
 **Public.** Body `{ "email", "password" }`. `200` with `{ user }` and a session cookie. The same `401 invalid_credentials` is returned whether the email exists or not, and the work done is the same, so timing does not leak it. Rate limited per IP and per email.
+
+If the account has two-factor sign-in on, a correct password does **not** start a session: the answer is `200 { mfaRequired: true, challenge }` (no cookie), and the client finishes with [`POST /auth/login/mfa`](#post-apiv1authloginmfa) within 5 minutes.
+
+### POST /api/v1/auth/login/mfa
+**Public.** Body `{ "challenge", "code" }`: the challenge from the login answer and either a 6-digit authenticator code or an unused recovery code. `200 { user }` and a session cookie. `401 invalid_code` (wrong, stale or already-used code; the challenge stays usable until it expires or is answered) and `401 challenge_expired` (unknown, used or older than 5 minutes). A code works once; rate limited per IP and per account.
+
+### GET /api/v1/auth/mfa
+**Session.** Two-factor status: `{ enabled, recoveryCodesLeft }`.
+
+### POST /api/v1/auth/mfa/setup
+**Session.** Starts two-factor setup: `{ secret, otpauthUri }` (a fresh secret to add to an authenticator app by key or `otpauth://` link; stored encrypted, not active yet). `409 mfa_already_enabled` while it is on.
+
+### POST /api/v1/auth/mfa/enable
+**Session.** Body `{ "code" }`, the first code from the authenticator. Turns two-factor on and returns `{ enabled: true, recoveryCodes }`: ten one-time codes, **shown only this once** (only hashes are kept). `401 invalid_code`; `409 mfa_not_pending` if setup was not started.
+
+### POST /api/v1/auth/mfa/recovery-codes
+**Session.** Body `{ "code" }` (an authenticator or recovery code). Replaces the recovery codes with ten new ones, returned once as `{ recoveryCodes }`; the old ones stop working.
+
+### POST /api/v1/auth/mfa/disable
+**Session.** Body `{ "code", "password" }`: turns two-factor off after checking both the current password (accounts without a password, created through GitHub, skip it) and a code. `{ enabled: false }`.
 
 ### POST /api/v1/auth/logout
 Revokes the session and clears the cookie. `{ "ok": true }`.
 
 ### GET /api/v1/auth/me
-**Session.** `{ user: { id, email, emailVerified, githubLinked, githubLogin, hasPassword } }`.
+**Session.** `{ user: { id, email, mfaEnabled, emailVerified, githubLinked, githubLogin, hasPassword } }`.
 
 ### GET /api/v1/auth/providers
 **Public.** Which sign-in options this server offers: `{ github: boolean, email: boolean }`. `email` is `true` only when a real email provider is configured, so a UI can warn when reset emails cannot be sent.
@@ -273,10 +293,10 @@ Response `{ items, total, limit, offset }`; each item is an event (below) plus `
 ## API keys
 
 ### POST /api/v1/projects/:projectId/api-keys
-**Session.** Body `{ "name", "scope": "read" | "write" }` (default `read`). `201` with the key record **and the one-time `key`** (`pops_…`). `409 key_limit` at 10 active keys. Only a hash is stored.
+**Session.** Body `{ "name", "scope": "read" | "write", "expiresInDays" }`. `scope` defaults to `read`. `expiresInDays` is 1 to 365; **omitted means 90 days**, and `null` means the key never expires. `201` with the key record (including `expiresAt`) **and the one-time `key`** (`pops_…`). `409 key_limit` at 10 active keys. Only a hash is stored. A key past its expiry is refused with `401 api_key_expired`.
 
 ### GET /api/v1/projects/:projectId/api-keys
-**Session.** `[{ id, name, scope, prefix, createdAt, lastUsedAt, revokedAt }]`. The full key is never shown again.
+**Session.** `[{ id, name, scope, prefix, createdAt, lastUsedAt, revokedAt, expiresAt }]` (`expiresAt` is null for a key that never expires). The full key is never shown again.
 
 ### DELETE /api/v1/api-keys/:keyId
 **Session.** Revokes the key immediately. `{ "ok": true }`.

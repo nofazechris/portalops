@@ -60,6 +60,9 @@ The OAuth App's **Authorization callback URL** must be exactly `<PORTALOPS_PUBLI
 | Variable | Default | Meaning |
 |---|---|---|
 | `PORTALOPS_POLL_MS` | `6000` | How often the worker polls for new blocks |
+| `PORTALOPS_RATE_LIMIT_STORE` | `memory` | `database` keeps rate-limit counters in the database so several API instances enforce one shared limit. Leave it unset for a single instance (no extra writes). |
+| `PORTALOPS_MAX_PARALLEL_DELIVERIES` | `8` | Webhook deliveries the worker attempts at the same time |
+| `PORTALOPS_MAX_DELIVERIES_PER_ENDPOINT` | `2` | Most deliveries in flight to one endpoint at once, so a single slow endpoint cannot take every slot |
 | `PORTALOPS_DEMO_LOOKBACK_BLOCKS` | `120000` | How far back the public explorer project reads on its first run |
 
 Per-project capture starts at the contract's `startBlock`, or about the last 1,000 blocks when none is given.

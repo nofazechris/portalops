@@ -31,6 +31,8 @@ const DB = process.env.PORTALOPS_DB_PATH || resolve(ROOT, "data/portalops.sqlite
 const NETWORK = "portaldot-v3-testnet";
 const POLL_MS = Number(process.env.PORTALOPS_POLL_MS || 6_000);
 const ALLOW_PRIVATE = process.env.PORTALOPS_ALLOW_PRIVATE_WEBHOOK_TARGETS === "1";
+const MAX_PARALLEL = Number(process.env.PORTALOPS_MAX_PARALLEL_DELIVERIES || 8); // deliveries attempted at once
+const MAX_PER_ENDPOINT = Number(process.env.PORTALOPS_MAX_DELIVERIES_PER_ENDPOINT || 2); // ... and at most this many to one endpoint
 const DEMO_LOOKBACK = Number(process.env.PORTALOPS_DEMO_LOOKBACK_BLOCKS || 120_000); // covers the whole testnet so far
 const DEFAULT_LOOKBACK = 1_000;
 
@@ -88,7 +90,7 @@ while (!stopping) {
       }
     }
     await beat({ phase: "delivering", head: head.number });
-    const attempts = await runDueDeliveries({ store, encryptionKey, guard: { allowPrivate: ALLOW_PRIVATE } }, 50);
+    const attempts = await runDueDeliveries({ store, encryptionKey, guard: { allowPrivate: ALLOW_PRIVATE }, maxParallel: MAX_PARALLEL, maxPerEndpoint: MAX_PER_ENDPOINT }, 50);
     if (attempts) console.log(`${new Date().toISOString()} ${attempts} delivery attempt(s)`);
     failures = 0;
   } catch (e) {

@@ -10,7 +10,11 @@ CREATE TABLE IF NOT EXISTS users (
   created_at     TEXT NOT NULL,
   email_verified_at TEXT,                       -- set when the user proves they own the address (email link, password reset, or GitHub)
   github_id      TEXT,                          -- GitHub's numeric user id (stable, unlike the login)
-  github_login   TEXT
+  github_login   TEXT,
+  totp_secret     TEXT,                         -- AES-256-GCM envelope of the base32 shared secret (set when two-factor setup begins)
+  totp_enabled_at TEXT,                         -- set once the user has proved their authenticator works; NULL = two-factor is off
+  totp_last_step  INTEGER,                      -- the last 30-second step accepted, so a code cannot be used twice
+  recovery_codes  TEXT                          -- JSON array of sha256 hashes of the unused recovery codes
 );
 
 -- Single-use, expiring tokens for "verify your email" and "reset your password". Only a hash is stored.
@@ -185,7 +189,8 @@ CREATE TABLE IF NOT EXISTS api_keys (
   created_by   TEXT,
   created_at   TEXT NOT NULL,
   last_used_at TEXT,
-  revoked_at   TEXT
+  revoked_at   TEXT,
+  expires_at   TEXT                             -- NULL = never expires
 );
 CREATE INDEX IF NOT EXISTS api_keys_project ON api_keys (project_id);
 
@@ -212,3 +217,10 @@ CREATE TABLE IF NOT EXISTS receiver_requests (
   body_preview     TEXT
 );
 CREATE INDEX IF NOT EXISTS receiver_requests_recv ON receiver_requests (receiver_id, id DESC);
+
+-- Request counters shared by every API instance (used when PORTALOPS_RATE_LIMIT_STORE=database). Fixed windows, pruned as they expire.
+CREATE TABLE IF NOT EXISTS rate_limits (
+  key        TEXT PRIMARY KEY,
+  hits       INTEGER NOT NULL,
+  window_end INTEGER NOT NULL
+);

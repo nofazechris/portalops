@@ -12,7 +12,9 @@ import { BlockedTargetError, validateWebhookUrl, type GuardOptions } from "../..
 import { clearedSessionCookie, dummyHash, hashPassword, hashToken, newSessionToken, SESSION_COOKIE, sessionCookie, verifyPassword } from "./auth.ts";
 import { resetPasswordMessage, verifyEmailMessage } from "../../packages/email/templates.ts";
 import type { EmailSender } from "../../packages/email/index.ts";
-import { ApiError, clientIp, parseCookies, parseJsonBody, RateLimiter, readRaw, Router, sendJson, MAX_BODY_BYTES, type Ctx } from "./http.ts";
+import { ApiError, clientIp, parseCookies, parseJsonBody, RateLimiter, readRaw, Router, sendJson, MAX_BODY_BYTES, type Ctx, type Limiter } from "./http.ts";
+import { SharedRateLimiter } from "./shared-limiter.ts";
+import { hashRecoveryCode, newRecoveryCodes, newTotpSecret, otpauthUri, verifyTotp } from "./totp.ts";
 
 export interface NetworkCheck {
   chainIdVerified: boolean;
@@ -67,7 +69,9 @@ export interface AppDeps {
   store: Store;
   config: AppConfig;
   network: NetworkProbe;
-  rateLimits?: { auth?: RateLimiter; global?: RateLimiter; actions?: RateLimiter; keys?: RateLimiter };
+  rateLimits?: { auth?: Limiter; global?: Limiter; actions?: Limiter; keys?: Limiter };
+  /** Keep rate-limit counters in the database so several API instances share them (default: in this process). */
+  sharedRateLimits?: boolean;
 }
 
 const ADDRESS = /^0x[0-9a-fA-F]{40}$/;
@@ -86,6 +90,9 @@ const retryPolicyInput = z
 const schemas = {
   signup: z.object({ email: z.string().trim().toLowerCase().email().max(254), password: z.string().min(12, "At least 12 characters.").max(200) }),
   login: z.object({ email: z.string().trim().toLowerCase().email().max(254), password: z.string().min(1).max(200) }),
+  mfaCode: z.object({ code: z.string().trim().min(6).max(24) }),
+  mfaLogin: z.object({ challenge: z.string().min(20).max(100), code: z.string().trim().min(6).max(24) }),
+  mfaDisable: z.object({ code: z.string().trim().min(6).max(24), password: z.string().max(200).optional() }),
   forgot: z.object({ email: z.string().trim().toLowerCase().email().max(254) }),
   token: z.object({ token: z.string().min(20).max(200) }),
   reset: z.object({ token: z.string().min(20).max(200), password: z.string().min(12, "At least 12 characters.").max(200) }),
@@ -125,7 +132,12 @@ const schemas = {
     endpointId: z.string().min(1).max(64),
   }),
   automationPatch: z.object({ enabled: z.boolean() }),
-  apiKey: z.object({ name: z.string().trim().min(1).max(60), scope: z.enum(["read", "write"]).default("read") }),
+  apiKey: z.object({
+    name: z.string().trim().min(1).max(60),
+    scope: z.enum(["read", "write"]).default("read"),
+    /** Days until the key stops working. Omitted = 90; null = never expires. */
+    expiresInDays: z.number().int().min(1).max(365).nullable().optional(),
+  }),
   receiverPatch: z.object({ mode: z.enum(["ok", "fail500", "fail400", "timeout"]) }),
   eventQuery: z.object({
     q: z.string().trim().max(200).optional(),
@@ -156,10 +168,11 @@ function parse<T extends z.ZodTypeAny>(schema: T, data: unknown): z.infer<T> {
 export function createApp(deps: AppDeps): (req: IncomingMessage, res: ServerResponse) => Promise<void> {
   const { store, config, network } = deps;
   const now = config.now ?? (() => new Date());
-  const authLimiter = deps.rateLimits?.auth ?? new RateLimiter(10, 60_000);
-  const globalLimiter = deps.rateLimits?.global ?? new RateLimiter(600, 60_000);
-  const actionLimiter = deps.rateLimits?.actions ?? new RateLimiter(60, 60_000);
-  const keyLimiter = deps.rateLimits?.keys ?? new RateLimiter(600, 60_000);
+  const makeLimiter = (name: string, limit: number, windowMs: number): Limiter => deps.sharedRateLimits ? new SharedRateLimiter(store, name, limit, windowMs) : new RateLimiter(limit, windowMs);
+  const authLimiter = deps.rateLimits?.auth ?? makeLimiter("auth", 10, 60_000);
+  const globalLimiter = deps.rateLimits?.global ?? makeLimiter("global", 600, 60_000);
+  const actionLimiter = deps.rateLimits?.actions ?? makeLimiter("actions", 60, 60_000);
+  const keyLimiter = deps.rateLimits?.keys ?? makeLimiter("keys", 600, 60_000);
   const guard: GuardOptions = { allowPrivate: config.allowPrivateWebhookTargets };
   const router = new Router();
 
@@ -308,7 +321,7 @@ export function createApp(deps: AppDeps): (req: IncomingMessage, res: ServerResp
   // with no account. Hardened for public write: rate-limited per IP, hard-capped, built-in receiver only
   // (no arbitrary URLs, so the SSRF surface is nil), and no secrets are ever returned.
   const PLAYGROUND_MAX_CONTRACTS = 20; // visitor-added, on top of the pinned examples
-  const playgroundLimiter = new RateLimiter(12, 60_000); // write actions per IP per minute
+  const playgroundLimiter = makeLimiter("playground", 12, 60_000); // write actions per IP per minute
   const pgWatchSchema = z.object({
     address: z.string().trim().regex(/^0x[0-9a-fA-F]{40}$/, "An address is 0x followed by 40 hex characters."),
     example: z.string().trim().optional(),
@@ -364,7 +377,7 @@ export function createApp(deps: AppDeps): (req: IncomingMessage, res: ServerResp
 
   router.add("POST", "/api/v1/playground/watch", async (ctx) => {
     const { project } = await ensurePlayground();
-    const wait = playgroundLimiter.hit("pgwatch:" + ctx.ip);
+    const wait = await playgroundLimiter.hit("pgwatch:" + ctx.ip);
     if (wait) throw new ApiError(429, "rate_limited", `Easy there — try again in ${wait}s.`);
     const body = parse(pgWatchSchema, ctx.body);
     const existing = await store.listContracts(project.id);
@@ -384,7 +397,7 @@ export function createApp(deps: AppDeps): (req: IncomingMessage, res: ServerResp
 
   router.add("POST", "/api/v1/playground/test-delivery", async (ctx) => {
     const { endpoint } = await ensurePlayground();
-    const wait = playgroundLimiter.hit("pgtest:" + ctx.ip);
+    const wait = await playgroundLimiter.hit("pgtest:" + ctx.ip);
     if (wait) throw new ApiError(429, "rate_limited", `Easy there — try again in ${wait}s.`);
     const found = await store.getEndpointWithSecret(endpoint.id);
     if (!found) throw new ApiError(503, "unavailable", "The playground receiver is not ready.");
@@ -398,11 +411,11 @@ export function createApp(deps: AppDeps): (req: IncomingMessage, res: ServerResp
   // ------------------------------------------------------------------- auth
   const publicUrl = (config.publicUrl ?? "http://localhost:5173").replace(/\/+$/, "");
   const outbound = config.fetch ?? fetch;
-  const resendLimiter = new RateLimiter(1, 60_000); // one verification email per user per minute
+  const resendLimiter = makeLimiter("resend", 1, 60_000); // one verification email per user per minute
   const sleep = (ms: number) => new Promise<void>((r) => { const t = setTimeout(r, ms); t.unref(); });
 
   /** What the browser is told about an account: never the hash. */
-  const userView = (u: UserRecord) => ({ id: u.id, email: u.email, emailVerified: u.emailVerifiedAt !== null, githubLinked: u.githubId !== null, githubLogin: u.githubLogin, hasPassword: u.passwordHash !== NO_PASSWORD });
+  const userView = (u: UserRecord) => ({ id: u.id, email: u.email, mfaEnabled: u.totpEnabledAt !== null, emailVerified: u.emailVerifiedAt !== null, githubLinked: u.githubId !== null, githubLogin: u.githubLogin, hasPassword: u.passwordHash !== NO_PASSWORD });
   const newToken = () => randomBytes(32).toString("base64url");
 
   /** Creates a single-use link token and emails it. Returns whether the provider accepted the message. */
@@ -420,7 +433,7 @@ export function createApp(deps: AppDeps): (req: IncomingMessage, res: ServerResp
   }
 
   router.add("POST", "/api/v1/auth/signup", async (ctx) => {
-    const wait = authLimiter.hit("signup:" + ctx.ip);
+    const wait = await authLimiter.hit("signup:" + ctx.ip);
     if (wait) throw new ApiError(429, "rate_limited", `Too many attempts. Try again in ${wait}s.`);
     const body = parse(schemas.signup, ctx.body);
     const user = await store.createUser(body.email, await hashPassword(body.password));
@@ -434,7 +447,7 @@ export function createApp(deps: AppDeps): (req: IncomingMessage, res: ServerResp
 
   router.add("POST", "/api/v1/auth/login", async (ctx) => {
     const body = parse(schemas.login, ctx.body);
-    const wait = Math.max(authLimiter.hit("login:" + ctx.ip), authLimiter.hit("login-email:" + body.email));
+    const wait = Math.max(await authLimiter.hit("login:" + ctx.ip), await authLimiter.hit("login-email:" + body.email));
     if (wait) throw new ApiError(429, "rate_limited", `Too many attempts. Try again in ${wait}s.`);
     const user = await store.getUserByEmail(body.email);
     // Accounts without a password (GitHub-only) are checked against the dummy hash, so they cost the same time as any wrong password.
@@ -444,9 +457,101 @@ export function createApp(deps: AppDeps): (req: IncomingMessage, res: ServerResp
       await store.audit("auth.login_failed", user?.id ?? null, null);
       throw new ApiError(401, "invalid_credentials", "Incorrect email or password."); // same message for both cases
     }
+    if (user.totpEnabledAt) {
+      // Right password, but this account needs a second factor: no session yet, just a short-lived challenge to answer with a code.
+      const challenge = newToken();
+      await store.createAuthToken(user.id, "mfa_login", hashToken(challenge), new Date(now().getTime() + MFA_CHALLENGE_TTL_MS), now());
+      await store.audit("auth.login_mfa_required", user.id, null);
+      return { mfaRequired: true, challenge };
+    }
     await store.audit("auth.login", user.id, null);
     return await startSession(ctx, user.id, userView(user), 200);
   }, "none");
+
+  // ---- two-factor sign-in (TOTP). GitHub sign-in is not asked for a code: GitHub enforces its own two-factor on the account.
+  const MFA_CHALLENGE_TTL_MS = 5 * 60_000;
+
+  /** Accepts a current authenticator code or an unused recovery code for a user who has two-factor on. Each is single-use. */
+  async function checkSecondFactor(userId: string, code: string): Promise<"totp" | "recovery" | null> {
+    const t = await store.getTotp(userId);
+    if (!t?.enabledAt || !t.secretEnc) return null;
+    const v = verifyTotp(decryptSecret(t.secretEnc, config.encryptionKey), code, now().getTime(), t.lastStep);
+    if (v.ok) return (await store.claimTotpStep(userId, v.step)) ? "totp" : null;
+    if (/^[a-z0-9]{5}[\s-]?[a-z0-9]{5}$/i.test(code.trim()) && await store.useRecoveryCode(userId, hashRecoveryCode(code))) return "recovery";
+    return null;
+  }
+  const mfaThrottle = async (ctx: Ctx, userId: string) => {
+    const wait = Math.max(await authLimiter.hit("mfa:" + ctx.ip), await authLimiter.hit("mfa-user:" + userId));
+    if (wait) throw new ApiError(429, "rate_limited", `Too many attempts. Try again in ${wait}s.`);
+  };
+  const badCode = () => new ApiError(401, "invalid_code", "That code is not right, or it was already used. Codes change every 30 seconds.");
+
+  router.add("POST", "/api/v1/auth/login/mfa", async (ctx) => {
+    const body = parse(schemas.mfaLogin, ctx.body);
+    const userId = await store.peekAuthToken("mfa_login", hashToken(body.challenge), now());
+    if (!userId) throw new ApiError(401, "challenge_expired", "That sign-in expired. Enter your password again.");
+    await mfaThrottle(ctx, userId);
+    const how = await checkSecondFactor(userId, body.code);
+    if (!how) { await store.audit("auth.mfa_failed", userId, null); throw badCode(); }
+    if (!await store.consumeAuthToken("mfa_login", hashToken(body.challenge), now())) throw new ApiError(401, "challenge_expired", "That sign-in expired. Enter your password again.");
+    await store.audit("auth.login", userId, null, { second: how });
+    return await startSession(ctx, userId, userView((await store.getUser(userId))!), 200);
+  }, "none");
+
+  router.add("GET", "/api/v1/auth/mfa", async (ctx) => {
+    sessionOnly(ctx);
+    const t = await store.getTotp(requireUser(ctx));
+    return { enabled: !!t?.enabledAt, recoveryCodesLeft: t?.enabledAt ? t.recoveryLeft : 0 };
+  });
+
+  router.add("POST", "/api/v1/auth/mfa/setup", async (ctx) => {
+    sessionOnly(ctx);
+    const userId = requireUser(ctx);
+    const user = (await store.getUser(userId))!;
+    const secret = newTotpSecret();
+    if (!await store.setTotpSecret(userId, encryptSecret(secret, config.encryptionKey))) throw new ApiError(409, "mfa_already_enabled", "Two-factor sign-in is already on. Turn it off first to set it up again.");
+    return { secret, otpauthUri: otpauthUri(user.email, secret) }; // shown once, to be added to an authenticator app
+  });
+
+  router.add("POST", "/api/v1/auth/mfa/enable", async (ctx) => {
+    sessionOnly(ctx);
+    const userId = requireUser(ctx);
+    await mfaThrottle(ctx, userId);
+    const body = parse(schemas.mfaCode, ctx.body);
+    const t = await store.getTotp(userId);
+    if (!t?.secretEnc || t.enabledAt) throw new ApiError(409, "mfa_not_pending", "Start setup first.");
+    const v = verifyTotp(decryptSecret(t.secretEnc, config.encryptionKey), body.code, now().getTime(), null);
+    if (!v.ok) throw badCode();
+    const recoveryCodes = newRecoveryCodes();
+    if (!await store.enableTotp(userId, now(), v.step, recoveryCodes.map(hashRecoveryCode))) throw new ApiError(409, "mfa_not_pending", "Start setup first.");
+    await store.audit("auth.mfa_enabled", userId, null);
+    return { enabled: true, recoveryCodes }; // the only time they are shown
+  });
+
+  router.add("POST", "/api/v1/auth/mfa/recovery-codes", async (ctx) => {
+    sessionOnly(ctx);
+    const userId = requireUser(ctx);
+    await mfaThrottle(ctx, userId);
+    const body = parse(schemas.mfaCode, ctx.body);
+    if (!await checkSecondFactor(userId, body.code)) throw badCode();
+    const recoveryCodes = newRecoveryCodes();
+    await store.setRecoveryCodes(userId, recoveryCodes.map(hashRecoveryCode));
+    await store.audit("auth.mfa_recovery_regenerated", userId, null);
+    return { recoveryCodes };
+  });
+
+  router.add("POST", "/api/v1/auth/mfa/disable", async (ctx) => {
+    sessionOnly(ctx);
+    const userId = requireUser(ctx);
+    await mfaThrottle(ctx, userId);
+    const body = parse(schemas.mfaDisable, ctx.body);
+    const user = (await store.getUser(userId))!;
+    if (user.passwordHash !== NO_PASSWORD && !(body.password && await verifyPassword(body.password, user.passwordHash))) throw new ApiError(401, "invalid_credentials", "Enter your current password to turn two-factor off.");
+    if (!await checkSecondFactor(userId, body.code)) throw badCode();
+    await store.disableTotp(userId);
+    await store.audit("auth.mfa_disabled", userId, null);
+    return { enabled: false };
+  });
 
   async function startSession(ctx: Ctx, userId: string, user: ReturnType<typeof userView>, status: number) {
     const { token, hash } = newSessionToken();
@@ -472,7 +577,7 @@ export function createApp(deps: AppDeps): (req: IncomingMessage, res: ServerResp
   const invalidToken = () => new ApiError(400, "invalid_token", "This link is invalid or has expired. Request a new one.");
 
   router.add("POST", "/api/v1/auth/verify-email", async (ctx) => {
-    const wait = authLimiter.hit("verify:" + ctx.ip);
+    const wait = await authLimiter.hit("verify:" + ctx.ip);
     if (wait) throw new ApiError(429, "rate_limited", `Too many attempts. Try again in ${wait}s.`);
     const { token } = parse(schemas.token, ctx.body);
     const userId = await store.consumeAuthToken("verify_email", hashToken(token), now());
@@ -488,7 +593,7 @@ export function createApp(deps: AppDeps): (req: IncomingMessage, res: ServerResp
     const user = await store.getUser(userId);
     if (!user) throw new ApiError(401, "unauthenticated", "Sign in to continue.");
     if (user.emailVerifiedAt) return { sent: false, alreadyVerified: true };
-    const wait = resendLimiter.hit("resend:" + userId);
+    const wait = await resendLimiter.hit("resend:" + userId);
     if (wait) throw new ApiError(429, "rate_limited", `Please wait ${wait}s before asking for another email.`);
     const ok = await sendAccountEmail("verify_email", user);
     if (!ok) throw new ApiError(503, "email_unavailable", "We couldn't send the email right now. Try again in a few minutes.");
@@ -497,7 +602,7 @@ export function createApp(deps: AppDeps): (req: IncomingMessage, res: ServerResp
 
   router.add("POST", "/api/v1/auth/forgot-password", async (ctx) => {
     const body = parse(schemas.forgot, ctx.body);
-    const wait = Math.max(authLimiter.hit("forgot:" + ctx.ip), authLimiter.hit("forgot-email:" + body.email));
+    const wait = Math.max(await authLimiter.hit("forgot:" + ctx.ip), await authLimiter.hit("forgot-email:" + body.email));
     if (wait) throw new ApiError(429, "rate_limited", `Too many attempts. Try again in ${wait}s.`);
     // The same answer, in the same time, whether or not the account exists: the email (if any) is sent in the background.
     void (async () => {
@@ -508,7 +613,7 @@ export function createApp(deps: AppDeps): (req: IncomingMessage, res: ServerResp
   }, "none");
 
   router.add("POST", "/api/v1/auth/reset-password", async (ctx) => {
-    const wait = authLimiter.hit("reset:" + ctx.ip);
+    const wait = await authLimiter.hit("reset:" + ctx.ip);
     if (wait) throw new ApiError(429, "rate_limited", `Too many attempts. Try again in ${wait}s.`);
     const body = parse(schemas.reset, ctx.body);
     const userId = await store.consumeAuthToken("reset_password", hashToken(body.token), now());
@@ -528,7 +633,7 @@ export function createApp(deps: AppDeps): (req: IncomingMessage, res: ServerResp
 
   router.add("GET", "/api/v1/auth/github/start", async (ctx) => {
     if (!config.github) throw new ApiError(404, "github_unavailable", "GitHub sign-in is not configured on this server.");
-    const wait = authLimiter.hit("gh-start:" + ctx.ip);
+    const wait = await authLimiter.hit("gh-start:" + ctx.ip);
     if (wait) throw new ApiError(429, "rate_limited", `Too many attempts. Try again in ${wait}s.`);
     const state = randomBytes(24).toString("base64url");
     const q = new URLSearchParams({ client_id: config.github.clientId, redirect_uri: `${publicUrl}/api/v1/auth/github/callback`, scope: "read:user user:email", state, allow_signup: "true" });
@@ -537,7 +642,7 @@ export function createApp(deps: AppDeps): (req: IncomingMessage, res: ServerResp
 
   router.add("GET", "/api/v1/auth/github/callback", async (ctx) => {
     if (!config.github) return authError("github_unavailable");
-    const wait = authLimiter.hit("gh-cb:" + ctx.ip);
+    const wait = await authLimiter.hit("gh-cb:" + ctx.ip);
     if (wait) return authError("rate_limited");
     const q = ctx.url.searchParams;
     const expected = parseCookies(ctx.req.headers.cookie)[OAUTH_COOKIE] ?? "";
@@ -630,7 +735,7 @@ export function createApp(deps: AppDeps): (req: IncomingMessage, res: ServerResp
 
   router.add("POST", "/api/v1/projects/:projectId/network/test", async (ctx) => {
     const p = await ownedProject(ctx, ctx.params.projectId);
-    const wait = actionLimiter.hit("nettest:" + ctx.userId);
+    const wait = await actionLimiter.hit("nettest:" + ctx.userId);
     if (wait) throw new ApiError(429, "rate_limited", `Try again in ${wait}s.`);
     const live = await liveNetwork(true);
     await store.log(live.chainIdVerified ? "info" : "error", "rpc", `Network test: ${live.chainIdVerified ? "ok" : live.error ?? "failed"}`, { headBlock: live.headBlock }, p.id);
@@ -708,7 +813,7 @@ export function createApp(deps: AppDeps): (req: IncomingMessage, res: ServerResp
     const c = await store.getContract(ctx.params.contractId);
     if (!c) throw notFound();
     await ownedProject(ctx, c.projectId);
-    const wait = actionLimiter.hit("ctest:" + ctx.userId);
+    const wait = await actionLimiter.hit("ctest:" + ctx.userId);
     if (wait) throw new ApiError(429, "rate_limited", `Try again in ${wait}s.`);
     // Read-only: does bytecode exist at this address on the connected network? Nothing is signed or sent.
     const code = await network.getCode(c.address).catch((e: unknown) => { throw new ApiError(502, "rpc_unavailable", e instanceof Error ? e.message : "RPC unavailable"); });
@@ -738,7 +843,7 @@ export function createApp(deps: AppDeps): (req: IncomingMessage, res: ServerResp
     const e = await store.getEvent(ctx.params.eventId);
     if (!e) throw notFound();
     const p = await ownedProject(ctx, e.projectId);
-    const wait = actionLimiter.hit("replay:" + ctx.userId);
+    const wait = await actionLimiter.hit("replay:" + ctx.userId);
     if (wait) throw new ApiError(429, "rate_limited", `Too many replays. Try again in ${wait}s.`);
     const body = parse(schemas.replay, ctx.body);
     const targets = body.endpointId ? [(await endpointFor(ctx, body.endpointId)).endpoint] : (await store.listEndpoints(p.id)).filter((x) => x.enabled);
@@ -816,7 +921,7 @@ export function createApp(deps: AppDeps): (req: IncomingMessage, res: ServerResp
 
   router.add("POST", "/api/v1/webhooks/:webhookId/test", async (ctx) => {
     const { endpoint, project: p } = await endpointFor(ctx, ctx.params.webhookId);
-    const wait = actionLimiter.hit("whtest:" + ctx.userId);
+    const wait = await actionLimiter.hit("whtest:" + ctx.userId);
     if (wait) throw new ApiError(429, "rate_limited", `Try again in ${wait}s.`);
     const found = (await store.getEndpointWithSecret(endpoint.id))!;
     const secret = decryptSecret(found.encryptedSecret, config.encryptionKey);
@@ -836,13 +941,13 @@ export function createApp(deps: AppDeps): (req: IncomingMessage, res: ServerResp
   // ------------------------------------------------- built-in test receiver
   // Public, unauthenticated sink addressed by an unguessable token. It behaves like a correct consumer: it verifies the
   // signature over the RAW body with the endpoint's own secret, rejects stale timestamps, and de-duplicates on the event id.
-  const receiverLimiter = new RateLimiter(120, 60_000);
+  const receiverLimiter = makeLimiter("receiver", 120, 60_000);
   const hold = (ms: number, req: IncomingMessage) => new Promise<void>((resolve) => { const t = setTimeout(resolve, ms); t.unref(); req.on("close", () => { clearTimeout(t); resolve(); }); });
 
   router.add("POST", "/api/v1/hooks/:token", async (ctx) => {
     const receiver = await store.getReceiverByTokenHash(hashReceiverToken(ctx.params.token));
     if (!receiver) throw notFound(); // same answer for malformed and unknown tokens
-    const wait = receiverLimiter.hit("rcv:" + receiver.id);
+    const wait = await receiverLimiter.hit("rcv:" + receiver.id);
     if (wait) throw new ApiError(429, "rate_limited", `Try again in ${wait}s.`);
 
     const found = await store.getEndpointWithSecret(receiver.endpointId);
@@ -906,6 +1011,7 @@ export function createApp(deps: AppDeps): (req: IncomingMessage, res: ServerResp
   // ----------------------------------------------------------------- API keys
   const hashApiKey = (key: string) => createHash("sha256").update(key).digest("hex");
   const MAX_ACTIVE_KEYS = 10;
+  const DEFAULT_KEY_DAYS = 90; // secure by default: a key that is forgotten eventually stops working
 
   router.add("POST", "/api/v1/projects/:projectId/api-keys", async (ctx) => {
     sessionOnly(ctx);
@@ -913,8 +1019,10 @@ export function createApp(deps: AppDeps): (req: IncomingMessage, res: ServerResp
     const body = parse(schemas.apiKey, ctx.body);
     if (await store.countActiveApiKeys(p.id) >= MAX_ACTIVE_KEYS) throw new ApiError(409, "key_limit", `A project can have up to ${MAX_ACTIVE_KEYS} active API keys. Revoke one first.`);
     const key = "pops_" + randomBytes(32).toString("base64url"); // 256 bits of randomness, so a plain SHA-256 lookup hash is appropriate
-    const rec = await store.createApiKey({ projectId: p.id, name: body.name, scope: body.scope, prefix: key.slice(0, 12), keyHash: hashApiKey(key), createdBy: ctx.userId });
-    await store.audit("api_key.create", ctx.userId, p.id, { keyId: rec.id, scope: rec.scope, name: rec.name });
+    const days = body.expiresInDays === undefined ? DEFAULT_KEY_DAYS : body.expiresInDays;
+    const expiresAt = days === null ? null : new Date(now().getTime() + days * 86_400_000).toISOString();
+    const rec = await store.createApiKey({ projectId: p.id, name: body.name, scope: body.scope, prefix: key.slice(0, 12), keyHash: hashApiKey(key), createdBy: ctx.userId, expiresAt });
+    await store.audit("api_key.create", ctx.userId, p.id, { keyId: rec.id, scope: rec.scope, name: rec.name, expiresAt });
     // The key is returned exactly once, here.
     return { __status: 201, data: { ...rec, key } };
   });
@@ -983,7 +1091,7 @@ export function createApp(deps: AppDeps): (req: IncomingMessage, res: ServerResp
       const method = req.method ?? "GET";
       if (!url.pathname.startsWith("/api/")) return reply(404, { error: { code: "not_found", message: "Not found." } });
 
-      const wait = globalLimiter.hit("ip:" + ip);
+      const wait = await globalLimiter.hit("ip:" + ip);
       if (wait) throw new ApiError(429, "rate_limited", `Too many requests. Try again in ${wait}s.`);
 
       const m = router.match(method, url.pathname);
@@ -1004,7 +1112,8 @@ export function createApp(deps: AppDeps): (req: IncomingMessage, res: ServerResp
         const match = /^Bearer\s+(pops_[A-Za-z0-9_-]{20,128})$/.exec(authz);
         const found = match ? await store.findApiKeyByHash(hashApiKey(match[1])) : null;
         if (!found || found.revokedAt) throw new ApiError(401, "invalid_api_key", "Invalid or revoked API key.");
-        const wait = keyLimiter.hit("key:" + found.id);
+        if (found.expiresAt && now().getTime() >= new Date(found.expiresAt).getTime()) throw new ApiError(401, "api_key_expired", "This API key has expired. Create a new one in Settings → API keys.");
+        const wait = await keyLimiter.hit("key:" + found.id);
         if (wait) throw new ApiError(429, "rate_limited", `Too many requests for this key. Try again in ${wait}s.`);
         if (mutating && found.scope === "read") throw new ApiError(403, "insufficient_scope", "This API key is read-only.");
         userId = found.ownerId;

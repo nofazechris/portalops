@@ -165,3 +165,48 @@ test("enqueue is idempotent: re-ingesting an event does not create a second init
   assert.equal((await enqueueEvent(store, event, ctx.now!())).length, 0);
   void DEFAULT_RETRY_POLICY;
 });
+
+test("delivery: attempts run in parallel but are bounded overall and per endpoint, and a failing batch member does not stop the rest", async (t) => {
+  const http = await import("node:http");
+  let active = 0, maxActive = 0;
+  const perPath = new Map<string, { now: number; max: number }>();
+  const server = http.createServer((req, res) => {
+    const p = perPath.get(req.url!) ?? { now: 0, max: 0 };
+    perPath.set(req.url!, p);
+    active++; p.now++; maxActive = Math.max(maxActive, active); p.max = Math.max(p.max, p.now);
+    req.resume();
+    setTimeout(() => { active--; p.now--; res.writeHead(200); res.end("ok"); }, 80);
+  });
+  await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
+  t.after(() => server.close());
+  const base = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
+
+  const store = await makeTestStore();
+  const key = randomBytes(32);
+  const ctx: RunnerContext = { store, encryptionKey: key, guard: { allowPrivate: true }, now: () => new Date(), random: () => 0.5 };
+  for (let i = 0; i < 4; i++) await store.createEndpoint({ projectId: "p1", url: `${base}/e${i}`, description: null, enabled: true, eventFilter: [], retryPolicy: FAST }, encryptSecret(SECRET, key));
+  let total = 0;
+  for (let n = 1; n <= 6; n++) {
+    const e = normalizeEvmLog({ address: "0x" + "11".repeat(20), topics: ["0xaa"], data: "0x", blockNumber: n, blockHash: "0xb" + n, transactionHash: "0xtx" + n, transactionIndex: 0, logIndex: 0, removed: false }, { projectId: "p1", chainId: 420420777 });
+    await store.insertEvent(e);
+    total += (await enqueueEvent(store, e, new Date())).length;
+  }
+  assert.equal(total, 24);
+
+  const done = await runDueDeliveries(ctx, 50);
+  assert.equal(done, 24, "everything due was attempted");
+  assert.ok(maxActive > 2, "attempts overlapped (not one at a time): " + maxActive);
+  assert.ok(maxActive <= 8, "never more than 8 at once: " + maxActive);
+  for (const [path, v] of perPath) assert.ok(v.max <= 2, `${path} never had more than 2 in flight: ${v.max}`);
+
+  // tighter limits are honoured
+  perPath.clear(); maxActive = 0;
+  for (let n = 7; n <= 9; n++) {
+    const e = normalizeEvmLog({ address: "0x" + "11".repeat(20), topics: ["0xaa"], data: "0x", blockNumber: n, blockHash: "0xb" + n, transactionHash: "0xtx" + n, transactionIndex: 0, logIndex: 0, removed: false }, { projectId: "p1", chainId: 420420777 });
+    await store.insertEvent(e);
+    await enqueueEvent(store, e, new Date());
+  }
+  await runDueDeliveries({ ...ctx, maxParallel: 2, maxPerEndpoint: 1 }, 50);
+  assert.ok(maxActive <= 2, "maxParallel is honoured: " + maxActive);
+  for (const v of perPath.values()) assert.equal(v.max, 1);
+});

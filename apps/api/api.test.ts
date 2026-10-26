@@ -787,3 +787,124 @@ test("examples: public catalog and detail; no auth needed, unknown ids are 404, 
   assert.equal((await c.call("GET", "/api/v1/examples/__proto__")).status, 404);
   assert.ok([404, 405].includes((await c.call("POST", "/api/v1/examples", {})).status), "read-only");
 });
+
+test("api keys: expire after 90 days by default, honour a chosen lifetime or none, and an expired key is refused with its own error", async (t) => {
+  let clock = Date.parse("2026-10-26T12:00:00Z");
+  const h = await start({ now: () => new Date(clock) });
+  t.after(() => h.close());
+  const c = new Client(h.base); await c.signup("kx@example.com");
+  const proj = (await c.call("POST", "/api/v1/projects", { name: "X" })).data;
+  const day = 86_400_000;
+
+  const dflt = await mkKey(c, proj.id, "write", "default");
+  const short = (await c.call("POST", `/api/v1/projects/${proj.id}/api-keys`, { name: "short", scope: "read", expiresInDays: 7 })).data;
+  const forever = (await c.call("POST", `/api/v1/projects/${proj.id}/api-keys`, { name: "forever", scope: "read", expiresInDays: null })).data;
+  const list = (await c.call("GET", `/api/v1/projects/${proj.id}/api-keys`)).data as { name: string; expiresAt: string | null }[];
+  const at = (n: string) => list.find((k) => k.name === n)!.expiresAt;
+  assert.equal(at("default"), new Date(clock + 90 * day).toISOString());
+  assert.equal(at("short"), new Date(clock + 7 * day).toISOString());
+  assert.equal(at("forever"), null);
+  assert.equal((await c.call("POST", `/api/v1/projects/${proj.id}/api-keys`, { name: "x", expiresInDays: 0 })).status, 422);
+  assert.equal((await c.call("POST", `/api/v1/projects/${proj.id}/api-keys`, { name: "x", expiresInDays: 4000 })).status, 422);
+
+  const list1 = async (key: string) => new Client(h.base).call("GET", `/api/v1/projects/${proj.id}/events`, undefined, bearer(key));
+  assert.equal((await list1(short.key)).status, 200);
+  clock += 6 * day; assert.equal((await list1(short.key)).status, 200, "still valid on day 6");
+  clock += 2 * day;
+  const expired = await list1(short.key);
+  assert.equal(expired.status, 401);
+  assert.equal(expired.error.code, "api_key_expired");
+  assert.equal((await list1(dflt.key)).status, 200, "the default key lives 90 days");
+  assert.equal((await list1(forever.key)).status, 200);
+  clock += 100 * day;
+  assert.equal((await list1(dflt.key)).error.code, "api_key_expired");
+  assert.equal((await list1(forever.key)).status, 200, "a key with no expiry keeps working");
+});
+
+test("two-factor sign-in: set up, challenged at login, one-time codes, recovery codes, and turning it off", async (t) => {
+  const { stepAt, totpCode } = await import("./totp.ts");
+  let clock = Date.parse("2026-10-26T12:00:00Z");
+  const h = await start({ now: () => new Date(clock) });
+  t.after(() => h.close());
+  const pw = "correct-horse-battery-12";
+  const c = new Client(h.base);
+  assert.equal((await c.call("POST", "/api/v1/auth/signup", { email: "mfa@example.com", password: pw })).status, 201);
+  assert.deepEqual((await c.call("GET", "/api/v1/auth/mfa")).data, { enabled: false, recoveryCodesLeft: 0 });
+
+  // setup: a secret to add to an authenticator app, then a first valid code turns it on
+  const setup = (await c.call("POST", "/api/v1/auth/mfa/setup")).data;
+  assert.match(setup.secret, /^[A-Z2-7]{32}$/);
+  assert.match(setup.otpauthUri, /^otpauth:\/\/totp\/PortalOps:mfa%40example\.com\?secret=/);
+  const stored = (await h.store.rawAll("SELECT totp_secret FROM users"))[0] as { totp_secret: string };
+  assert.ok(!stored.totp_secret.includes(setup.secret), "the secret is stored encrypted");
+  assert.equal((await c.call("POST", "/api/v1/auth/mfa/enable", { code: "000000" })).status, 401, "a wrong code does not enable it");
+  const enable = await c.call("POST", "/api/v1/auth/mfa/enable", { code: totpCode(setup.secret, stepAt(clock)) });
+  assert.equal(enable.status, 200, JSON.stringify(enable.json));
+  const recovery: string[] = enable.data.recoveryCodes;
+  assert.equal(recovery.length, 10);
+  assert.ok(!JSON.stringify(await h.store.rawAll("SELECT recovery_codes FROM users")).includes(recovery[0]), "recovery codes are stored as hashes");
+  assert.equal((await c.call("POST", "/api/v1/auth/mfa/setup")).status, 409, "cannot restart while on");
+
+  // login now needs the second factor
+  const fresh = () => new Client(h.base);
+  const login = await fresh().call("POST", "/api/v1/auth/login", { email: "mfa@example.com", password: pw });
+  assert.equal(login.status, 200);
+  assert.equal(login.data.mfaRequired, true);
+  assert.ok(!login.headers.get("set-cookie"), "no session until the code is right");
+  assert.equal((await fresh().call("POST", "/api/v1/auth/login", { email: "mfa@example.com", password: "wrong-password-123" })).status, 401);
+
+  clock += 30_000; // the code used to enable it cannot be reused, so move to the next step
+  const challenge = login.data.challenge as string;
+  const m1 = fresh();
+  assert.equal((await m1.call("POST", "/api/v1/auth/login/mfa", { challenge, code: "123456" })).error.code, "invalid_code");
+  const code = totpCode(setup.secret, stepAt(clock));
+  const ok = await m1.call("POST", "/api/v1/auth/login/mfa", { challenge, code });
+  assert.equal(ok.status, 200, JSON.stringify(ok.json));
+  assert.equal(ok.data.user.mfaEnabled, true);
+  assert.equal((await m1.call("GET", "/api/v1/auth/me")).status, 200, "the session works");
+  assert.equal((await fresh().call("POST", "/api/v1/auth/login/mfa", { challenge, code })).error.code, "challenge_expired", "a challenge is single-use");
+
+  // the same code cannot sign in twice
+  const again = (await fresh().call("POST", "/api/v1/auth/login", { email: "mfa@example.com", password: pw })).data.challenge as string;
+  assert.equal((await fresh().call("POST", "/api/v1/auth/login/mfa", { challenge: again, code })).error.code, "invalid_code", "replayed code");
+  assert.equal((await fresh().call("POST", "/api/v1/auth/login/mfa", { challenge: "x".repeat(40), code })).error.code, "challenge_expired");
+
+  // a recovery code works once
+  const viaRecovery = await fresh().call("POST", "/api/v1/auth/login/mfa", { challenge: again, code: recovery[0] });
+  assert.equal(viaRecovery.status, 200);
+  const again2 = (await fresh().call("POST", "/api/v1/auth/login", { email: "mfa@example.com", password: pw })).data.challenge as string;
+  assert.equal((await fresh().call("POST", "/api/v1/auth/login/mfa", { challenge: again2, code: recovery[0] })).error.code, "invalid_code", "a recovery code is single-use");
+  assert.equal((await m1.call("GET", "/api/v1/auth/mfa")).data.recoveryCodesLeft, 9);
+
+  // the challenge expires
+  clock += 6 * 60_000;
+  assert.equal((await fresh().call("POST", "/api/v1/auth/login/mfa", { challenge: again2, code: recovery[1] })).error.code, "challenge_expired");
+
+  // regenerating recovery codes replaces the old ones; turning it off needs password and a code
+  clock += 30_000;
+  const regen = await m1.call("POST", "/api/v1/auth/mfa/recovery-codes", { code: totpCode(setup.secret, stepAt(clock)) });
+  assert.equal(regen.data.recoveryCodes.length, 10);
+  const lateChallenge = (await fresh().call("POST", "/api/v1/auth/login", { email: "mfa@example.com", password: pw })).data.challenge as string;
+  assert.equal((await fresh().call("POST", "/api/v1/auth/login/mfa", { challenge: lateChallenge, code: recovery[2] })).error.code, "invalid_code", "old recovery codes stopped working");
+  clock += 30_000;
+  const off = { code: totpCode(setup.secret, stepAt(clock)) };
+  assert.equal((await m1.call("POST", "/api/v1/auth/mfa/disable", off)).status, 401, "needs the password");
+  assert.equal((await m1.call("POST", "/api/v1/auth/mfa/disable", { ...off, password: "wrong-password-123" })).status, 401);
+  assert.equal((await m1.call("POST", "/api/v1/auth/mfa/disable", { ...off, password: pw })).status, 200);
+  const plain = await fresh().call("POST", "/api/v1/auth/login", { email: "mfa@example.com", password: pw });
+  assert.equal(plain.data.user.mfaEnabled, false, "back to password-only sign-in");
+});
+
+test("two-factor sign-in: guesses are rate limited per account", async (t) => {
+  const { stepAt, totpCode } = await import("./totp.ts");
+  const h = await start({}, { auth: new RateLimiter(12, 60_000), global: new RateLimiter(100_000, 60_000), actions: new RateLimiter(1000, 60_000) });
+  t.after(() => h.close());
+  const pw = "correct-horse-battery-12";
+  const c = new Client(h.base); await c.call("POST", "/api/v1/auth/signup", { email: "mfa2@example.com", password: pw });
+  const s = (await c.call("POST", "/api/v1/auth/mfa/setup")).data;
+  await c.call("POST", "/api/v1/auth/mfa/enable", { code: totpCode(s.secret, stepAt(Date.now())) });
+  const ch = (await new Client(h.base).call("POST", "/api/v1/auth/login", { email: "mfa2@example.com", password: pw })).data.challenge as string;
+  let limited = 0;
+  for (let i = 0; i < 14; i++) if ((await new Client(h.base).call("POST", "/api/v1/auth/login/mfa", { challenge: ch, code: String(100000 + i) })).status === 429) limited++;
+  assert.ok(limited > 0, "repeated wrong codes are throttled");
+});

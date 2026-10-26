@@ -375,6 +375,7 @@ export class SqlStore {
     return {
       id: r.id as string, email: r.email as string, passwordHash: r.password_hash as string, createdAt: r.created_at as string,
       emailVerifiedAt: (r.email_verified_at as string | null) ?? null, githubId: (r.github_id as string | null) ?? null, githubLogin: (r.github_login as string | null) ?? null,
+      totpEnabledAt: (r.totp_enabled_at as string | null) ?? null,
     };
   }
 
@@ -386,6 +387,52 @@ export class SqlStore {
   async getUser(id: string): Promise<UserRecord | null> {
     const r = await this.get("SELECT * FROM users WHERE id = ?", [id]);
     return r ? this.userRow(r) : null;
+  }
+
+  // ----------------------------------------------------------- two-factor sign-in
+  /** Starts (or restarts) setup with a fresh encrypted secret. Refused while two-factor is already on. */
+  async setTotpSecret(userId: string, encryptedSecret: string): Promise<boolean> {
+    const r = await this.run("UPDATE users SET totp_secret = ?, totp_last_step = NULL, recovery_codes = NULL WHERE id = ? AND totp_enabled_at IS NULL", [encryptedSecret, userId]);
+    return r.changes === 1;
+  }
+
+  async getTotp(userId: string): Promise<{ secretEnc: string | null; enabledAt: string | null; lastStep: number | null; recoveryLeft: number } | null> {
+    const r = await this.get("SELECT totp_secret, totp_enabled_at, totp_last_step, recovery_codes FROM users WHERE id = ?", [userId]);
+    if (!r) return null;
+    const codes = r.recovery_codes ? (JSON.parse(r.recovery_codes as string) as string[]) : [];
+    return { secretEnc: (r.totp_secret as string | null) ?? null, enabledAt: (r.totp_enabled_at as string | null) ?? null, lastStep: r.totp_last_step === null || r.totp_last_step === undefined ? null : Number(r.totp_last_step), recoveryLeft: codes.length };
+  }
+
+  /** Turns two-factor on after a first valid code, and stores the hashed recovery codes. */
+  async enableTotp(userId: string, now: Date, step: number, recoveryHashes: string[]): Promise<boolean> {
+    const r = await this.run("UPDATE users SET totp_enabled_at = ?, totp_last_step = ?, recovery_codes = ? WHERE id = ? AND totp_secret IS NOT NULL AND totp_enabled_at IS NULL", [now.toISOString(), step, JSON.stringify(recoveryHashes), userId]);
+    return r.changes === 1;
+  }
+
+  /** Replaces the recovery codes (the old ones stop working). */
+  async setRecoveryCodes(userId: string, recoveryHashes: string[]): Promise<void> {
+    await this.run("UPDATE users SET recovery_codes = ? WHERE id = ? AND totp_enabled_at IS NOT NULL", [JSON.stringify(recoveryHashes), userId]);
+  }
+
+  async disableTotp(userId: string): Promise<void> {
+    await this.run("UPDATE users SET totp_secret = NULL, totp_enabled_at = NULL, totp_last_step = NULL, recovery_codes = NULL WHERE id = ?", [userId]);
+  }
+
+  /** Records a used time step. True only for the first caller, so two requests carrying the same code cannot both succeed. */
+  async claimTotpStep(userId: string, step: number): Promise<boolean> {
+    const r = await this.run("UPDATE users SET totp_last_step = ? WHERE id = ? AND (totp_last_step IS NULL OR totp_last_step < ?)", [step, userId, step]);
+    return r.changes === 1;
+  }
+
+  /** Uses one recovery code (by hash). True only once per code, even under concurrent attempts. */
+  async useRecoveryCode(userId: string, codeHash: string): Promise<boolean> {
+    const r = await this.get("SELECT recovery_codes FROM users WHERE id = ?", [userId]);
+    const raw = (r?.recovery_codes as string | null) ?? null;
+    if (!raw) return false;
+    const codes = JSON.parse(raw) as string[];
+    if (!codes.includes(codeHash)) return false;
+    const next = JSON.stringify(codes.filter((c) => c !== codeHash));
+    return (await this.run("UPDATE users SET recovery_codes = ? WHERE id = ? AND recovery_codes = ?", [next, userId, raw])).changes === 1;
   }
 
   async getUserByGithubId(githubId: string): Promise<UserRecord | null> {
@@ -410,6 +457,12 @@ export class SqlStore {
   async createAuthToken(userId: string, kind: AuthTokenKind, tokenHash: string, expiresAt: Date, now: Date = new Date()): Promise<void> {
     await this.run("DELETE FROM auth_tokens WHERE user_id = ? AND kind = ? AND used_at IS NULL", [userId, kind]);
     await this.run("INSERT INTO auth_tokens (id, user_id, kind, token_hash, created_at, expires_at) VALUES (?, ?, ?, ?, ?, ?)", [uid("tok_", 20), userId, kind, tokenHash, now.toISOString(), expiresAt.toISOString()]);
+  }
+
+  /** Reads a token without using it (a wrong second-factor code must not burn the sign-in challenge). Null for unknown, expired, wrong-kind or used. */
+  async peekAuthToken(kind: AuthTokenKind, tokenHash: string, now: Date = new Date()): Promise<string | null> {
+    const r = await this.get("SELECT user_id FROM auth_tokens WHERE token_hash = ? AND kind = ? AND used_at IS NULL AND expires_at > ?", [tokenHash, kind, now.toISOString()]);
+    return r ? (r.user_id as string) : null;
   }
 
   /** Atomically uses a token: returns its user id once, and null for unknown, expired, wrong-kind or already-used tokens. */
@@ -585,15 +638,16 @@ export class SqlStore {
   }
 
   // ----------------------------------------------------------------- api keys
-  async createApiKey(k: { projectId: string; name: string; scope: "read" | "write"; prefix: string; keyHash: string; createdBy: string | null }): Promise<ApiKeyRecord> {
+  async createApiKey(k: { projectId: string; name: string; scope: "read" | "write"; prefix: string; keyHash: string; createdBy: string | null; expiresAt?: string | null }): Promise<ApiKeyRecord> {
     const id = uid("key_", 20);
     const createdAt = new Date().toISOString();
-    await this.run("INSERT INTO api_keys (id, project_id, name, scope, prefix, key_hash, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", [id, k.projectId, k.name, k.scope, k.prefix, k.keyHash, k.createdBy, createdAt]);
-    return { id, projectId: k.projectId, name: k.name, scope: k.scope, prefix: k.prefix, createdAt, lastUsedAt: null, revokedAt: null };
+    const expiresAt = k.expiresAt ?? null;
+    await this.run("INSERT INTO api_keys (id, project_id, name, scope, prefix, key_hash, created_by, created_at, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", [id, k.projectId, k.name, k.scope, k.prefix, k.keyHash, k.createdBy, createdAt, expiresAt]);
+    return { id, projectId: k.projectId, name: k.name, scope: k.scope, prefix: k.prefix, createdAt, lastUsedAt: null, revokedAt: null, expiresAt };
   }
 
   private rowToApiKey(r: Row): ApiKeyRecord {
-    return { id: r.id as string, projectId: r.project_id as string, name: r.name as string, scope: r.scope as "read" | "write", prefix: r.prefix as string, createdAt: r.created_at as string, lastUsedAt: (r.last_used_at as string | null) ?? null, revokedAt: (r.revoked_at as string | null) ?? null };
+    return { id: r.id as string, projectId: r.project_id as string, name: r.name as string, scope: r.scope as "read" | "write", prefix: r.prefix as string, createdAt: r.created_at as string, lastUsedAt: (r.last_used_at as string | null) ?? null, revokedAt: (r.revoked_at as string | null) ?? null, expiresAt: (r.expires_at as string | null) ?? null };
   }
 
   /** Looks a key up by the hash of its plaintext. Returns the owner of the project too, because a key acts on its owner's behalf. */
@@ -617,6 +671,24 @@ export class SqlStore {
 
   async revokeApiKey(id: string): Promise<void> {
     await this.run("UPDATE api_keys SET revoked_at = ? WHERE id = ? AND revoked_at IS NULL", [new Date().toISOString(), id]);
+  }
+
+  // ------------------------------------------------------------ shared rate limits
+  /** Counts one request against a fixed window shared by every API instance. Returns the count in the current window and when it ends. */
+  async hitRateLimit(key: string, windowMs: number, nowMs: number): Promise<{ hits: number; windowEnd: number }> {
+    const end = nowMs + windowMs;
+    const r = await this.get(
+      "INSERT INTO rate_limits (key, hits, window_end) VALUES (?, 1, ?) ON CONFLICT (key) DO UPDATE SET " +
+        "hits = CASE WHEN rate_limits.window_end <= ? THEN 1 ELSE rate_limits.hits + 1 END, " +
+        "window_end = CASE WHEN rate_limits.window_end <= ? THEN ? ELSE rate_limits.window_end END RETURNING hits, window_end",
+      [key, end, nowMs, nowMs, end],
+    );
+    return { hits: Number(r!.hits), windowEnd: Number(r!.window_end) };
+  }
+
+  /** Removes counters whose window has ended. */
+  async pruneRateLimits(nowMs: number): Promise<void> {
+    await this.run("DELETE FROM rate_limits WHERE window_end <= ?", [nowMs]);
   }
 
   /** Records use at most once a minute per key so a busy integration does not turn every request into a write. */

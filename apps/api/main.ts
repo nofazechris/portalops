@@ -70,6 +70,7 @@ const isHttps = PUBLIC_URL.startsWith("https://");
 const handler = createApp({
   store,
   network,
+  sharedRateLimits: process.env.PORTALOPS_RATE_LIMIT_STORE === "database",
   config: {
     networkId: NETWORK_ID,
     networkLabel: "Portaldot V3.0 Testnet",

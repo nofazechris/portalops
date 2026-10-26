@@ -14,7 +14,14 @@ export interface RunnerContext {
   guard?: GuardOptions;
   now?: () => Date;
   random?: () => number;
+  /** Deliveries attempted at the same time across all endpoints. Default 8. */
+  maxParallel?: number;
+  /** Deliveries in flight to one endpoint at once, so a single slow or failing endpoint cannot use every slot. Default 2. */
+  maxPerEndpoint?: number;
 }
+
+export const DEFAULT_MAX_PARALLEL = 8;
+export const DEFAULT_MAX_PER_ENDPOINT = 2;
 
 /** The exact JSON body consumers receive. Stable for a given event so replays are byte-identical. */
 export function buildWebhookBody(event: NormalizedEvent): string {
@@ -148,13 +155,42 @@ export async function attemptDelivery(ctx: RunnerContext, deliveryId: string): P
 export async function runDueDeliveries(ctx: RunnerContext, limit = 20): Promise<number> {
   const now = (ctx.now ?? (() => new Date()))();
   const due = await ctx.store.dueDeliveries(now, limit);
+  const maxParallel = Math.max(1, ctx.maxParallel ?? DEFAULT_MAX_PARALLEL);
+  const maxPerEndpoint = Math.max(1, ctx.maxPerEndpoint ?? DEFAULT_MAX_PER_ENDPOINT);
+  const queue = [...due];
+  const inFlight = new Map<string, number>(); // endpoint id -> attempts running now
+  let active = 0;
   let attempted = 0;
-  for (const d of due) {
-    // The lease covers the longest possible attempt (timeout) with headroom; recordAttempt then sets the real next time.
-    const found = await ctx.store.getEndpoint(d.endpointId);
-    if (!await ctx.store.claimDelivery(d.id, now, (found?.retryPolicy.timeoutMs ?? 10_000) + 30_000)) continue; // another worker has it
-    await attemptDelivery(ctx, d.id);
-    attempted++;
-  }
+
+  // A bounded pool: slow endpoints no longer hold up fast ones (an attempt can take the whole timeout), and no endpoint can occupy every slot.
+  await new Promise<void>((done) => {
+    const pump = (): void => {
+      while (active < maxParallel) {
+        const i = queue.findIndex((d) => (inFlight.get(d.endpointId) ?? 0) < maxPerEndpoint);
+        if (i === -1) break;
+        const [d] = queue.splice(i, 1);
+        active++;
+        inFlight.set(d.endpointId, (inFlight.get(d.endpointId) ?? 0) + 1);
+        void (async () => {
+          try {
+            // The lease covers the longest possible attempt (timeout) with headroom; recordAttempt then sets the real next time.
+            const found = await ctx.store.getEndpoint(d.endpointId);
+            if (!await ctx.store.claimDelivery(d.id, now, (found?.retryPolicy.timeoutMs ?? 10_000) + 30_000)) return; // another worker has it
+            await attemptDelivery(ctx, d.id);
+            attempted++;
+          } catch (e) {
+            // One delivery failing to run must not stop the others; its lease expires and it is picked up again.
+            await ctx.store.log("error", "webhook", `Delivery ${d.id} could not be attempted: ${(e as Error).message}`).catch(() => {});
+          } finally {
+            active--;
+            inFlight.set(d.endpointId, (inFlight.get(d.endpointId) ?? 1) - 1);
+            pump();
+          }
+        })();
+      }
+      if (active === 0 && queue.length === 0) done();
+    };
+    pump();
+  });
   return attempted;
 }

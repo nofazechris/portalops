@@ -91,7 +91,12 @@ export function SessionProvider({ children }) {
       projectId: own ? own.id : user ? null : demoId,
       readOnly: !own,
       setProjectId, refreshProjects, refreshUser,
-      async login(email, password) { const r = await api.login(email, password); setUser(r.user); await refreshProjects(); return r.user; },
+      async login(email, password) {
+        const r = await api.login(email, password);
+        if (r.mfaRequired) return { mfaRequired: true, challenge: r.challenge }; // second step: ask for the authenticator code
+        setUser(r.user); await refreshProjects(); return r.user;
+      },
+      async loginMfa(challenge, code) { const r = await api.loginMfa(challenge, code); setUser(r.user); await refreshProjects(); return r.user; },
       async signup(email, password) { const r = await api.signup(email, password); setUser(r.user); setProjects([]); setProjectIdState(null); return r.user; },
       async logout() { await api.logout().catch(() => {}); setUser(null); setProjects([]); setProjectId(null); },
       async createProject(name, description) { const p = await api.createProject({ name, description: description || undefined }); await refreshProjects(); setProjectId(p.id); return p; },
