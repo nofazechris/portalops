@@ -1,7 +1,7 @@
 export type AuthTokenKind = "verify_email" | "reset_password" | "mfa_login";
 export interface UserRecord { id: string; email: string; passwordHash: string; createdAt: string; emailVerifiedAt: string | null; githubId: string | null; githubLogin: string | null; /** When two-factor sign-in was turned on; null = off. */ totpEnabledAt: string | null }
 export interface ProjectRecord { id: string; name: string; description: string | null; ownerId: string | null; kind: "user" | "public_demo" | "playground"; networkId: string; createdAt: string }
-export interface ContractRecord { id: string; projectId: string; address: string; name: string | null; runtimeType: string; abi: unknown[] | null; startBlock: number | null; deploymentTxHash: string | null; status: string; createdAt: string }
+export interface ContractRecord { id: string; projectId: string; address: string; name: string | null; runtimeType: string; /** A Solidity ABI (array) for EVM contracts; ink! contract metadata (object) for runtimeType "ink". */ abi: unknown | null; startBlock: number | null; deploymentTxHash: string | null; status: string; createdAt: string }
 export interface ApiKeyRecord { id: string; projectId: string; name: string; scope: "read" | "write"; prefix: string; createdAt: string; lastUsedAt: string | null; revokedAt: string | null; /** ISO time after which the key stops working; null = never. */ expiresAt: string | null }
 export type ReceiverMode = "ok" | "fail500" | "fail400" | "timeout";
 export interface ReceiverRecord { id: string; endpointId: string; mode: ReceiverMode; createdAt: string }

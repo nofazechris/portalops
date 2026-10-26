@@ -3,6 +3,7 @@ import { api } from "../api.js";
 import { shortHash, timeAgo, useApi, useSession } from "../state.jsx";
 import { ConfirmDialog, CopyButton, Empty, ErrorBox, Field, Loading, Modal, NeedsProject, PageHead, ReadOnlyNote, deliveryLabel, fieldErrors } from "../ui.jsx";
 import { apiEndpoints, sdkSnippet, signatureSnippet } from "../data.js";
+import { ADDRESS_HELP, ContractSource, buildContractBody } from "../ContractSource.jsx";
 
 // ------------------------------------------------------------------ Logs
 const LEVEL_COLOR = { info: "var(--fg-3)", warn: "var(--amber)", error: "var(--red)" };
@@ -46,26 +47,17 @@ export function Logs() {
 }
 
 // ------------------------------------------------------------- Contracts
-function parseAbi(text) {
-  if (!text.trim()) return undefined;
-  let v;
-  try { v = JSON.parse(text); } catch { throw new Error("ABI is not valid JSON."); }
-  if (Array.isArray(v)) return v;
-  if (v && Array.isArray(v.abi)) return v.abi; // compiler artifact
-  throw new Error("Paste the ABI array, or a compiler artifact that has an \"abi\" field.");
-}
-
 function AddContractModal({ projectId, onClose, onAdded }) {
   const [f, setF] = useState({ address: "", name: "", abi: "", startBlock: "" });
+  const [type, setType] = useState("evm");
   const [err, setErr] = useState(null);
   const [busy, setBusy] = useState(false);
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
   async function submit(ev) {
     ev.preventDefault(); setBusy(true); setErr(null);
     try {
-      const body = { address: f.address.trim() };
+      const body = { address: f.address.trim(), ...buildContractBody(type, f.abi) };
       if (f.name.trim()) body.name = f.name.trim();
-      const abi = parseAbi(f.abi); if (abi) body.abi = abi;
       if (f.startBlock.trim()) body.startBlock = Number(f.startBlock);
       await api.addContract(projectId, body);
       onAdded();
@@ -75,10 +67,10 @@ function AddContractModal({ projectId, onClose, onAdded }) {
   return (
     <Modal title="Register contract" onClose={onClose} wide>
       <form noValidate onSubmit={submit}>
-        <Field label="Contract address" error={fe.address}><input className="input mono" autoFocus placeholder="0x…" value={f.address} onChange={set("address")} required /></Field>
+        <ContractSource type={type} setType={setType} text={f.abi} setText={(v) => setF((x) => ({ ...x, abi: v }))} error={fe.abi} />
+        <Field label={ADDRESS_HELP[type].label} error={fe.address}><input className="input mono" placeholder={ADDRESS_HELP[type].placeholder} value={f.address} onChange={set("address")} required /></Field>
         <Field label="Name (optional)" error={fe.name}><input className="input" value={f.name} onChange={set("name")} /></Field>
-        <Field label="ABI (optional)" hint="Without an ABI, logs are stored raw and undecoded." error={fe.abi}><textarea className="textarea mono" value={f.abi} onChange={set("abi")} placeholder='[{"type":"event","name":"QuestCreated", …}]' /></Field>
-        <Field label="Start block (optional)" hint="Capture from this block. Defaults to roughly the last 1,000 blocks." error={fe.startBlock}><input className="input mono" inputMode="numeric" value={f.startBlock} onChange={set("startBlock")} /></Field>
+        <Field label="Start block (optional)" hint={type === "ink" ? "Capture from this block. Rust (ink!) events can only be read from about the last 240 blocks; the node discards older ones." : "Capture from this block. Defaults to roughly the last 1,000 blocks."} error={fe.startBlock}><input className="input mono" inputMode="numeric" value={f.startBlock} onChange={set("startBlock")} /></Field>
         {err && !err.details && <div className="field-error" style={{ marginBottom: 10 }}>{err.message}</div>}
         <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
           <button type="button" className="btn secondary" onClick={onClose}>Cancel</button>

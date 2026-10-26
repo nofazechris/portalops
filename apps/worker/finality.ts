@@ -35,11 +35,13 @@ export async function promoteFinalized(o: {
   projectId: string;
   finalized: BlockRef;
   maxHeightsPerPass?: number;
+  /** Only look at events from this chain (a project can hold both EVM and native events; their block numbers are unrelated). */
+  source?: "evm" | "native";
 }): Promise<FinalityReport> {
   const { store, chain, projectId, finalized } = o;
   const maxHeights = o.maxHeightsPerPass ?? 50;
 
-  const candidates = await store.listUnfinalized(projectId, finalized.number, maxHeights * 40);
+  const candidates = await store.listUnfinalized(projectId, finalized.number, maxHeights * 40, o.source);
   const byHeight = new Map<number, typeof candidates>();
   for (const c of candidates) {
     const list = byHeight.get(c.blockNumber) ?? [];

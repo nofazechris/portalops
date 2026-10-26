@@ -182,16 +182,17 @@ export class SqlStore {
   }
 
   /** Marks events at or after fromBlock whose block hash is no longer canonical as orphaned. Finalized events are never touched. */
-  async markOrphaned(projectId: string, fromBlock: number, canonicalHash: (block: number) => string | null): Promise<number> {
-    const rows = await this.all("SELECT id, block_number, block_hash FROM events WHERE project_id = ? AND block_number >= ? AND finality_status NOT IN ('orphaned', 'finalized')", [projectId, fromBlock]);
+  async markOrphaned(projectId: string, fromBlock: number, canonicalHash: (block: number) => string | null, source?: "evm" | "native"): Promise<number> {
+    // `source` keeps one chain's reorganisation from touching the other's events (their block numbers are unrelated).
+    const rows = await this.all(`SELECT id, block_number, block_hash FROM events WHERE project_id = ? AND block_number >= ? AND finality_status NOT IN ('orphaned', 'finalized')${source ? " AND source = ?" : ""}`, source ? [projectId, fromBlock, source] : [projectId, fromBlock]);
     const stale = rows.filter((r) => canonicalHash(Number(r.block_number)) !== (r.block_hash as string)).map((r) => r.id as string);
     await this.tx(async (s) => { for (const id of stale) await s.run("UPDATE events SET finality_status = 'orphaned' WHERE id = ?", [id]); });
     return stale.length;
   }
 
   /** Events at or below `upTo` that are not yet finalized or orphaned, oldest first. */
-  async listUnfinalized(projectId: string, upTo: number, limit = 500): Promise<{ id: string; blockNumber: number; blockHash: string; transactionHash: string; eventIndex: number }[]> {
-    const rows = await this.all("SELECT id, block_number, block_hash, transaction_hash, event_index FROM events WHERE project_id = ? AND block_number <= ? AND finality_status IN ('included','confirmed') ORDER BY block_number, event_index LIMIT ?", [projectId, upTo, limit]);
+  async listUnfinalized(projectId: string, upTo: number, limit = 500, source?: "evm" | "native"): Promise<{ id: string; blockNumber: number; blockHash: string; transactionHash: string; eventIndex: number }[]> {
+    const rows = await this.all("SELECT id, block_number, block_hash, transaction_hash, event_index FROM events WHERE project_id = ? AND block_number <= ? AND finality_status IN ('included','confirmed')" + (source ? " AND source = '" + (source === "native" ? "native" : "evm") + "'" : "") + " ORDER BY block_number, event_index LIMIT ?", [projectId, upTo, limit]);
     return rows.map((r) => ({ id: r.id as string, blockNumber: Number(r.block_number), blockHash: r.block_hash as string, transactionHash: r.transaction_hash as string, eventIndex: Number(r.event_index) }));
   }
 
@@ -207,8 +208,8 @@ export class SqlStore {
   }
 
   /** Promotes included events to confirmed once they are `depth` blocks behind the head. */
-  async confirmUpTo(projectId: string, headBlock: number, depth: number): Promise<number> {
-    return (await this.run("UPDATE events SET finality_status = 'confirmed' WHERE project_id = ? AND finality_status = 'included' AND block_number <= ?", [projectId, headBlock - depth])).changes;
+  async confirmUpTo(projectId: string, headBlock: number, depth: number, source?: "evm" | "native"): Promise<number> {
+    return (await this.run("UPDATE events SET finality_status = 'confirmed' WHERE project_id = ? AND finality_status = 'included' AND block_number <= ?" + (source ? " AND source = '" + (source === "native" ? "native" : "evm") + "'" : ""), [projectId, headBlock - depth])).changes;
   }
 
   // ---------------------------------------------------------------- endpoints
@@ -500,13 +501,15 @@ export class SqlStore {
   }
 
   // ---------------------------------------------------------------- contracts
-  async createContract(c: { projectId: string; address: string; name?: string | null; abi?: unknown[] | null; startBlock?: number | null; deploymentTxHash?: string | null }): Promise<ContractRecord | null> {
+  async createContract(c: { projectId: string; address: string; name?: string | null; abi?: unknown | null; startBlock?: number | null; deploymentTxHash?: string | null; runtimeType?: "evm" | "ink" }): Promise<ContractRecord | null> {
     const id = uid("ctr_", 20);
     const createdAt = new Date().toISOString();
-    const address = c.address.toLowerCase();
+    const runtimeType = c.runtimeType ?? "evm";
+    // EVM addresses are case-insensitive hex and stored lower-case; SS58 addresses are case-sensitive and kept exactly as given.
+    const address = runtimeType === "ink" ? c.address : c.address.toLowerCase();
     const r = await this.run(
-      this.ignore("INSERT OR IGNORE INTO contracts (id, project_id, address, name, runtime_type, abi, start_block, deployment_tx_hash, status, created_at) VALUES (?, ?, ?, ?, 'evm', ?, ?, ?, 'active', ?)"),
-      [id, c.projectId, address, c.name ?? null, c.abi ? JSON.stringify(c.abi) : null, c.startBlock ?? null, c.deploymentTxHash?.toLowerCase() ?? null, createdAt],
+      this.ignore("INSERT OR IGNORE INTO contracts (id, project_id, address, name, runtime_type, abi, start_block, deployment_tx_hash, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active', ?)"),
+      [id, c.projectId, address, c.name ?? null, runtimeType, c.abi ? JSON.stringify(c.abi) : null, c.startBlock ?? null, c.deploymentTxHash?.toLowerCase() ?? null, createdAt],
     );
     return r.changes === 1 ? this.getContract(id) : null;
   }

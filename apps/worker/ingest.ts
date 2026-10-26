@@ -82,7 +82,7 @@ export async function ingestOnce(o: IngestOptions): Promise<IngestReport> {
       const rewindTo = Math.max(o.startBlock, cursor.block - reorgWindow);
       const canonical = new Map<number, string | null>();
       for (let n = rewindTo; n <= cursor.block; n++) canonical.set(n, (await chain.getBlock(n))?.hash ?? null);
-      orphaned = await store.markOrphaned(proj, rewindTo, (n) => canonical.get(n) ?? null);
+      orphaned = await store.markOrphaned(proj, rewindTo, (n) => canonical.get(n) ?? null, "evm");
       const prev = rewindTo > 0 ? await chain.getBlock(rewindTo - 1) : null;
       if (prev) await store.setCursor(proj, o.networkId, rewindTo - 1, prev.hash);
       else await store.deleteCursor(proj, o.networkId);
@@ -133,13 +133,13 @@ export async function ingestOnce(o: IngestOptions): Promise<IngestReport> {
     o.onBatch?.({ block: end, head: head.number });
   }
 
-  await store.confirmUpTo(proj, head.number, depth);
+  await store.confirmUpTo(proj, head.number, depth, "evm");
 
   // Promote older events (observed above the finalized height at the time) once the finalized head has moved past them.
   let finalizedEvents = 0, finalityOrphaned = 0;
   if (fin) {
     try {
-      const f = await promoteFinalized({ store, chain, projectId: proj, finalized: fin, maxHeightsPerPass: o.finalityHeightsPerPass });
+      const f = await promoteFinalized({ store, chain, projectId: proj, finalized: fin, maxHeightsPerPass: o.finalityHeightsPerPass, source: "evm" });
       finalizedEvents = f.finalized;
       finalityOrphaned = f.orphaned;
     } catch (e) {

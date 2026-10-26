@@ -64,7 +64,14 @@ const network: NetworkProbe = {
     }
   },
   getCode: (address) => chain.getCode(address),
+  // Connects to the native runtime on first use only: most servers never see an ink! contract.
+  inkContractExists: async (address) => {
+    const { PolkadotNativeChain } = await import("../../packages/chain-adapters/native.ts");
+    nativeChain ??= await PolkadotNativeChain.connect(process.env.PORTALDOT_NATIVE_RPC_URL || "wss://test-node-v3.portaldot.dev");
+    try { return await nativeChain.contractExists(address); } catch (e) { await nativeChain.close(); nativeChain = null; throw e; }
+  },
 };
+let nativeChain: import("../../packages/chain-adapters/native.ts").NativeChain | null = null;
 
 const isHttps = PUBLIC_URL.startsWith("https://");
 const handler = createApp({

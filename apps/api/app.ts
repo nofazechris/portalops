@@ -14,6 +14,8 @@ import { resetPasswordMessage, verifyEmailMessage } from "../../packages/email/t
 import type { EmailSender } from "../../packages/email/index.ts";
 import { ApiError, clientIp, parseCookies, parseJsonBody, RateLimiter, readRaw, Router, sendJson, MAX_BODY_BYTES, type Ctx, type Limiter } from "./http.ts";
 import { SharedRateLimiter } from "./shared-limiter.ts";
+import { canonicalSs58 } from "../../packages/chain-adapters/native.ts";
+import { inkEventNames, loadInkAbi, looksLikeInkMetadata } from "../../packages/event-engine/ink.ts";
 import { hashRecoveryCode, newRecoveryCodes, newTotpSecret, otpauthUri, verifyTotp } from "./totp.ts";
 
 export interface NetworkCheck {
@@ -28,6 +30,8 @@ export interface NetworkCheck {
 export interface NetworkProbe {
   check(): Promise<NetworkCheck>;
   getCode(address: string): Promise<string>;
+  /** Whether an ink! contract is deployed at this SS58 address on the native runtime. Absent when the server has no native connection. */
+  inkContractExists?(address: string): Promise<boolean>;
 }
 
 export interface AppConfig {
@@ -75,6 +79,8 @@ export interface AppDeps {
 }
 
 const ADDRESS = /^0x[0-9a-fA-F]{40}$/;
+/** Either kind of contract address: a 0x EVM address, or an SS58 address (ink! contracts on the native runtime; starts with 5). */
+const ANY_ADDRESS = /^(0x[0-9a-fA-F]{40}|5[1-9A-HJ-NP-Za-km-z]{46,47})$/;
 const HASH = /^0x[0-9a-fA-F]{64}$/;
 
 const retryPolicyInput = z
@@ -103,9 +109,11 @@ const schemas = {
   }),
   projectPatch: z.object({ name: z.string().trim().min(1).max(80).optional(), description: z.string().trim().max(500).nullable().optional() }),
   contract: z.object({
-    address: z.string().regex(ADDRESS, "Must be a 0x-prefixed 20-byte address."),
+    /** "evm" (Solidity, 0x address, ABI array) or "ink" (Rust ink!, SS58 address, contract metadata object). */
+    type: z.enum(["evm", "ink"]).default("evm"),
+    address: z.string().trim().min(1).max(80),
     name: z.string().trim().max(80).optional(),
-    abi: z.array(z.record(z.string(), z.unknown())).max(500).optional(),
+    abi: z.union([z.array(z.record(z.string(), z.unknown())).max(500), z.record(z.string(), z.unknown())]).optional(),
     startBlock: z.number().int().min(0).optional(),
     deploymentTxHash: z.string().regex(HASH).optional(),
   }),
@@ -128,7 +136,7 @@ const schemas = {
   automation: z.object({
     name: z.string().trim().min(1).max(80),
     triggerEventName: z.string().trim().min(1).max(100).nullable().default(null),
-    triggerContract: z.string().regex(ADDRESS).nullable().default(null),
+    triggerContract: z.string().regex(ANY_ADDRESS).nullable().default(null),
     endpointId: z.string().min(1).max(64),
   }),
   automationPatch: z.object({ enabled: z.boolean() }),
@@ -141,7 +149,7 @@ const schemas = {
   receiverPatch: z.object({ mode: z.enum(["ok", "fail500", "fail400", "timeout"]) }),
   eventQuery: z.object({
     q: z.string().trim().max(200).optional(),
-    contract: z.string().regex(ADDRESS).optional(),
+    contract: z.string().regex(ANY_ADDRESS).optional(),
     event: z.string().max(100).optional(),
     finality: z.enum(["included", "confirmed", "finalized", "orphaned"]).optional(),
     delivery: z.enum(["pending", "retrying", "delivered", "failed"]).optional(),
@@ -782,8 +790,21 @@ export function createApp(deps: AppDeps): (req: IncomingMessage, res: ServerResp
   router.add("POST", "/api/v1/projects/:projectId/contracts", async (ctx) => {
     const p = await ownedProject(ctx, ctx.params.projectId);
     const body = parse(schemas.contract, ctx.body);
-    if (JSON.stringify(body.abi ?? []).length > 262_144) throw new ApiError(422, "validation_failed", "ABI is too large (256 KiB max).");
-    const c = await store.createContract({ projectId: p.id, address: body.address, name: body.name ?? null, abi: body.abi ?? null, startBlock: body.startBlock ?? null, deploymentTxHash: body.deploymentTxHash ?? null });
+    if (JSON.stringify(body.abi ?? []).length > 524_288) throw new ApiError(422, "validation_failed", "The ABI or metadata is too large (512 KiB max).");
+    const invalid = (path: string, message: string) => new ApiError(422, "validation_failed", "The request is not valid.", [{ path, message }]);
+    let address = body.address;
+    if (body.type === "ink") {
+      // An ink! (Rust) contract on the native runtime: an SS58 address and the contract metadata file that cargo-contract writes.
+      const ss58 = await canonicalSs58(body.address);
+      if (!ss58 || !ANY_ADDRESS.test(ss58)) throw invalid("address", "Must be a valid SS58 address (it starts with 5).");
+      address = ss58;
+      if (!body.abi || Array.isArray(body.abi) || !looksLikeInkMetadata(body.abi)) throw invalid("abi", "Upload the contract metadata file (the .contract or metadata.json from cargo contract build).");
+      try { await loadInkAbi(body.abi); } catch { throw invalid("abi", "That is not valid ink! contract metadata."); }
+    } else {
+      if (!ADDRESS.test(body.address)) throw invalid("address", "Must be a 0x-prefixed 20-byte address.");
+      if (body.abi && !Array.isArray(body.abi)) throw invalid("abi", "A Solidity ABI is a JSON array. For an ink! contract, choose the ink! type.");
+    }
+    const c = await store.createContract({ projectId: p.id, address, name: body.name ?? null, abi: body.abi ?? null, startBlock: body.startBlock ?? null, deploymentTxHash: body.deploymentTxHash ?? null, runtimeType: body.type });
     if (!c) throw new ApiError(409, "contract_exists", "This contract is already registered in the project.");
     await store.audit("contract.add", ctx.userId, p.id, { address: c.address });
     await store.log("info", "config", `Contract ${c.address} registered`, undefined, p.id);
@@ -793,7 +814,7 @@ export function createApp(deps: AppDeps): (req: IncomingMessage, res: ServerResp
   /** One shape for every contract response: no ABI body, but whether there is one and which events it declares. */
   const contractView = (c: ContractRecord, eventCount = 0) => ({
     ...c, abi: undefined, hasAbi: c.abi !== null, eventCount,
-    events: c.abi ? (c.abi as { type?: string; name?: string }[]).filter((x) => x.type === "event" && x.name).map((x) => x.name as string) : [],
+    events: !c.abi ? [] : c.runtimeType === "ink" ? inkEventNames(c.abi) : (c.abi as { type?: string; name?: string }[]).filter((x) => x.type === "event" && x.name).map((x) => x.name as string),
   });
   const withCounts = async (projectId: string) => {
     const counts = await store.contractEventCounts(projectId);
@@ -815,6 +836,11 @@ export function createApp(deps: AppDeps): (req: IncomingMessage, res: ServerResp
     await ownedProject(ctx, c.projectId);
     const wait = await actionLimiter.hit("ctest:" + ctx.userId);
     if (wait) throw new ApiError(429, "rate_limited", `Try again in ${wait}s.`);
+    if (c.runtimeType === "ink") {
+      if (!network.inkContractExists) throw new ApiError(503, "unavailable", "This server has no connection to the native Portaldot runtime.");
+      const found = await network.inkContractExists(c.address).catch((e: unknown) => { throw new ApiError(502, "rpc_unavailable", e instanceof Error ? e.message : "Native RPC unavailable"); });
+      return { address: c.address, codeFound: found, runtimeCodeBytes: 0, note: found ? "An ink! contract is deployed at this address." : "No ink! contract at this address on the native runtime." };
+    }
     // Read-only: does bytecode exist at this address on the connected network? Nothing is signed or sent.
     const code = await network.getCode(c.address).catch((e: unknown) => { throw new ApiError(502, "rpc_unavailable", e instanceof Error ? e.message : "RPC unavailable"); });
     const bytes = code && code !== "0x" ? (code.length - 2) / 2 : 0;

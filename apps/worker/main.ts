@@ -16,6 +16,8 @@ import { describeDatabase, openStore, type ProjectRecord } from "../../packages/
 import { parseKey } from "../../packages/database/secrets.ts";
 import { runDueDeliveries } from "../../packages/webhook-engine/runner.ts";
 import { ingestOnce } from "./ingest.ts";
+import { ingestNativeOnce } from "./ingest-native.ts";
+import type { NativeChain } from "../../packages/chain-adapters/native.ts";
 import { loadServiceEnv } from "../../packages/config/env.ts";
 import { installProcessDiagnostics } from "../../packages/config/diagnostics.ts";
 
@@ -33,6 +35,7 @@ const POLL_MS = Number(process.env.PORTALOPS_POLL_MS || 6_000);
 const ALLOW_PRIVATE = process.env.PORTALOPS_ALLOW_PRIVATE_WEBHOOK_TARGETS === "1";
 const MAX_PARALLEL = Number(process.env.PORTALOPS_MAX_PARALLEL_DELIVERIES || 8); // deliveries attempted at once
 const MAX_PER_ENDPOINT = Number(process.env.PORTALOPS_MAX_DELIVERIES_PER_ENDPOINT || 2); // ... and at most this many to one endpoint
+const NATIVE_RPC = process.env.PORTALDOT_NATIVE_RPC_URL || "wss://test-node-v3.portaldot.dev";
 const DEMO_LOOKBACK = Number(process.env.PORTALOPS_DEMO_LOOKBACK_BLOCKS || 120_000); // covers the whole testnet so far
 const DEFAULT_LOOKBACK = 1_000;
 
@@ -55,7 +58,7 @@ installProcessDiagnostics("worker", () => { stopping = true; return Promise.race
 const beat = async (detail: Record<string, unknown>) => { try { await store.beat("worker", detail); } catch { /* a missed heartbeat must never stop ingestion */ } };
 
 async function ingestProject(p: ProjectRecord, headNumber: number): Promise<number> {
-  const contracts = (await store.listContracts(p.id)).filter((c) => c.status === "active");
+  const contracts = (await store.listContracts(p.id)).filter((c) => c.status === "active" && c.runtimeType !== "ink"); // ink! contracts are read by ingestNativeProject
   if (p.kind !== "public_demo" && contracts.length === 0) return 0;
 
   const abis = new Map<string, Abi>();
@@ -74,6 +77,31 @@ async function ingestProject(p: ProjectRecord, headNumber: number): Promise<numb
   return r.newEvents;
 }
 
+// ink! (Rust) contracts live on the native runtime. Connect only when some project has one, and reconnect after any failure.
+let nativeChain: NativeChain | null = null;
+async function ingestNativeProject(p: ProjectRecord): Promise<number> {
+  const ink = (await store.listContracts(p.id)).filter((c) => c.status === "active" && c.runtimeType === "ink" && c.abi);
+  if (ink.length === 0) return 0;
+  try {
+    if (!nativeChain) {
+      const { PolkadotNativeChain } = await import("../../packages/chain-adapters/native.ts");
+      nativeChain = await PolkadotNativeChain.connect(NATIVE_RPC);
+      console.log(`PortalOps worker · native ${NATIVE_RPC} · genesis ${nativeChain.genesisHash.slice(0, 12)}…`);
+    }
+    const r = await ingestNativeOnce({
+      projectId: p.id, chain: nativeChain, store, evmChainId: CHAIN_ID, enqueueDeliveries: true,
+      contracts: ink.map((c) => ({ address: c.address, metadata: c.abi, startBlock: c.startBlock })),
+      onBatch: ({ block, head }) => beat({ phase: "ingesting-native", project: p.id, block, head }),
+    });
+    if (r.newEvents || r.reorgDetected) console.log(`${new Date().toISOString()} ${p.id} native head #${r.head} +${r.newEvents} events${r.reorgDetected ? ", REORG handled" : ""}`);
+    return r.newEvents;
+  } catch (e) {
+    const dead = nativeChain as NativeChain | null; nativeChain = null; // reconnect on the next pass
+    await dead?.close();
+    throw e;
+  }
+}
+
 let failures = 0;
 while (!stopping) {
   try {
@@ -82,6 +110,12 @@ while (!stopping) {
     for (const p of await store.listAllProjects()) {
       try {
         await ingestProject(p, head.number);
+        await ingestNativeProject(p).catch(async (e) => {
+          // A native outage must not stall the EVM side of the same project.
+          const msg = e instanceof Error ? e.message : String(e);
+          await store.log("error", "ingest", `Native ingestion failed: ${msg}`, undefined, p.id);
+          console.error(`${new Date().toISOString()} ${p.id} native ingestion failed: ${msg}`);
+        });
       } catch (e) {
         // One project's failure must not stall the others.
         const msg = e instanceof Error ? e.message : String(e);
@@ -101,6 +135,7 @@ while (!stopping) {
   const wait = Math.min(60_000, POLL_MS * 2 ** Math.min(failures, 4));
   for (let waited = 0; waited < wait && !stopping; waited += 250) await new Promise((r) => setTimeout(r, 250));
 }
+await (nativeChain as NativeChain | null)?.close();
 await store.close();
 console.log("Worker stopped.");
 markStopped();

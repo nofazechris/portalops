@@ -1,0 +1,514 @@
+{
+  "source": {
+    "hash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+    "language": "ink! 5.1.1",
+    "compiler": "rustc 1.95.0",
+    "build_info": {
+      "build_mode": "Release",
+      "cargo_contract_version": "5.0.3",
+      "rust_toolchain": "stable-x86_64-pc-windows-msvc",
+      "wasm_opt_settings": {
+        "keep_debug_symbols": false,
+        "optimization_passes": "Z"
+      }
+    }
+  },
+  "contract": {
+    "name": "portal_ping_ink",
+    "version": "0.1.0",
+    "authors": [
+      "PortalOps"
+    ]
+  },
+  "version": 5,
+  "types": [
+    {
+      "id": 0,
+      "type": {
+        "def": {
+          "primitive": "u64"
+        }
+      }
+    },
+    {
+      "id": 1,
+      "type": {
+        "path": [
+          "portal_ping_ink",
+          "portal_ping_ink",
+          "PortalPingInk"
+        ],
+        "def": {
+          "composite": {
+            "fields": [
+              {
+                "name": "seq",
+                "type": 0,
+                "typeName": "<u64 as::ink::storage::traits::AutoStorableHint<::ink::storage\n::traits::ManualKey<1410748738u32, ()>,>>::Type"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 2,
+      "type": {
+        "path": [
+          "Result"
+        ],
+        "params": [
+          {
+            "name": "T",
+            "type": 3
+          },
+          {
+            "name": "E",
+            "type": 4
+          }
+        ],
+        "def": {
+          "variant": {
+            "variants": [
+              {
+                "name": "Ok",
+                "fields": [
+                  {
+                    "type": 3
+                  }
+                ],
+                "index": 0
+              },
+              {
+                "name": "Err",
+                "fields": [
+                  {
+                    "type": 4
+                  }
+                ],
+                "index": 1
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 3,
+      "type": {
+        "def": {
+          "tuple": []
+        }
+      }
+    },
+    {
+      "id": 4,
+      "type": {
+        "path": [
+          "ink_primitives",
+          "LangError"
+        ],
+        "def": {
+          "variant": {
+            "variants": [
+              {
+                "name": "CouldNotReadInput",
+                "index": 1
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 5,
+      "type": {
+        "def": {
+          "primitive": "str"
+        }
+      }
+    },
+    {
+      "id": 6,
+      "type": {
+        "path": [
+          "Result"
+        ],
+        "params": [
+          {
+            "name": "T",
+            "type": 0
+          },
+          {
+            "name": "E",
+            "type": 4
+          }
+        ],
+        "def": {
+          "variant": {
+            "variants": [
+              {
+                "name": "Ok",
+                "fields": [
+                  {
+                    "type": 0
+                  }
+                ],
+                "index": 0
+              },
+              {
+                "name": "Err",
+                "fields": [
+                  {
+                    "type": 4
+                  }
+                ],
+                "index": 1
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 7,
+      "type": {
+        "path": [
+          "ink_primitives",
+          "types",
+          "AccountId"
+        ],
+        "def": {
+          "composite": {
+            "fields": [
+              {
+                "type": 8,
+                "typeName": "[u8; 32]"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 8,
+      "type": {
+        "def": {
+          "array": {
+            "len": 32,
+            "type": 9
+          }
+        }
+      }
+    },
+    {
+      "id": 9,
+      "type": {
+        "def": {
+          "primitive": "u8"
+        }
+      }
+    },
+    {
+      "id": 10,
+      "type": {
+        "def": {
+          "primitive": "u128"
+        }
+      }
+    },
+    {
+      "id": 11,
+      "type": {
+        "path": [
+          "ink_primitives",
+          "types",
+          "Hash"
+        ],
+        "def": {
+          "composite": {
+            "fields": [
+              {
+                "type": 8,
+                "typeName": "[u8; 32]"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 12,
+      "type": {
+        "def": {
+          "primitive": "u32"
+        }
+      }
+    },
+    {
+      "id": 13,
+      "type": {
+        "path": [
+          "ink_env",
+          "types",
+          "NoChainExtension"
+        ],
+        "def": {
+          "variant": {}
+        }
+      }
+    }
+  ],
+  "storage": {
+    "root": {
+      "root_key": "0x00000000",
+      "layout": {
+        "struct": {
+          "name": "PortalPingInk",
+          "fields": [
+            {
+              "name": "seq",
+              "layout": {
+                "leaf": {
+                  "key": "0x00000000",
+                  "ty": 0
+                }
+              }
+            }
+          ]
+        }
+      },
+      "ty": 1
+    }
+  },
+  "spec": {
+    "constructors": [
+      {
+        "label": "new",
+        "selector": "0x9bae9d5e",
+        "payable": false,
+        "args": [],
+        "returnType": {
+          "type": 2,
+          "displayName": [
+            "ink_primitives",
+            "ConstructorResult"
+          ]
+        },
+        "docs": [],
+        "default": false
+      }
+    ],
+    "messages": [
+      {
+        "label": "ping",
+        "selector": "0xf706af5c",
+        "mutates": true,
+        "payable": false,
+        "args": [
+          {
+            "label": "note",
+            "type": {
+              "type": 5,
+              "displayName": [
+                "String"
+              ]
+            }
+          }
+        ],
+        "returnType": {
+          "type": 6,
+          "displayName": [
+            "ink",
+            "MessageResult"
+          ]
+        },
+        "docs": [
+          " Counts a ping and announces it. Returns the new sequence number."
+        ],
+        "default": false
+      },
+      {
+        "label": "reward",
+        "selector": "0xa51ab1c2",
+        "mutates": true,
+        "payable": false,
+        "args": [
+          {
+            "label": "to",
+            "type": {
+              "type": 7,
+              "displayName": [
+                "AccountId"
+              ]
+            }
+          },
+          {
+            "label": "amount",
+            "type": {
+              "type": 10,
+              "displayName": [
+                "u128"
+              ]
+            }
+          }
+        ],
+        "returnType": {
+          "type": 2,
+          "displayName": [
+            "ink",
+            "MessageResult"
+          ]
+        },
+        "docs": [
+          " Records a reward for an account (demo only: no value moves)."
+        ],
+        "default": false
+      },
+      {
+        "label": "count",
+        "selector": "0xdf209683",
+        "mutates": false,
+        "payable": false,
+        "args": [],
+        "returnType": {
+          "type": 6,
+          "displayName": [
+            "ink",
+            "MessageResult"
+          ]
+        },
+        "docs": [],
+        "default": false
+      }
+    ],
+    "events": [
+      {
+        "label": "Rewarded",
+        "module_path": "portal_ping_ink::portal_ping_ink",
+        "signature_topic": "0xefe7bf3836ffd679ab2b01e3178ebfd9ab6b88ad7d03583f37aa3545d9bf5734",
+        "args": [
+          {
+            "label": "to",
+            "indexed": true,
+            "type": {
+              "type": 7,
+              "displayName": [
+                "AccountId"
+              ]
+            },
+            "docs": []
+          },
+          {
+            "label": "amount",
+            "indexed": false,
+            "type": {
+              "type": 10,
+              "displayName": [
+                "u128"
+              ]
+            },
+            "docs": []
+          }
+        ],
+        "docs": [
+          "Emitted by `reward`: a number recorded in an event, like the Solidity examples. It moves no value."
+        ]
+      },
+      {
+        "label": "Ping",
+        "module_path": "portal_ping_ink::portal_ping_ink",
+        "signature_topic": "0xb51a6db96996b5732600c830ab7340f7a42589a2f6e100663998623c1933fd72",
+        "args": [
+          {
+            "label": "from",
+            "indexed": true,
+            "type": {
+              "type": 7,
+              "displayName": [
+                "AccountId"
+              ]
+            },
+            "docs": []
+          },
+          {
+            "label": "seq",
+            "indexed": false,
+            "type": {
+              "type": 0,
+              "displayName": [
+                "u64"
+              ]
+            },
+            "docs": []
+          },
+          {
+            "label": "note",
+            "indexed": false,
+            "type": {
+              "type": 5,
+              "displayName": [
+                "String"
+              ]
+            },
+            "docs": []
+          }
+        ],
+        "docs": [
+          "Emitted by `ping`. `from` is indexed so it can be filtered."
+        ]
+      }
+    ],
+    "docs": [
+      " PortalPing for ink!: the same idea as the Solidity PortalPing, written in Rust for Portaldot's native Contracts pallet.",
+      " Every call emits an event that PortalOps captures, decodes with this contract's metadata, and delivers as a signed webhook."
+    ],
+    "lang_error": {
+      "type": 4,
+      "displayName": [
+        "ink",
+        "LangError"
+      ]
+    },
+    "environment": {
+      "accountId": {
+        "type": 7,
+        "displayName": [
+          "AccountId"
+        ]
+      },
+      "balance": {
+        "type": 10,
+        "displayName": [
+          "Balance"
+        ]
+      },
+      "hash": {
+        "type": 11,
+        "displayName": [
+          "Hash"
+        ]
+      },
+      "timestamp": {
+        "type": 0,
+        "displayName": [
+          "Timestamp"
+        ]
+      },
+      "blockNumber": {
+        "type": 12,
+        "displayName": [
+          "BlockNumber"
+        ]
+      },
+      "chainExtension": {
+        "type": 13,
+        "displayName": [
+          "ChainExtension"
+        ]
+      },
+      "maxEventTopics": 4,
+      "staticBufferSize": 16384
+    }
+  }
+}

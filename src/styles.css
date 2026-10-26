@@ -465,3 +465,17 @@ pre { margin: 0; }
 .page-narrow { max-width: 780px; margin: 0 auto; }
 .page-narrow [style*="max-width: 560px"], .page-narrow [style*="max-width: 680px"], .page-narrow [style*="max-width: 720px"], .page-narrow [style*="max-width: 760px"] { max-width: none !important; }
 .page-narrow > div > h1.h1, .page-narrow > div > .sub { text-align: left; }
+
+/* ---------- contract source picker (Solidity ABI / ink! metadata upload) ---------- */
+.cs-type { display: inline-flex; gap: 6px; padding: 4px; border-radius: 11px; background: #0d0d0d; border: 1px solid #1f1f1f; margin-bottom: 14px; }
+.cs-opt { display: inline-flex; align-items: baseline; gap: 8px; padding: 8px 16px; border-radius: 8px; border: 0; background: transparent; color: var(--fg-3); cursor: pointer; font-size: 13.5px; }
+.cs-opt span { font-family: var(--mono); font-size: 11px; color: var(--dim); }
+.cs-opt.on { background: rgba(185, 167, 255, 0.12); color: var(--fg); }
+.cs-opt.on span { color: var(--accent); }
+.cs-drop { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px dashed #34324a; border-radius: 10px; background: rgba(185, 167, 255, 0.03); font-size: 13px; color: var(--muted); transition: border-color 0.15s, background 0.15s; }
+.cs-drop.over { border-color: var(--accent); background: rgba(185, 167, 255, 0.09); }
+.cs-info { margin: -6px 0 14px; padding: 10px 13px; border-radius: 9px; font-size: 13px; line-height: 1.5; }
+.cs-info.ok { background: rgba(110, 231, 168, 0.07); border: 1px solid #1f3a2a; color: var(--fg-2); }
+.cs-info.ok b { color: var(--green); font-weight: 600; }
+.cs-info.bad { background: rgba(240, 138, 134, 0.07); border: 1px solid #3a1f22; color: var(--red); }
+.cs-note { color: var(--muted); font-size: 12px; margin-top: 3px; }

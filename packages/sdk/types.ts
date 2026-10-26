@@ -189,10 +189,12 @@ export interface Contract {
 }
 
 export interface AddContractInput {
+  /** "evm" (default): a Solidity contract at a 0x address. "ink": a Rust ink! contract at an SS58 address (needs its metadata). */
+  type?: "evm" | "ink";
   address: string;
   name?: string;
-  /** The contract ABI (array), used to decode logs. Without it, logs are stored undecoded. */
-  abi?: Record<string, unknown>[];
+  /** Solidity: the contract ABI (array). ink!: the contract metadata object. Without an ABI, EVM logs are stored undecoded. */
+  abi?: Record<string, unknown>[] | Record<string, unknown>;
   startBlock?: number;
   deploymentTxHash?: string;
 }

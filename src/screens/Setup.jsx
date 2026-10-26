@@ -1,3 +1,4 @@
+import { ADDRESS_HELP, ContractSource, buildContractBody } from "../ContractSource.jsx";
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../api.js";
 import { shortHash, useApi, useSession } from "../state.jsx";
@@ -17,15 +18,6 @@ const STEPS = [
   { id: "deliver", title: "Where events go" },
   { id: "see", title: "See it work" },
 ];
-
-function parseAbi(text) {
-  if (!text.trim()) return undefined;
-  let v;
-  try { v = JSON.parse(text); } catch { throw new Error("The ABI is not valid JSON."); }
-  if (Array.isArray(v)) return v;
-  if (v && Array.isArray(v.abi)) return v.abi;
-  throw new Error('Paste the ABI array, or a compiler artifact that has an "abi" field.');
-}
 
 const Explain = ({ children }) => (
   <p style={{ fontSize: 13.5, color: "var(--muted)", lineHeight: 1.65, margin: "8px 0 18px", maxWidth: 620 }}>{children}</p>
@@ -79,7 +71,7 @@ function WatchStep({ projectId, contracts, reloadContracts, onWatching, watching
   const { data: featured, error: featErr } = useApi(() => api.featured(), []);
   const { data: examples } = useApi(() => api.examples(), []);
   const [pick, setPick] = useState(null); // featured id | "own"
-  const [own, setOwn] = useState({ address: "", exampleId: "", abi: "", startBlock: "" });
+  const [own, setOwn] = useState({ address: "", exampleId: "", abi: "", startBlock: "", type: "evm" });
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState(null);
   const fe = fieldErrors(problem);
@@ -92,12 +84,11 @@ function WatchStep({ projectId, contracts, reloadContracts, onWatching, watching
       let body, events = [];
       if (pick === "own") {
         body = { address: own.address.trim() };
-        if (own.exampleId) {
+        if (own.type === "evm" && own.exampleId) {
           const ex = await api.example(own.exampleId);
           body.abi = ex.abi; body.name = ex.title; events = ex.eventDetails.map((e) => e.name);
         } else {
-          const abi = parseAbi(own.abi);
-          if (abi) { body.abi = abi; events = abi.filter((x) => x.type === "event").map((x) => x.name); }
+          Object.assign(body, buildContractBody(own.type, own.abi));
         }
         if (own.startBlock.trim()) body.startBlock = Number(own.startBlock);
       } else {
@@ -150,19 +141,19 @@ function WatchStep({ projectId, contracts, reloadContracts, onWatching, watching
 
       {pick === "own" && (
         <div className="qs-own">
-          <Field label="Contract address" error={fe.address} hint="Starts with 0x, 42 characters. Must be on the Portaldot V3.0 testnet.">
-            <input className="input mono" placeholder="0x…" value={own.address} onChange={(e) => setOwn({ ...own, address: e.target.value })} />
+          <Field label={ADDRESS_HELP[own.type].label} error={fe.address} hint={own.type === "ink" ? "An SS58 address starting with 5, for a Rust (ink!) contract on the Portaldot native runtime." : "Starts with 0x, 42 characters. Must be on the Portaldot V3.0 testnet."}>
+            <input className="input mono" placeholder={ADDRESS_HELP[own.type].placeholder} value={own.address} onChange={(e) => setOwn({ ...own, address: e.target.value })} />
           </Field>
-          <Field label="How should its events be read?" hint="PortalOps needs the contract's ABI (its list of events) to show readable names. Not sure? Choose 'Show raw data': events are still captured.">
-            <select className="select" value={own.exampleId} onChange={(e) => setOwn({ ...own, exampleId: e.target.value })}>
-              <option value="">Paste my own ABI below, or show raw data</option>
-              {examples?.map((x) => <option key={x.id} value={x.id}>It's a copy of the "{x.title}" example</option>)}
-            </select>
-          </Field>
-          {!own.exampleId && (
-            <Field label="ABI (optional)" error={fe.abi} hint="The JSON from your compiler. Leave empty to capture events as raw data.">
-              <textarea className="textarea mono" value={own.abi} onChange={(e) => setOwn({ ...own, abi: e.target.value })} />
+          {own.type === "evm" && (
+            <Field label="How should its events be read?" hint="PortalOps needs the contract's ABI (its list of events) to show readable names. Not sure? Choose 'Show raw data': events are still captured.">
+              <select className="select" value={own.exampleId} onChange={(e) => setOwn({ ...own, exampleId: e.target.value })}>
+                <option value="">Upload or paste my own ABI below, or show raw data</option>
+                {examples?.map((x) => <option key={x.id} value={x.id}>It's a copy of the "{x.title}" example</option>)}
+              </select>
             </Field>
+          )}
+          {!(own.type === "evm" && own.exampleId) && (
+            <ContractSource type={own.type} setType={(t) => setOwn((o) => ({ ...o, type: t, exampleId: t === "ink" ? "" : o.exampleId }))} text={own.abi} setText={(v) => setOwn((o) => ({ ...o, abi: v }))} error={fe.abi} />
           )}
           <Field label="Start from block (optional)" error={fe.startBlock} hint="Capture history from this block. Leave empty for roughly the last 1,000 blocks.">
             <input className="input mono" inputMode="numeric" value={own.startBlock} onChange={(e) => setOwn({ ...own, startBlock: e.target.value })} />
