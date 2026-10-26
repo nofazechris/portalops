@@ -1,5 +1,7 @@
 # Contracts and examples
 
+> Writing contracts in Rust? PortalOps reads ink! contracts too: see [Rust (ink!) contracts](ink-contracts.md).
+
 ## Tracking your own contract
 
 You need three things: the **address**, ideally the **ABI**, and optionally a **start block**.

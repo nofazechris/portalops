@@ -27,6 +27,7 @@ export const DOC_SECTIONS = [
     items: [
       { path: "guides/accounts", title: "Accounts and sign-in" },
       { path: "guides/contracts-and-examples", title: "Contracts and examples" },
+      { path: "guides/ink-contracts", title: "Rust (ink!) contracts" },
       { path: "guides/game-development", title: "Game development" },
       { path: "guides/webhooks", title: "Receiving webhooks" },
       { path: "guides/claude-setup", title: "Set up with Claude" },

@@ -79,8 +79,8 @@ Being clear about the edges is part of being trustworthy:
 
 - It is **not a historical query engine**. It delivers and records events for the contracts you watch; it is not a general-purpose
   analytics database like a GraphQL indexer. The two are complementary.
-- It reads the **EVM side** of the **Portaldot V3.0 testnet** today. Portaldot also supports Rust (ink!) contracts; reading those is a
-  planned adapter, not a shipped feature.
+- It reads the **Portaldot V3.0 testnet**: Solidity contracts through the EVM view, and Rust (ink!) contracts through the native
+  runtime (see [Rust (ink!) contracts](ink-contracts.md); that reader sees only recent blocks, about the last 240).
 - It is **testnet software**: no real funds are involved, and it has not been through an external security audit (see the
   [security review](../security/review.md) for what was checked).
 - Webhooks are **at-least-once**. Exactly-once is not possible over HTTP; PortalOps makes duplicates harmless instead.

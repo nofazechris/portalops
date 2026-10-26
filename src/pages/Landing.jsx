@@ -36,7 +36,7 @@ const gameEvents = [
 
 const faq = [
   { q: "Do I need to deploy a contract first?", a: "No. The live explorer already shows real events from the Portaldot V3.0 testnet. To get webhooks for your own contract, register its address and PortalOps starts capturing from the block you choose." },
-  { q: "Which contracts does it support?", a: "Solidity and other EVM contracts on Portaldot V3 (pallet-revive). ink! contracts built on the older Contracts pallet are not ingested yet; an adapter is planned." },
+  { q: "Which contracts does it support?", a: "Solidity and other EVM contracts on Portaldot V3 (pallet-revive). Rust (ink!) contracts on Portaldot's native Contracts pallet are read too: upload the contract's metadata file and its SS58 address." },
   { q: "Does Claude ever see my signing secret?", a: "No. The tool server writes the secret straight into a git-ignored .env.portalops file and only reports a masked preview back to the model. API keys are shown once and stored hashed." },
   { q: "How do I trust a webhook is really from PortalOps?", a: "Every delivery carries an HMAC-SHA256 signature in the form t=…,v1=…. Recompute it with your signing secret and compare. The docs include a ready-made verifier." },
   { q: "What happens if my server is down?", a: "Deliveries are retried with backoff and every attempt is logged. When you are back, replay the event: it is sent again exactly as it happened, with the same payload." },

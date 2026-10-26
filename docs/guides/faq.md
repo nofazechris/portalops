@@ -23,7 +23,7 @@ The **Portaldot V3.0 testnet** (EVM chain id 420420777) today. See [Portaldot ne
 
 ### Which language are the contracts written in?
 The example contracts are **Solidity**, compiled to EVM bytecode and deployed to Portaldot's EVM layer. Portaldot also supports Rust
-(ink!) contracts; PortalOps does not read those yet (a native adapter is planned).
+(ink!) contracts, and PortalOps reads those too: register the contract's SS58 address with its metadata file (see [Rust (ink!) contracts](ink-contracts.md)).
 
 ## Events and delivery
 
