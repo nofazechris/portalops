@@ -11,15 +11,8 @@ import LandingAi from "./LandingAi.jsx";
 import "./pages.css";
 import "./landing.css";
 
-// Every step links somewhere that explains or starts it. None of them drops a visitor into the dashboard by surprise.
-const walk = [
-  { k: "01", title: "Sign up", desc: "Create your account with email or GitHub.", panelTitle: "Create your account", panelBody: "No infrastructure to provision. Sign in and your workspace is ready.", code: "→ Continue with GitHub · Email", cta: "Create account", href: "/auth#signup" },
-  { k: "02", title: "Create a project", desc: "Name it and default to Portaldot Testnet.", panelTitle: "New project", panelBody: "Pick an environment and you're dropped straight into guided setup.", code: "project: portalops-demo · Testnet", cta: "Read the quick start", href: "/docs/guides/quickstart" },
-  { k: "03", title: "Connect your contract", desc: "Paste an address or use the demo contract.", panelTitle: "Add a contract", panelBody: "Addresses are validated against the selected network before you continue.", code: "0x… your contract address", cta: "How contracts are added", href: "/docs/guides/contracts-and-examples" },
-  { k: "04", title: "Choose your events", desc: "Select the events your application cares about.", panelTitle: "Select events", panelBody: "Discovered from the contract ABI — pick what PortalOps should process.", code: "QuestCompleted · RewardMinted · AccessGranted", cta: "How events work", href: "/docs/guides/concepts" },
-  { k: "05", title: "Test a real event", desc: "Trigger a transaction and watch it flow end to end.", panelTitle: "Send your first event", panelBody: "Transaction → decoded → stored → delivered, with real references.", code: "expected: HTTP 2xx from your endpoint", cta: "Try the live demo", href: "/app" },
-  { k: "06", title: "Let AI help (optional)", desc: "Hand setup to your coding agent and verify.", panelTitle: "Connect an AI agent", panelBody: "Give Claude one sentence. It registers the contract, creates the webhook and sends a signed test delivery. Watch the replay above.", code: "prompt → your agent → test delivery", cta: "Watch it run", href: "#ai" },
-];
+// The page is a story in six short chapters, each answering the question the reader has at that point:
+//   what is it -> why does it need to exist -> how does it work -> what if something fails -> how do I start -> can I trust it
 
 const stages = [
   { orb: "searching", title: "Watch", desc: "Follows the Portaldot testnet block by block and spots logs from the contracts you register." },
@@ -52,24 +45,6 @@ const Copy = ({ text }) => {
   return <button type="button" className="ev-copy" onClick={click} aria-label="Copy to clipboard">{done ? "Copied ✓" : "Copy"}</button>;
 };
 
-/** Lets the cursor light up the card it is over (the spotlight reads --mx/--my set here). */
-const spotlight = (e) => {
-  const card = e.target.closest?.(".feature");
-  if (!card) return;
-  const r = card.getBoundingClientRect();
-  card.style.setProperty("--mx", `${e.clientX - r.left}px`);
-  card.style.setProperty("--my", `${e.clientY - r.top}px`);
-};
-
-const features = [
-  { glyph: "⇥", title: "Event ingestion", desc: "Decode and normalize on-chain events into clean, application-ready records.", meta: "block tracker · idempotent storage" },
-  { glyph: "↗", title: "Webhooks", desc: "Deliver events to any endpoint with signing, retries and delivery history.", meta: "signed · retried · replayable" },
-  { glyph: "↺", title: "Replay & retry", desc: "Recover failed deliveries in one click, without reconstructing state.", meta: "signature feature" },
-  { glyph: "◎", title: "Observability", desc: "Logs, metrics and contextual diagnostics across every event and delivery.", meta: "real-time logs" },
-  { glyph: "⌁", title: "Automations", desc: "Trigger webhooks and actions when events match the conditions you set.", meta: "when · if · then" },
-  { glyph: "{ }", title: "REST API", desc: "The same API the dashboard uses, plus signed webhooks for your backend.", meta: "REST · signed webhooks" },
-];
-
 const Brand = ({ size = 22, inner = 8, font = 16, href }) => {
   const mark = (
     <>
@@ -85,9 +60,16 @@ const Brand = ({ size = 22, inner = 8, font = 16, href }) => {
 
 const Pill = ({ children }) => <span className="mono-pill">{children}</span>;
 
+/** The heading of a chapter: its number and name, the headline, and one line that hands the reader on to the next chapter. */
+const Chapter = ({ n, name, title, lead }) => (
+  <Reveal className="chapter">
+    <span className="chap-n"><b>{n}</b>{name}</span>
+    <h2 className="lp-h2">{title}</h2>
+    {lead ? <p className="chap-lead">{lead}</p> : null}
+  </Reveal>
+);
+
 export default function Landing() {
-  const [step, setStep] = useState(0);
-  const cur = walk[step];
   const status = useApi(() => api.publicStatus(), [], { refreshMs: 10_000 });
   const demoId = status.data?.demo?.projectId;
   const live = useApi(() => api.events(demoId, { limit: 10 }), [demoId], { enabled: !!demoId, refreshMs: 10_000 });
@@ -97,17 +79,16 @@ export default function Landing() {
   const latest = live.data?.items?.[0];
 
   return (
-    <div className="lp" id="landing-top">
+    <div className="lp story" id="landing-top">
       {/* NAV */}
       <nav className="lp-nav">
         <div style={{ display: "flex", alignItems: "center", gap: 40 }}>
           <Brand href="#top" />
           <div className="lp-nav-links" style={{ display: "flex", gap: 28, fontSize: 14 }}>
-            <a className="top-link" href="#pipeline">Product</a>
+            <a className="top-link" href="#why">Why</a>
+            <a className="top-link" href="#pipeline">How it works</a>
             <a className="top-link nav-ai" href="#ai"><Orb size={20} state="breathing" label="" />Set up with AI</a>
             <Link className="top-link" href="/playground">Playground</Link>
-            <a className="top-link" href="#replay">Replay</a>
-            <a className="top-link" href="#sdk">Developers</a>
             <Link className="top-link" href="/docs">Docs</Link>
           </div>
         </div>
@@ -117,7 +98,7 @@ export default function Landing() {
         </div>
       </nav>
 
-      {/* HERO */}
+      {/* HERO: what is it */}
       <section id="top" className="lp-hero" style={{ display: "grid", gridTemplateColumns: "minmax(0,1.05fr) minmax(0,0.95fr)", gap: 56, alignItems: "center", padding: "84px 0 72px" }}>
         <div>
           <span className="mono" style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 12, letterSpacing: "0.02em", color: "var(--accent)", border: "1px solid #2a2740", background: "rgba(185,167,255,0.06)", padding: "6px 11px", borderRadius: 999 }}>
@@ -128,7 +109,7 @@ export default function Landing() {
             Turn Portaldot events into reliable application infrastructure.
           </h1>
           <p style={{ fontSize: 18, lineHeight: 1.55, color: "var(--fg-3)", maxWidth: 520, margin: "22px 0 0" }}>
-            PortalOps gives Portaldot developers event ingestion, webhooks, replay, monitoring and automation — without building the infrastructure themselves.
+            PortalOps watches your smart contracts and delivers every event to your app as a signed, retried, replayable webhook, without you building the infrastructure.
           </p>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginTop: 34 }}>
             <Link className="pbtn btn-lg" href="/auth#signup">Start Building</Link>
@@ -136,10 +117,6 @@ export default function Landing() {
               <svg width="15" height="15" viewBox="0 0 24 24"><polygon points="6 4 20 12 6 20" fill="#B9A7FF" /></svg>
               View Live Demo
             </Link>
-          </div>
-          <div className="mono" style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 12, columnGap: 22, marginTop: 38, fontSize: 12, color: "var(--dim)" }}>
-            <span>The event layer for</span>
-            {["DApps", "Games", "Agents", "Backends"].map((t) => <span key={t} style={{ color: "var(--muted)" }}>{t}</span>)}
           </div>
         </div>
 
@@ -180,7 +157,7 @@ export default function Landing() {
               {live.data?.items?.length ? live.data.items.slice(0, 3).map((e) => (
                 <div key={e.id} className="log-line">
                   <span style={{ color: "var(--dim)" }}>{timeAgo(e.observedAt)}</span>
-                  <span style={{ color: "var(--green)" }}>{e.eventName ?? "UNDECODED_LOG"}</span>
+                  <span style={{ color: "var(--green)" }}>{e.eventName ?? "Raw log"}</span>
                   <span style={{ color: "var(--fg-3)" }}>#{e.blockNumber} {shortHash(e.transactionHash, 8, 4)}</span>
                 </div>
               )) : <div style={{ color: "var(--fg-3)" }}>{status.error || conn === "disconnected" ? "Testnet unreachable right now." : "No events captured yet."}</div>}
@@ -189,31 +166,9 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* LIVE TICKER: the most recent real events, scrolling by (only when there are enough to be worth it) */}
-      {live.data?.items?.length >= 3 ? (
-        <div className="ticker" aria-label="Recent events captured from the Portaldot testnet">
-          <span className="ticker-label"><span className="dot green" style={{ animation: "blink 2s infinite" }} />live</span>
-          <div className="ticker-track">
-            {[0, 1].map((copy) => (
-              <div key={copy} className="ticker-run" aria-hidden={copy === 1}>
-                {live.data.items.map((e) => (
-                  <span key={e.id} className="ticker-item"><b>{e.eventName ?? "contract log"}</b> #{e.blockNumber} <em>{shortHash(e.transactionHash, 6, 4)}</em></span>
-                ))}
-              </div>
-            ))}
-          </div>
-        </div>
-      ) : null}
-
-      {/* SET UP WITH AI: an explorable replay, and the real commands */}
-      <LandingAi />
-
-      {/* WHY */}
+      {/* 01  THE PROBLEM: why does it need to exist */}
       <section id="why" className="lp-sec why">
-        <Reveal className="lp-section-head">
-          <h2 className="lp-h2">The boring part of every Portaldot app, already built.</h2>
-          <p className="lp-aside">// why PortalOps</p>
-        </Reveal>
+        <Chapter n="01" name="The problem" title="Contracts speak in events. Every app has to listen." lead="Doing it reliably is the boring part of every Portaldot app, and it is always the same work." />
         <div className="why-grid">
           <Reveal className="why-card without">
             <div className="why-tag">Without PortalOps, you build</div>
@@ -222,45 +177,13 @@ export default function Landing() {
           <Reveal className="why-card with" delay={110}>
             <div className="why-tag">With PortalOps, you do</div>
             <ul>{compare.with.map((t) => <li key={t}><span aria-hidden="true">✓</span>{t}</li>)}</ul>
-            <Link className="pbtn btn-lg" href="/auth#signup" style={{ marginTop: 22, fontSize: 14.5, padding: "11px 20px" }}>Start Building →</Link>
           </Reveal>
         </div>
       </section>
 
-      {/* WALKTHROUGH */}
-      <section id="walkthrough" className="lp-sec">
-        <div className="lp-section-head">
-          <h2 className="lp-h2">From zero to a live integration in six steps.</h2>
-          <p className="lp-aside">// guided setup</p>
-        </div>
-        <div className="lp-grid-2" style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr)", gap: 24, alignItems: "start" }}>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {walk.map((w, i) => (
-              <button key={w.k} className={"walk-row" + (i === step ? " on" : "")} onClick={() => setStep(i)}>
-                <span className="k">{w.k}</span>
-                <div>
-                  <div className="t">{w.title}</div>
-                  <div style={{ fontSize: 13.5, color: "var(--muted)", marginTop: 3, lineHeight: 1.45 }}>{w.desc}</div>
-                </div>
-              </button>
-            ))}
-          </div>
-          <div className="lp-sticky" style={{ position: "sticky", top: 88, background: "linear-gradient(160deg,#121016,#0d0d0d)", border: "1px solid #201d2b", borderRadius: 16, padding: 28 }}>
-            <div className="mono" style={{ fontSize: 11, color: "var(--accent)", letterSpacing: "0.04em" }}>STEP {cur.k}</div>
-            <h3 style={{ fontSize: 23, fontWeight: 600, letterSpacing: "-0.01em", margin: "12px 0 0" }}>{cur.panelTitle}</h3>
-            <p style={{ fontSize: 15, color: "var(--fg-3)", margin: "12px 0 0", lineHeight: 1.55 }}>{cur.panelBody}</p>
-            <div className="mono" style={{ marginTop: 22, fontSize: 13, color: "var(--fg-2)", background: "#0a0a0a", border: "1px solid #1f1f1f", borderRadius: 10, padding: "14px 16px" }}>{cur.code}</div>
-            <Link className="pbtn btn-lg" href={cur.href} style={{ marginTop: 22, fontSize: 14.5, padding: "11px 20px" }}>{cur.cta} →</Link>
-          </div>
-        </div>
-      </section>
-
-      {/* PIPELINE */}
+      {/* 02  THE IDEA: how does it work */}
       <section id="pipeline" className="lp-sec">
-        <div className="lp-section-head">
-          <h2 className="lp-h2">Everything that happens after an on-chain event exists.</h2>
-          <p className="lp-aside">// the operational event layer</p>
-        </div>
+        <Chapter n="02" name="How it works" title="Four steps, from a log on the chain to a call at your server." lead="Everything that happens after an on-chain event exists, handled for you." />
         <div className="stages">
           {stages.map((s, i) => (
             <Reveal key={s.title} delay={i * 90} className="stage">
@@ -271,28 +194,51 @@ export default function Landing() {
             </Reveal>
           ))}
         </div>
-      </section>
-
-      {/* FEATURES */}
-      <section id="features" className="lp-sec">
-        <div className="lp-grid-3" style={{ display: "grid", gridTemplateColumns: "repeat(3,minmax(0,1fr))", gap: 16 }} onMouseMove={spotlight}>
-          {features.map((f) => (
-            <div key={f.title} className="feature">
-              <span className="ico">{f.glyph}</span>
-              <h3 style={{ fontSize: 16.5, fontWeight: 600, margin: "16px 0 0" }}>{f.title}</h3>
-              <p style={{ fontSize: 14, lineHeight: 1.5, color: "#9a968e", margin: "8px 0 0" }}>{f.desc}</p>
-              <span className="mono" style={{ marginTop: "auto", paddingTop: 14, fontSize: 11.5, color: "var(--dim)" }}>{f.meta}</span>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* PROOF: the contract we deployed on the testnet and the transactions that produced real events */}
-      <section id="proof" className="lp-sec proof">
-        <Reveal className="lp-section-head">
-          <h2 className="lp-h2">Not a mock-up. Real transactions on the Portaldot testnet.</h2>
-          <p className="lp-aside">// evidence</p>
+        <Reveal className="also">
+          <span>Also included</span>
+          {["Live dashboard", "Public explorer", "REST API", "TypeScript SDK", "Claude tools", "Automations"].map((t) => <Pill key={t}>{t}</Pill>)}
         </Reveal>
+      </section>
+
+      {/* 03  WHEN THINGS FAIL: what if something goes wrong */}
+      <section id="replay" className="lp-sec lp-grid-2" style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr)", gap: 64, alignItems: "center" }}>
+        <Reveal>
+          <span className="chap-n left"><b>03</b>When it fails</span>
+          <h2 className="lp-h2-big" style={{ fontSize: 36, letterSpacing: "-0.025em", fontWeight: 600, margin: "14px 0 0", lineHeight: 1.08 }}>Your server went down. Nothing was lost.</h2>
+          <p style={{ fontSize: 17, lineHeight: 1.6, color: "var(--fg-3)", maxWidth: 460, margin: "16px 0 0" }}>
+            PortalOps keeps every normalised event. When a delivery fails it retries with backoff, and once you are back, one click replays the event exactly as it happened. No reconstructing blockchain state by hand.
+          </p>
+          <div style={{ display: "flex", gap: 10, marginTop: 26, flexWrap: "wrap" }}>
+            <Pill>Automatic retry</Pill><Pill>One-click replay</Pill><Pill>Full delivery history</Pill>
+          </div>
+        </Reveal>
+        <Reveal delay={110} className="mono" style={{ background: "#0f0f0f", border: "1px solid #242424", borderRadius: 16, padding: 22, fontSize: 13 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", color: "#7f7b73", fontSize: 11.5 }}><span>delivery.log</span><span style={{ color: "var(--amber)" }}>illustration, not live data</span></div>
+          <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 9 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, background: "#160f10", border: "1px solid #3a1f22", borderRadius: 9, padding: "11px 13px" }}>
+              <span style={{ color: "var(--red)" }}>✕ 500</span><span style={{ color: "var(--fg-3)" }}>431ms</span><span style={{ color: "#7f7b73", marginLeft: "auto" }}>attempt 3 of 5</span>
+            </div>
+            <div style={{ textAlign: "center", color: "var(--accent)", fontSize: 12 }}>↓ replay event</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, background: "#0e1611", border: "1px solid #1f3a2a", borderRadius: 9, padding: "11px 13px" }}>
+              <span style={{ color: "var(--green)" }}>✓ 200</span><span style={{ color: "var(--fg-3)" }}>184ms</span><span style={{ color: "var(--green)", marginLeft: "auto" }}>delivered</span>
+            </div>
+          </div>
+          <div style={{ marginTop: 16, textAlign: "center" }}>
+            <span style={{ display: "inline-block", background: "var(--accent)", color: "#080808", fontWeight: 600, fontSize: 12.5, padding: "9px 18px", borderRadius: 8 }}>Replay Event</span>
+          </div>
+        </Reveal>
+      </section>
+
+      {/* 04  GETTING STARTED: how do I start (the AI replay is the centrepiece) */}
+      <div className="chap-bridge">
+        <span className="chap-n"><b>04</b>Get started</span>
+        <p>The fastest way in is one sentence to Claude. Press Run to watch it happen.</p>
+      </div>
+      <LandingAi />
+
+      {/* 05  PROOF: can I trust it */}
+      <section id="proof" className="lp-sec proof">
+        <Chapter n="05" name="The proof" title="Not a mock-up. Real transactions on the Portaldot testnet." lead="We deployed a contract, sent transactions, and PortalOps decoded and delivered every event." />
         <Reveal className="proof-card">
           <div className="proof-top">
             <div>
@@ -315,76 +261,28 @@ export default function Landing() {
         </Reveal>
       </section>
 
-      {/* LIVE STATUS */}
-      <section className="lp-grid-4" style={{ background: "linear-gradient(120deg,#0d0d0d,#121016)", border: "1px solid #201d2b", borderRadius: 16, padding: "34px 36px", display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 24 }}>
-        {[
-          { value: status.data?.demo ? status.data.demo.eventsIndexed.toLocaleString() : "—", label: "Testnet events indexed (public explorer)", color: "var(--accent)" },
-          { value: status.data?.headBlock != null ? "#" + status.data.headBlock.toLocaleString() : "—", label: "Current head block" },
-          { value: connText, label: "Network connection" },
-          { value: status.data?.demo?.lastEventObservedAt ? timeAgo(status.data.demo.lastEventObservedAt) : "—", label: "Last event captured" },
-        ].map((m) => (
-          <div key={m.label}>
-            <div style={{ fontSize: 30, fontWeight: 600, letterSpacing: "-0.02em", color: m.color || "var(--fg)" }}>{m.value}</div>
-            <div style={{ fontSize: 13, color: "var(--muted)", marginTop: 4 }}>{m.label}</div>
-          </div>
-        ))}
-      </section>
-
-      {/* REPLAY HIGHLIGHT */}
-      <section id="replay" className="lp-sec lp-grid-2" style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr)", gap: 56, alignItems: "center" }}>
-        <div>
-          <span className="mono-tag">// signature feature</span>
-          <h2 className="lp-h2-big" style={{ fontSize: 36, letterSpacing: "-0.025em", fontWeight: 600, margin: "14px 0 0", lineHeight: 1.08 }}>Recover failed deliveries. Instantly.</h2>
-          <p style={{ fontSize: 17, lineHeight: 1.55, color: "var(--fg-3)", maxWidth: 460, margin: "16px 0 0" }}>
-            When a destination fails, PortalOps keeps the normalized event. Replay re-delivers it exactly as it happened — no reconstructing blockchain state by hand.
+      {/* 06  BUILD ON IT: developers */}
+      <section id="sdk" className="lp-sec lp-grid-2" style={{ display: "grid", gridTemplateColumns: "minmax(0,0.9fr) minmax(0,1.1fr)", gap: 64, alignItems: "center" }}>
+        <Reveal>
+          <span className="chap-n left"><b>06</b>Build on it</span>
+          <h2 className="lp-h2-big" style={{ fontSize: 34, letterSpacing: "-0.025em", fontWeight: 600, margin: "14px 0 0", lineHeight: 1.1 }}>An API, an SDK and signed webhooks.</h2>
+          <p style={{ fontSize: 16, lineHeight: 1.6, color: "var(--fg-3)", maxWidth: 440, margin: "16px 0 0" }}>
+            List events, replay deliveries and manage webhooks over HTTP, and verify every delivery with a documented HMAC signature. A typed TypeScript SDK wraps it with retries and verification helpers.
           </p>
-          <div style={{ display: "flex", gap: 10, marginTop: 26, flexWrap: "wrap" }}>
-            <Pill>Automatic retry</Pill><Pill>One-click replay</Pill><Pill>Full delivery history</Pill>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginTop: 28 }}>
+            <Link className="pbtn" href="/docs/tutorials/index" style={{ fontSize: 14.5, padding: "11px 20px", borderRadius: 9 }}>Follow a tutorial</Link>
+            <Link className="sbtn soft" href="/docs" style={{ fontSize: 14.5, padding: "11px 20px", borderRadius: 9 }}>Read the docs</Link>
           </div>
-        </div>
-        <div className="mono" style={{ background: "#0f0f0f", border: "1px solid #242424", borderRadius: 16, padding: 22, fontSize: 13 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", color: "#7f7b73", fontSize: 11.5 }}><span>delivery.log</span><span style={{ color: "var(--amber)" }}>illustration, not live data</span></div>
-          <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 9 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 12, background: "#160f10", border: "1px solid #3a1f22", borderRadius: 9, padding: "11px 13px" }}>
-              <span style={{ color: "var(--red)" }}>✕ 500</span><span style={{ color: "var(--fg-3)" }}>431ms</span><span style={{ color: "#7f7b73", marginLeft: "auto" }}>attempt 3 of 5</span>
-            </div>
-            <div style={{ textAlign: "center", color: "var(--accent)", fontSize: 12 }}>↓ replay event</div>
-            <div style={{ display: "flex", alignItems: "center", gap: 12, background: "#0e1611", border: "1px solid #1f3a2a", borderRadius: 9, padding: "11px 13px" }}>
-              <span style={{ color: "var(--green)" }}>✓ 200</span><span style={{ color: "var(--fg-3)" }}>184ms</span><span style={{ color: "var(--green)", marginLeft: "auto" }}>delivered</span>
-            </div>
-          </div>
-          <div style={{ marginTop: 16, textAlign: "center" }}>
-            <span style={{ display: "inline-block", background: "var(--accent)", color: "#080808", fontWeight: 600, fontSize: 12.5, padding: "9px 18px", borderRadius: 8 }}>Replay Event</span>
-          </div>
-        </div>
-      </section>
-
-      {/* DEVELOPERS */}
-      <section id="sdk" className="lp-sec lp-grid-2" style={{ display: "grid", gridTemplateColumns: "minmax(0,0.9fr) minmax(0,1.1fr)", gap: 56, alignItems: "center" }}>
-        <div>
-          <span className="mono-tag">// built for developers</span>
-          <h2 className="lp-h2-big" style={{ fontSize: 34, letterSpacing: "-0.025em", fontWeight: 600, margin: "14px 0 0", lineHeight: 1.1 }}>A REST API, an SDK and signed webhooks.</h2>
-          <p style={{ fontSize: 16, lineHeight: 1.55, color: "var(--fg-3)", maxWidth: 440, margin: "16px 0 0" }}>
-            List events, replay deliveries and manage webhooks over HTTP, and verify every delivery with a documented HMAC signature. A typed TypeScript SDK (in this repo, not yet on npm) wraps it with retries and verification helpers.
-          </p>
-          <div className="mono" style={{ display: "flex", flexDirection: "column", gap: 9, marginTop: 26, fontSize: 12.5, color: "var(--muted)" }}>
-            <span><span style={{ color: "var(--accent)" }}>GET</span>  /api/v1/projects/:id/events</span>
-            <span><span style={{ color: "var(--accent)" }}>GET</span>  /api/v1/webhooks/:id/deliveries</span>
-            <span><span style={{ color: "var(--green)" }}>POST</span> /api/v1/events/:id/replay</span>
-          </div>
-        </div>
-        <div style={{ background: "#0d0d0d", border: "1px solid #242424", borderRadius: 16, overflow: "hidden" }}>
+        </Reveal>
+        <Reveal delay={110} style={{ background: "#0d0d0d", border: "1px solid #242424", borderRadius: 16, overflow: "hidden" }}>
           <div className="mono" style={{ padding: "12px 16px", borderBottom: "1px solid #1d1d1d", fontSize: 12, color: "var(--muted)" }}>verify.mjs · webhook signature check</div>
           <pre className="mono" style={{ padding: "20px 22px", fontSize: 12, lineHeight: 1.65, color: "var(--fg-2)", overflowX: "auto" }}>{signatureSnippet}</pre>
-        </div>
+        </Reveal>
       </section>
 
-      {/* FAQ */}
+      {/* QUESTIONS */}
       <section id="faq" className="lp-sec faq">
-        <Reveal className="lp-section-head">
-          <h2 className="lp-h2">Questions people ask first.</h2>
-          <p className="lp-aside">// straight answers</p>
-        </Reveal>
+        <Chapter n="?" name="Questions" title="Questions people ask first." />
         <Reveal className="faq-list">
           {faq.map((f) => (
             <details key={f.q} className="faq-item">
@@ -408,7 +306,7 @@ export default function Landing() {
           </p>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 12, justifyContent: "center", marginTop: 32 }}>
             <Link className="pbtn btn-lg" href="/auth#signup" style={{ padding: "13px 24px" }}>Start Building</Link>
-            <a className="sbtn soft btn-lg" href="#ai" style={{ gap: 9 }}><Orb size={20} state="breathing" label="" />Set up with AI</a>
+            <Link className="sbtn soft btn-lg" href="/playground">Try the playground</Link>
             <Link className="sbtn soft btn-lg" href="/docs">View Documentation</Link>
           </div>
         </div>
@@ -423,10 +321,9 @@ export default function Landing() {
         <div className="lp-foot-cols">
           <div className="foot-col">
             <span className="h">Product</span>
-            <a className="muted-link" href="#features">Events</a>
-            <a className="muted-link" href="#features">Webhooks</a>
+            <a className="muted-link" href="#pipeline">How it works</a>
             <a className="muted-link" href="#replay">Replay</a>
-            <a className="muted-link" href="#pipeline">Automations</a>
+            <a className="muted-link" href="#proof">Proof</a>
             <Link className="muted-link" href="/playground">Playground</Link>
           </div>
           <div className="foot-col">
