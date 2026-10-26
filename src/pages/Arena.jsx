@@ -3,6 +3,7 @@ import { Link } from "../router.jsx";
 import { api } from "../api.js";
 import { useApi } from "../state.jsx";
 import { EVENT_SHAPE, MAX_ATTEMPTS, MISSIONS, RECEIVER_MODES, isRetryableStatus, nextDelayMs, runInWorker } from "./arenaLab.js";
+import { applyKey, cursorPosition, highlight } from "./codeEditor.js";
 import "./arena.css";
 
 // A coding-challenge workspace: problem on the left, editor on the right, a console underneath with the test results, the delivery
@@ -133,6 +134,12 @@ export default function Arena() {
   const [leftTab, setLeftTab] = useState("description");
   const [consoleTab, setConsoleTab] = useState("results");
   const gutter = useRef(null);
+  const hl = useRef(null);
+  const ta = useRef(null);
+  const wsRef = useRef(null);
+  const rightRef = useRef(null);
+  const [pos, setPos] = useState({ line: 1, col: 1 });
+  const [lastRun, setLastRun] = useState(null); // { ms, passed, total }
   const mission = MISSIONS.find((m) => m.id === active);
   const code = store.code?.[active] ?? mission.starter;
   const solved = store.solved ?? {};
@@ -147,17 +154,54 @@ export default function Arena() {
 
   async function run() {
     setRunning(true); setResults(null); setConsoleTab("results");
+    const t0 = performance.now();
     const r = await runInWorker(active, code);
     setResults(r);
     setRunning(false);
+    setLastRun({ ms: Math.round(performance.now() - t0), passed: r.filter((x) => x.pass).length, total: r.length });
     const pass = r.length > 0 && r.every((x) => x.pass);
     update({ tries: { ...store.tries, [active]: tries + 1 }, solved: pass ? { ...solved, [active]: true } : solved });
   }
   const reset = () => { update({ code: { ...store.code, [active]: undefined } }); setResults(null); };
+  const syncCursor = (t) => setPos(cursorPosition(t.value, t.selectionStart));
   const onKey = (e) => {
-    if (e.key === "Tab") { e.preventDefault(); const t = e.target, s = t.selectionStart; setCode(code.slice(0, s) + "  " + code.slice(t.selectionEnd)); requestAnimationFrame(() => { t.selectionStart = t.selectionEnd = s + 2; }); }
-    if ((e.ctrlKey || e.metaKey) && e.key === "Enter") { e.preventDefault(); if (!running) run(); }
+    if ((e.ctrlKey || e.metaKey) && e.key === "Enter") { e.preventDefault(); if (!running) run(); return; }
+    const t = e.target;
+    const r = applyKey({ value: t.value, start: t.selectionStart, end: t.selectionEnd }, e.key, { shift: e.shiftKey, mod: e.ctrlKey || e.metaKey });
+    if (!r) return;
+    e.preventDefault();
+    setCode(r.value);
+    requestAnimationFrame(() => { t.selectionStart = r.start; t.selectionEnd = r.end; syncCursor(t); });
   };
+  const onEditorScroll = (e) => {
+    const t = e.target;
+    if (gutter.current) gutter.current.scrollTop = t.scrollTop;
+    if (hl.current) { hl.current.scrollTop = t.scrollTop; hl.current.scrollLeft = t.scrollLeft; }
+  };
+
+  // resizable panels: fractions of the workspace width (problem | right) and of the right column height (editor | console), kept per browser
+  const sizes = { lw: store.sizes?.lw ?? 0.42, eh: store.sizes?.eh ?? 0.56 };
+  const setSize = (patch) => update({ sizes: { ...store.sizes, ...patch } });
+  const drag = (axis) => (down) => {
+    down.preventDefault();
+    const box = (axis === "x" ? wsRef : rightRef).current.getBoundingClientRect();
+    const move = (e) => {
+      const f = axis === "x" ? (e.clientX - box.left) / box.width : (e.clientY - box.top) / box.height;
+      setStore((s) => ({ ...s, sizes: { ...s.sizes, [axis === "x" ? "lw" : "eh"]: Math.min(axis === "x" ? 0.7 : 0.8, Math.max(axis === "x" ? 0.22 : 0.2, f)) } }));
+    };
+    const up = () => { window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up); document.body.style.userSelect = ""; setStore((s) => { save(s); return s; }); };
+    document.body.style.userSelect = "none";
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+  };
+  const nudge = (axis) => (e) => {
+    const d = e.key === "ArrowLeft" || e.key === "ArrowUp" ? -0.02 : e.key === "ArrowRight" || e.key === "ArrowDown" ? 0.02 : 0;
+    if (!d) return;
+    e.preventDefault();
+    const key = axis === "x" ? "lw" : "eh";
+    setSize({ [key]: Math.min(axis === "x" ? 0.7 : 0.8, Math.max(axis === "x" ? 0.22 : 0.2, sizes[key] + d)) });
+  };
+  const resetSizes = () => update({ sizes: undefined });
 
   const lines = code.split("\n").length;
   const passed = results ? results.filter((r) => r.pass).length : 0;
@@ -196,7 +240,7 @@ export default function Arena() {
         </div>
       ) : null}
 
-      <main className="al-ws">
+      <main className="al-ws" ref={wsRef} style={{ "--lw": sizes.lw + "fr", "--rw": 1 - sizes.lw + "fr" }}>
         {/* problem */}
         <section className="al-panel al-problem">
           <div className="al-tabs">
@@ -228,8 +272,11 @@ export default function Arena() {
           </div>
         </section>
 
+        <div className="al-split x" role="separator" aria-orientation="vertical" aria-label="Resize the problem panel" tabIndex={0}
+          onPointerDown={drag("x")} onKeyDown={nudge("x")} onDoubleClick={resetSizes} title="Drag to resize, double-click to reset"><i /></div>
+
         {/* editor + console */}
-        <div className="al-right">
+        <div className="al-right" ref={rightRef} style={{ "--eh": sizes.eh + "fr", "--ch": 1 - sizes.eh + "fr" }}>
           <section className="al-panel al-editor-panel">
             <div className="al-bar">
               <span className="al-file">JavaScript <i>·</i> solution.js</span>
@@ -241,10 +288,23 @@ export default function Arena() {
             </div>
             <div className="al-editor-wrap">
               <pre className="al-gutter" ref={gutter} aria-hidden="true">{Array.from({ length: lines }, (_, i) => i + 1).join("\n")}</pre>
-              <textarea className="al-editor" value={code} onChange={(e) => setCode(e.target.value)} onKeyDown={onKey}
-                onScroll={(e) => { if (gutter.current) gutter.current.scrollTop = e.target.scrollTop; }} spellCheck={false} aria-label="Your code" />
+              <div className="al-code-area">
+                <pre className="al-hl" ref={hl} aria-hidden="true" dangerouslySetInnerHTML={{ __html: highlight(code) }} />
+                <textarea className="al-editor" ref={ta} value={code} onChange={(e) => { setCode(e.target.value); syncCursor(e.target); }} onKeyDown={onKey}
+                  onKeyUp={(e) => syncCursor(e.target)} onClick={(e) => syncCursor(e.target)} onScroll={onEditorScroll}
+                  spellCheck={false} autoCapitalize="off" autoCorrect="off" aria-label="Your code" />
+              </div>
+            </div>
+            <div className="al-status">
+              <span>Ln {pos.line}, Col {pos.col}</span><span>Spaces: 2</span><span>JavaScript</span>
+              <span className="grow" />
+              {lastRun ? <span className={lastRun.passed === lastRun.total ? "ok" : "bad"}>{lastRun.passed}/{lastRun.total} passed · {lastRun.ms} ms</span> : <span>Not run yet</span>}
+              <span>Saved in this browser</span>
             </div>
           </section>
+
+          <div className="al-split y" role="separator" aria-orientation="horizontal" aria-label="Resize the editor" tabIndex={0}
+            onPointerDown={drag("y")} onKeyDown={nudge("y")} onDoubleClick={resetSizes} title="Drag to resize, double-click to reset"><i /></div>
 
           <section className="al-panel al-console">
             <div className="al-tabs">

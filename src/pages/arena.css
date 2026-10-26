@@ -135,3 +135,34 @@
   .al { height: 100vh; overflow: hidden; }
   .al-ws { min-height: 0; height: auto; }
 }
+
+/* ---------- resizable panels ---------- */
+.al-ws { gap: 0; grid-template-columns: minmax(280px, var(--lw, 0.42fr)) 10px minmax(0, var(--rw, 0.58fr)); }
+.al-right { gap: 0; grid-template-rows: minmax(160px, var(--eh, 0.56fr)) 10px minmax(120px, var(--ch, 0.44fr)); }
+.al-split { position: relative; display: flex; align-items: center; justify-content: center; outline: none; touch-action: none; }
+.al-split.x { cursor: col-resize; } .al-split.y { cursor: row-resize; }
+.al-split i { display: block; border-radius: 4px; background: var(--line-2); transition: background 0.15s, transform 0.15s; }
+.al-split.x i { width: 3px; height: 38px; } .al-split.y i { height: 3px; width: 38px; }
+.al-split:hover i, .al-split:focus-visible i, .al-split:active i { background: var(--accent); }
+.al-split.x:hover i, .al-split.x:active i { transform: scaleY(1.6); } .al-split.y:hover i, .al-split.y:active i { transform: scaleX(1.6); }
+
+/* ---------- editor with syntax highlighting ---------- */
+.al-code-area { position: relative; flex: 1; min-width: 0; }
+.al-hl, .al-code-area .al-editor { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; padding: 14px 16px; font-family: "JetBrains Mono", "Geist Mono", ui-monospace, monospace; font-size: 13px; line-height: 21px; tab-size: 2; white-space: pre; letter-spacing: 0; }
+.al-hl { overflow: hidden; pointer-events: none; color: #e6e8ef; }
+.al-code-area .al-editor { color: transparent; -webkit-text-fill-color: transparent; caret-color: #e6e8ef; background: transparent; resize: none; }
+.al-code-area .al-editor::selection { background: rgba(169, 155, 255, 0.28); -webkit-text-fill-color: transparent; }
+.tk-kw { color: #c792ea; } .tk-str { color: #a8d878; } .tk-num { color: #f78c6c; } .tk-com { color: #5c6370; font-style: italic; }
+.tk-fn { color: #82aaff; } .tk-prop { color: #9ecbff; } .tk-lit { color: #ff9d6e; } .tk-bi { color: #ffcb6b; } .tk-re { color: #89ddff; }
+
+/* ---------- status bar ---------- */
+.al-status { display: flex; align-items: center; gap: 16px; flex: none; height: 28px; padding: 0 14px; border-top: 1px solid var(--line); background: var(--panel-2); font-size: 11.5px; color: var(--text-3); white-space: nowrap; overflow: hidden; }
+.al-status .grow { flex: 1; } .al-status .ok { color: var(--ok); } .al-status .bad { color: var(--bad); }
+
+@media (max-width: 960px) {
+  .al-ws { grid-template-columns: 1fr; }
+  .al-right { grid-template-rows: auto auto; }
+  .al-split { display: none; }
+}
+.al-tabs button { white-space: nowrap; flex: none; }
+.al-note { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
