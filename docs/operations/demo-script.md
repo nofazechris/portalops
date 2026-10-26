@@ -75,9 +75,9 @@ Deployed: `PortalQuest` at `0x274F8AbeCAa7FE3772A2cB92F67F2ed4A64bc649` (block 1
 
 ## What not to claim
 
-- The public Playground (create/complete quest buttons) does not exist yet; it needs the deployed contract and a rate-limited signer.
-- No email verification, password reset or OAuth. The SDK and the Claude server are on npm. SQLite by default; PostgreSQL via `DATABASE_URL` (tested, but there is no migration tool between them).
-- The three example contracts are compiled and tested but **not deployed by us** (same funding block). Do not call any of them "live on testnet".
+- The public Playground watches contracts and sends test deliveries; it does not send transactions for you (no keys, no signer on the server). To make an event, call the contract yourself.
+- Email verification, password reset and GitHub sign-in exist; account emails are only delivered when a Resend key is configured on the server. The SDK and the Claude server are on npm. SQLite by default; PostgreSQL via `DATABASE_URL` (tested, but there is no migration tool between them).
+- Only `PortalQuest` and `PortalPing` are deployed by us. The Token, Bounty board and Arena examples are compiled and tested but **not deployed**: do not call them "live on testnet".
 - Docker, the Render blueprint and CI deploy were not run on a real host; the live URL exists only once you have deployed it.
 - The Go and PHP receiver snippets in the docs were not executed here (Node and Python were).
 - AI setup produces a prompt; PortalOps cannot verify what the agent did. A successful test delivery is the confirmation.

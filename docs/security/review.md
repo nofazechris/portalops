@@ -5,7 +5,12 @@ scripts). Method: manual code review against the PRD §16 requirements, adversar
 evasion-style inputs, `npm audit`, a secret scan of the tree, and writing tests that fail without each fix.
 Not covered: penetration testing of a deployed instance, TLS/hosting configuration, the Portaldot node itself.
 
-93 automated tests pass (63 at the time of this review) (`npm test`).
+The suite now has 220+ automated tests (63 when this review was written); `npm test` runs them and `npm run test:pg` repeats the store and API tests on a real PostgreSQL.
+
+**Added since the review, not independently re-reviewed:** API-key expiry, two-factor sign-in, the shared rate-limit store, bounded delivery concurrency, the
+native (ink!) reader, contract metadata upload and AI-assisted diagnostics. Each shipped with tests that fail without it (the two-factor code generator is
+checked against the RFC 6238 test vectors; the AI prompt path is tested to carry no secrets or payloads), and their design notes are under "Accepted risks and
+known gaps" below, but they have not had the adversarial pass the original findings had.
 
 ## Findings and status
 

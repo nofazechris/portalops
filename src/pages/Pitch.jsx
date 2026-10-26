@@ -103,7 +103,7 @@ const slides = [
           </div>
         </div>
         <div className="pt-flow"><span>captured</span>→<span>decoded</span>→<span>delivered ✓ signature verified</span>→<span className="bad">fails (500)</span>→<span>retried</span>→<span>replayed ✓</span></div>
-        <div className="pt-chips"><span>170+ tests, incl. real testnet logs</span><span>HMAC-signed</span><span>SSRF-safe</span><span>AES-256-GCM secrets</span><span>Reorg-aware, honest finality</span></div>
+        <div className="pt-chips"><span>220+ tests, incl. real testnet logs</span><span>HMAC-signed</span><span>SSRF-safe</span><span>AES-256-GCM secrets</span><span>Reorg-aware, honest finality</span></div>
       </>
     ),
   },

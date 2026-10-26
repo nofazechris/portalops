@@ -94,8 +94,10 @@ the testnet's EVM was not verified to support later opcodes. If you compile your
 
 ## What has and has not been verified
 
-- Capture and decoding were verified against **real testnet logs** from other participants' contracts.
-- The four example contracts compile and their ABIs, sample payloads and handlers are covered by automated tests (including encoding real
-  logs and decoding them back).
-- Deploying them to the live testnet from this repository is **not done yet** because the project's deployer account has no testnet funds;
-  the deploy scripts have only ever run as dry runs.
+- **Deployed by us and verified on chain:** `PortalQuest` (`0x274F8AbeCAa7FE3772A2cB92F67F2ed4A64bc649`, block 145,098) and `PortalPing`
+  (`0x6a8705e4621dd87a261b1c5f97b73871616537ec`, block 152,078), with six transactions and their events. `npm run verify:evidence` re-checks all of it
+  against the public RPC.
+- **Compiled and tested, not deployed:** the Token, Bounty board and Arena game examples. Their ABIs, sample payloads and handlers are covered by
+  automated tests (including encoding real logs and decoding them back), but nobody has deployed them to the testnet yet. Deploying one costs test
+  tokens: see [Deploying an example](#deploying-an-example) and the dry run's "max cost" line first.
+- Capture and decoding were also verified against **real testnet logs** from other participants' contracts.

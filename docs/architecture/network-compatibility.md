@@ -1,72 +1,85 @@
-# Portaldot V3.0 testnet — compatibility findings (Phase 0, read-only)
+# Portaldot V3.0 testnet: field notes
 
-Run: 2026-10-19 · script: `scripts/network-preflight/preflight.mjs` · raw output: `preflight-report.json`
+What we learned building on the Portaldot V3.0 testnet, written for the next developer. Everything here was observed against the public
+endpoints, and each claim says how to check it. Written to be useful to anyone building on Portaldot, not only to PortalOps.
 
-Re-run with `node scripts/network-preflight/preflight.mjs`. It is read-only and needs no key.
-
-## Verified (observed against the public endpoints)
-
-| Area | Result |
+| | |
 |---|---|
-| EVM RPC `https://test-evm-rpc-v3.portaldot.dev` | Reachable. Client `eth-rpc/main-fddd431`. |
-| EVM chain ID | `420420777` — matches the announcement. |
-| Block production | ~6 s per block. Both RPCs fully synced; heads agree (~#99,5xx). |
-| Core methods | `eth_blockNumber`, `eth_getBlockByNumber`, `eth_getBalance`, `eth_getCode`, `eth_gasPrice`, `eth_feeHistory`, `eth_maxPriorityFeePerGas`, `eth_estimateGas`, `eth_getTransactionCount` all respond. |
-| Event logs | `eth_getLogs` works for ranges up to at least **100,000 blocks** (the whole chain so far) with no range error. 22 real logs from 5 contracts already exist. |
-| Contract bytecode | Existing contracts carry standard solc bytecode (`0x6080…`), so **Solidity on the EVM endpoint is in use by other participants**. |
-| Native RPC `wss://test-node-v3.portaldot.dev` | Reachable. Chain `PortaldotV3 Test`, node `3.0.0-dev`, runtime `portaldot-v3` spec 3002. Token `tPOT`, 14 decimals, SS58 prefix 42. |
-| Native subscriptions | `chain_subscribeNewHeads` delivers live headers. |
-| Runtime pallets | Metadata contains `Contracts`, `Revive`, `EVM`, `Ethereum`. Both an ink!/Contracts path and an EVM path exist in the runtime. |
-| Historical logs | `eth_getLogs` from genesis returns all logs (22 at time of writing) and every log carries its own `blockHash`. |
+| EVM RPC | `https://test-evm-rpc-v3.portaldot.dev` (chain id `420420777`) |
+| Native RPC | `wss://test-node-v3.portaldot.dev` (chain `PortaldotV3 Test`, runtime `portaldot-v3`, token `tPOT`, 14 decimals, SS58 prefix 42) |
+| Block time | about 6 seconds |
+| Re-check the basics | `npm run preflight` (read-only, no key) |
+| Re-check our own on-chain claims | `npm run verify:evidence` (read-only, no key; 24 checks against the public RPC, including that the code on chain equals what the repo's Solidity compiles to) |
 
-## Important limit found with live data
+## 1. Two contract engines, one chain
 
-`eth_getBlockByNumber` only works for roughly the **latest 256 blocks** (~26 min at 6 s/block). Older blocks fail with
-`UnknownBlock: State already discarded`. `eth_getTransactionReceipt` for a months-old transaction also returned nothing.
-Consequences, all handled in `apps/worker/ingest.ts`:
+The runtime has `Balances`, `Contracts` and `Revive` pallets side by side.
 
-- Backfill must use `eth_getLogs` (works to genesis), never per-block lookups.
-- Reorg detection is only possible near the head. If the worker is down longer than the horizon the cursor block can no
-  longer be verified; it resumes forward and records a warning instead of flagging a false reorg.
-- Block timestamps and receipts for old events cannot be fetched later, so capture what we need at ingestion time.
-- A "replay after the node forgot the block" feature must replay from OUR stored event, which is exactly what PortalOps does.
+- **Solidity runs on pallet-revive** (`allowEVMBytecode = true`, `chainId = 420420777`). Standard solc bytecode works; use the **`paris`** EVM version
+  (no `PUSH0`). The EVM RPC speaks the normal `eth_*` methods.
+- **Rust ink! runs on the Contracts pallet**, reached through the native RPC. The pallet is recent (it has `maxTransientStorageSize`,
+  `maxDelegateDependencies`), compatible with **ink! 5** and `cargo-contract` 5. Contracts emit `Contracts.ContractEmitted` runtime events, not
+  EVM logs, so an EVM tool never sees them. (PortalOps reads both: see [Rust (ink!) contracts](../guides/ink-contracts.md).)
 
+## 2. Accounts and funding
 
-## Chain-tip behaviour (observed 2026-10-19)
+An Ethereum account is a native account whose 32-byte id is `<20-byte 0x address> ++ 0xEE × 12`. **Fund that `5…` address** and
+`eth_getBalance` shows the balance. The usual Frontier mapping (`blake2("evm:" ++ h160)`) is not used here: an address derived that way holds
+nothing. Native balances use 14 decimals and the EVM view 18 (`nativeToEthRatio = 10000`). Verified against a real funded account: native free
+`82060166227314765` (14 dp) matched EVM balance `820501662273147651250` (18 dp) less the 0.1 tPOT existential deposit.
 
-- **Short reorgs at the tip are routine.** The hash of `head-1` changed between polls within a minute. Ingestion handles this
-  (rewind window + orphan marking); expect `included` events to occasionally become `orphaned`.
-- **`finalized` and `safe` block tags are supported** (`eth_getBlockByNumber("finalized")` trailed `latest` by ~2 blocks). True
-  finality is therefore available; PortalOps uses it: events at or below the finalized height are promoted to `finalized` after verifying their block hash (see `apps/worker/finality.ts`); `confirmed` remains a 12-block depth heuristic.
+## 3. Gas is weight-based, so estimate it, never hard-code it
 
-## Verified with a funded account (2026-10-22)
+- `eth_estimateGas` returns very large numbers (about `5e15` for a 2 KB contract) because gas here is Substrate weight, priced at `eth_gasPrice`
+  (about 30,000 wei). A hand-picked "reasonable" gas limit such as 2,000,000 fails with `Invalid Transaction` (1010). Use the node's estimate with a small pad.
+- **Contract code carries a refundable deposit** of about 0.06 tPOT per byte (`depositPerByte`). A 2 KB contract is therefore expensive on a
+  small balance; a lean contract is cheap. Measured: `PortalQuest` (2,162 bytes of runtime code) used `5.23e15` gas; `PortalPing` (454 bytes, one event)
+  cost roughly 50 tPOT to deploy and call; a 2.3 KB game contract needed a maximum of about 196 tPOT.
+- Run the deploy script as a dry run first: `npm run contract:deploy -- --example arena` prints balance, estimate and the maximum cost and sends nothing.
 
-The Phase 0 exit criteria below were first listed as unproven. They are now **proven on the public testnet**: `PortalQuest` was deployed at `0x274F8AbeCAa7FE3772A2cB92F67F2ed4A64bc649` (block 145,098, tx `0xe2590bb8…8a4d`), `createQuest`, `completeQuest` and `issueReward` were sent (blocks 145,103 to 145,105), the three events were read back with `eth_getLogs`, and PortalOps ingested, decoded and delivered them. Evidence: `docs/architecture/deployment.json` and `evidence.json`.
+## 4. What the EVM RPC does and does not keep
 
-Originally listed as not yet verified:
+| Question | Answer | Check it |
+|---|---|---|
+| `eth_getLogs` over a huge range | Works from genesis to head in one call (100,000+ blocks) | `npm run preflight` |
+| `eth_getBlockByNumber` for an old block | Only roughly the **latest 256 blocks**; older ones fail with `State already discarded` | any block older than head − 300 |
+| `eth_getTransactionReceipt` for an old transaction | **Works** (receipts for blocks 60,000 behind the head were read back) | `npm run verify:evidence` |
+| `eth_getCode` | Works at `latest` | `npm run verify:evidence` |
+| `finalized` / `safe` block tags | Supported; `finalized` trails `latest` by about 2 blocks, so real finality exists | `eth_getBlockByNumber("finalized")` |
+| WebSocket subscriptions on the EVM side | No EVM WebSocket URL is published; poll `eth_getLogs` by range (cheap here) | n/a |
 
-- Transaction submission and receipt retrieval.
-- Contract deployment and invocation.
-- An emitted event from *our own* contract being read back.
-- Real fee behaviour. Read-only signals look odd: `eth_gasPrice` = 38,980 wei, priority fee 0, and `eth_estimateGas` for a plain transfer returned ~3.2e11 gas. Treat these as unexplained until a real transaction is sent.
+Consequences for any indexer: backfill with `eth_getLogs`, never per-block lookups; reorg checks only work near the head; capture block data
+when you see it. Short reorganisations of the latest block or two are **routine**: expect `included` events to occasionally become `orphaned`.
 
-## Open questions
+## 5. The native side is an archive node
 
-1. **No EVM WebSocket URL** was announced, so `eth_subscribe` is untested. The EVM ingestion worker should poll `eth_getLogs` by block range (cheap here: 6 s blocks, wide ranges allowed).
-2. **Account model (resolved).** The runtime has `Balances`, `Contracts` and `Revive` (no `EVM`/`Ethereum` pallet): EVM execution is **pallet-revive** (`allowEVMBytecode = true`, `chainId = 420420777`, `nativeToEthRatio = 10000`). An Ethereum account is a native account whose 32-byte id is `<20-byte 0x address> ++ 0xEE × 12`; fund *that* `5…` address and `eth_getBalance` shows the balance. Verified on 2026-10-22 against a real funded EVM account (native free `82060166227314765` at 14 decimals ≈ EVM balance `820501662273147651250` at 18 decimals, less the 0.1 tPOT existential deposit). The standard Frontier mapping (`blake2("evm:" ++ h160)`) is **not** used here: an address derived that way holds nothing. `npm run contract:fund-address` prints the right address. Costs: `depositPerByte` is 0.06 tPOT, so contract code carries a refundable deposit of roughly 0.06 tPOT per byte.
-3. Whether `debug_*` / `trace_*` exist: `debug_traceTransaction` is recognised (returns "No Ethereum extrinsic found" for an unknown hash), so it is probably available.
+Unlike the EVM block lookup, the native RPC serves old state: `state_getStorage` on `System.Events` answered for blocks as old as 5,800 when the
+head was 205,000. That makes native backfill from a contract's deployment block possible.
 
-## Decision (provisional)
+- A single `state_queryStorage` over a range lists only the blocks where `System.Events` **changed**; the chain repeats identical event lists
+  often (3 distinct sequences in 15 consecutive real blocks), and an unlisted block inherits the previous block's events. We confirmed that
+  reconstruction against per-block reads: no differences. It makes a 4,000-block scan a handful of requests (about 950 blocks per second).
+- **Do not hammer it block by block.** Asking for every block's state (or using polkadot-js `ApiPromise`'s per-block `api.at`) made the node close
+  the WebSocket (`1000 Normal Closure`) after a few dozen requests, and polkadot-js then throws from inside the socket handler, which can take a
+  Node process down. A plain JSON-RPC provider with range queries was stable.
+- Real ink! events exist on the testnet (for example two `ContractEmitted` events in blocks 130,828 and 130,847). They carry the event's
+  **signature topic** as the first topic, which is how ink! 5 metadata identifies an event.
+- Integers decode to decimal strings and accounts to SS58 (prefix 42).
 
-Pursue **Solidity + EVM adapter first**. The evidence so far supports it: standard bytecode and logs already exist on chain, `eth_getLogs` is generous, and chain ID matches. This stays provisional until a deploy + invoke + log round-trip succeeds on the public testnet. The native/ink! adapter remains the fallback; the runtime has `Contracts` and `Revive` pallets, so it is viable.
+## 6. Finality
 
-No local-only substitute should be presented as proof of public-testnet deployment.
+True finality exists and is cheap to use: events at or below the finalized head are final once their block hash is confirmed canonical; the
+EVM RPC offers `eth_getBlockByNumber("finalized")` and the native RPC `chain_getFinalizedHead`. PortalOps only ever says `finalized` from those
+signals, and uses a 12-block depth only for the weaker `confirmed` label. See [Core concepts](../guides/concepts.md#finality).
 
-## Pipeline status (local, against real testnet logs)
+## 7. Things we could not explain, so we do not claim
 
-`npm run pipeline:test` ingests the real logs on the chain (other participants' contracts, undecoded), persists them
-idempotently, delivers signed webhooks to a local receiver, injects HTTP 500s through retry exhaustion, then replays
-successfully. 36 unit tests cover IDs, normalisation, signing (with an independent OpenSSL vector), retry policy, SSRF
-blocking, secret encryption, log redaction, cursor/restart/reorg/pruning behaviour and the failure -> replay flow.
+- `eth_gasPrice` of about 30,000 wei with a priority fee of 0 looks odd next to the very large gas figures; treat prices as testnet-only.
+- `debug_traceTransaction` is recognised by the node (it answers "No Ethereum extrinsic found" for an unknown hash); we did not rely on it.
 
-This does **not** prove our own contract deployment; that still needs a funded account.
+## Evidence this page is based on
+
+- Raw read-only report from the preflight script: [`preflight-report.json`](preflight-report.json) (first run 2026-10-19).
+- Deployments and transactions: [`deployment.json`](deployment.json), [`deployment-ping.json`](deployment-ping.json), [`evidence.json`](evidence.json), [`evidence-ping.json`](evidence-ping.json).
+- `npm run verify:evidence -- --live https://portalops.onrender.com` checks all of them against the chain and against what the live service captured.
+- `npm run pipeline:test` ingests real testnet logs, delivers signed webhooks to a local receiver, injects failures through retry exhaustion and replays.

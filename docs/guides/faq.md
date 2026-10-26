@@ -19,7 +19,7 @@ Not exactly. An indexer is built to **query** history flexibly. PortalOps is bui
 (signing, retries, replay, monitoring). They solve neighbouring problems and can be used together.
 
 ### Which network does it support?
-The **Portaldot V3.0 testnet** (EVM chain id 420420777) today. See [Portaldot network notes](../architecture/network-compatibility.md).
+The **Portaldot V3.0 testnet** (EVM chain id 420420777) today. See [Portaldot field notes](../architecture/network-compatibility.md).
 
 ### Which language are the contracts written in?
 The example contracts are **Solidity**, compiled to EVM bytecode and deployed to Portaldot's EVM layer. Portaldot also supports Rust

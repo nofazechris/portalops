@@ -1,15 +1,71 @@
 # PortalOps
 
-Operational event layer for Portaldot applications: ingest on-chain events, deliver signed webhooks, retry, replay, monitor.
-Targets the **Portaldot V3.0 testnet** (EVM chain id 420420777). See `docs/architecture/network-compatibility.md` for what has
-and has not been verified against the real network.
+**The event layer for Portaldot.** PortalOps watches smart contracts on the Portaldot V3.0 testnet, Solidity and Rust (ink!) alike, and delivers
+every event to your app as a signed, retried, replayable webhook, with a dashboard, REST API, TypeScript SDK and a Claude (MCP) assistant on top.
+Hackathon track: **Modular Cloud & Middleware**. Testnet only (EVM chain id `420420777`).
 
-**Try it:** [live app](https://portalops.onrender.com) · [playground (no signup)](https://portalops.onrender.com/playground) · [Arena Lab (interactive game challenges)](https://portalops.onrender.com/arena) ·
-[docs](https://portalops.onrender.com/docs) · [pitch deck](https://portalops.onrender.com/pitch) ([PDF](https://portalops.onrender.com/pitch/portalops-pitch.pdf)).
-Full walkthrough video: [youtu.be/fau4mVZS1iY](https://youtu.be/fau4mVZS1iY).
-The live site runs on a free plan that sleeps when idle, so the first load can take up to a minute.
+| | |
+|---|---|
+| Live app | https://portalops.onrender.com (free hosting that sleeps when idle: the first load can take up to a minute) |
+| Try it, no signup | [Playground](https://portalops.onrender.com/playground) · [Arena Lab](https://portalops.onrender.com/arena) (interactive game challenges) · [public explorer](https://portalops.onrender.com/app) |
+| Read | [Docs](https://portalops.onrender.com/docs) · [Pitch deck](https://portalops.onrender.com/pitch) ([PDF](https://portalops.onrender.com/pitch/portalops-pitch.pdf)) · [Walkthrough video](https://youtu.be/fau4mVZS1iY) |
+| Packages on npm | [`@portalops/sdk`](https://www.npmjs.com/package/@portalops/sdk) · [`@portalops/mcp`](https://www.npmjs.com/package/@portalops/mcp) (`npx -y @portalops/mcp`) |
 
-## Run locally
+## Verify it yourself (5 minutes, no key, no trust needed)
+
+Needs **Node 24 or newer** (`nvm use`, or install from nodejs.org). Works on Windows, macOS and Linux with plain `npm`.
+
+```bash
+git clone https://github.com/nofazechris/portalops.git && cd portalops
+npm ci
+npm test                      # 220+ automated tests: engine, store, API, SDK, MCP, receiver, security, ingestion, delivery, native reader
+npm run verify:evidence       # re-checks every on-chain claim below against the PUBLIC testnet RPC (24 checks, read-only)
+npm run verify:evidence -- --live https://portalops.onrender.com    # ...and that the live service really captured those events
+```
+
+`verify:evidence` does not read our database or trust our server: it asks the testnet for each deployment receipt, the code at each address, and
+each transaction's event, and fails loudly if anything does not match. It also compiles the Solidity in this repository and checks that the code on chain
+is **byte for byte** what that source produces, so source, artifact and deployment are tied together.
+
+## What is on chain
+
+Deployed by us on the **Portaldot V3.0 testnet**, then captured, decoded and delivered by PortalOps itself:
+
+| Contract | Address | Deployed | Runtime code |
+|---|---|---|---|
+| `PortalQuest` | `0x274F8AbeCAa7FE3772A2cB92F67F2ed4A64bc649` | block 145,098, tx `0xe2590bb80b8d81067a1af092a76e5ee9ea22d9c277b0bf2da752813fc21f8a4d` | 2,162 bytes |
+| `PortalPing` | `0x6a8705e4621dd87a261b1c5f97b73871616537ec` | block 152,078, tx `0xb6809eeee11d1b4a1a98113da824cfd763131028b4048608883ab3bdb8aee7b8` | 454 bytes |
+
+(A reviewer who counts the `0x` prefix gets 2,163 and 455.)
+
+| Transaction | Event | Block | Hash |
+|---|---|---|---|
+| `createQuest` | `QuestCreated` | 145,103 | `0xd267e8a0610c73a4f21e24d0d69319307e52346dc65ad2e72ed280a26630f17c` |
+| `completeQuest` | `QuestCompleted` | 145,104 | `0x11a6d7a86de919ad2b5da0c5098e3904cf23683733d53ff30b13c86d6af1c4b3` |
+| `issueReward` | `RewardIssued` | 145,105 | `0x999f0cb2a1c04bce8edcd2b1ac37a3f98408162277428ada87b56b5fed7d32fb` |
+| `ping` ×3 | `Ping` | 152,082 · 152,146 · 152,148 | `0x2e603ac3…cfb`, `0xb6a45130…ed2ee`, `0xb57f0bb8…1096` (full hashes in [`evidence-ping.json`](docs/architecture/evidence-ping.json)) |
+
+Records: [`deployment.json`](docs/architecture/deployment.json), [`deployment-ping.json`](docs/architecture/deployment-ping.json),
+[`evidence.json`](docs/architecture/evidence.json). The Token, Bounty and Arena examples (and the Rust `portal_ping_ink`) are compiled and tested
+but **not deployed by us**; we do not call them live. The compiled artifacts reproduce byte for byte (`npm run examples:build` leaves a clean git tree).
+
+The **Rust (ink!) reader** was also run against the real testnet: it captured real `ContractEmitted` events (blocks 130,828 and 130,847) emitted by
+another team's ink! contract, marked them finalized from the node's own finalized head, and their extrinsic hashes were confirmed inside the blocks.
+They are stored undecoded because that contract's metadata is not ours; decoding is covered by tests against real ink! 5 metadata.
+
+## What it does
+
+1. **Watch**: register a contract (address plus ABI for Solidity, or SS58 address plus metadata for ink!) in the dashboard, API, SDK or by asking Claude.
+2. **Decode**: raw logs become named, typed events with deterministic ids, so nothing is delivered twice; unknown events are kept raw, never given a guessed name.
+3. **Know how final it is**: `included`, `confirmed`, `finalized` (only from the node's own finalized head) or `orphaned` after a reorganisation.
+4. **Deliver**: HMAC-SHA256 signed webhooks with exponential-backoff retries (bounded parallelism) and a full attempt history.
+5. **Replay**: re-send any stored event with the same id after you fix your server; the chain is never touched.
+6. **Diagnose**: every failed delivery gets a rule-based cause, confidence and checklist; an optional AI explanation shows you exactly what it would send first.
+
+Around it: a public read-only explorer, a no-signup playground, **Arena Lab** (graded coding challenges plus a delivery simulator built on the same
+retry rules), accounts with email verification, GitHub sign-in and two-factor sign-in, project API keys that expire, a documentation site and tutorials.
+
+## Run it locally
 
 ```bash
 npm install
@@ -26,78 +82,45 @@ Open http://localhost:5173. Without an account you get a read-only public explor
 
 | Command | What it does |
 |---|---|
-| `npm test` | 93 unit/integration tests (engine, store, API, receiver, security, ingestion, delivery) |
+| `npm test` | The full automated suite (checks the Node version first) |
 | `npm run typecheck` | TypeScript check |
-| `npm run db:backup` | Verified online backup of the SQLite database |
-| `npm run sdk:build` | Compile the TypeScript SDK (`packages/sdk`) to plain JS in `packages/sdk/dist` |
-| `npm run preflight` | Read-only testnet compatibility probe |
+| `npm run verify:evidence` | Verifies our on-chain claims against the public testnet RPC (add `-- --live <url>` to check the running service too) |
+| `npm run preflight` | Read-only testnet compatibility probe (writes `docs/architecture/preflight-report.json`) |
 | `npm run pipeline:test` | Real testnet logs → delivery → forced failure → retries → replay (local receiver) |
-| `npm run contract:deploy` / `contract:interact` | Deploy + exercise the demo contract (dry-run unless `-- --send`; needs a funded key in `.env`) |
+| `npm run examples:build` | Recompile the example contracts into `packages/examples/generated.json` |
+| `npm run contract:deploy` / `contract:interact` | Deploy and exercise a demo contract (dry run unless `-- --send`; needs a funded key in `.env`) |
+| `npm run sdk:build` / `npm run mcp:build` | Compile the npm packages |
+| `npm run db:backup` / `db:check` | Verified SQLite backup / check a `DATABASE_URL` |
+| `npm run test:pg` | The store and API tests against a real PostgreSQL |
+| `npm run security:scan` | Fails if any env file, key or secret is in the repo or its history (also a git hook and a CI step) |
 
 ## Layout
 
 ```
-apps/api        REST API (node:http, zod, cookie sessions, rate limits)
-apps/worker     ingestion loop + delivery runner
-packages/       database (SQLite store), event-engine, webhook-engine, chain-adapters, shared-types, sdk (API client)
-contracts/evm   PortalQuest demo contract
+apps/api        REST API (node:http, zod, cookie sessions, rate limits, two-factor)
+apps/worker     EVM and native (ink!) ingestion loops + bounded webhook delivery
+packages/       database (SQLite or PostgreSQL), event-engine, webhook-engine, chain-adapters (EVM, native), diagnostics,
+                examples, sdk (npm), mcp (npm), email, config, shared-types
+contracts/      Solidity examples (evm/, examples/) and the Rust ink! example (ink/)
 examples/       webhook receiver with failure injection
-src/            React app (landing, docs, auth, dashboard)
-design/         original Claude Design files
+scripts/        deploy, preflight, evidence verification, security scan, ...
+src/            React app (landing, docs, auth, dashboard, playground, Arena Lab)
+docs/           the manual: guides, tutorials, API reference, architecture, security review, operations
 ```
-
-## Guided setup, API keys and SDK
-
-- **Guided setup** (dashboard → *Guided setup*): seven steps from an empty project to a verified delivery, each checked against the real
-  network/API (RPC chain-id check, contract code check, one-time webhook secret, test delivery with signature confirmation).
-- **API keys** (Settings → API keys): project-scoped `read`/`write` keys for servers and scripts; stored only as a SHA-256 hash, shown once, revocable.
-- **TypeScript SDK** in `packages/sdk` (typed client, retries on reads, webhook verification). See its README. On npm: `npm i @portalops/sdk`; the Claude (MCP) server is `npx -y @portalops/mcp`.
-
-## Testnet evidence
-
-Deployed and exercised on the **Portaldot V3.0 testnet** (EVM chain id 420420777) on 2026-10-22:
-
-| | |
-|---|---|
-| Contract | `PortalQuest` at `0x274F8AbeCAa7FE3772A2cB92F67F2ed4A64bc649` |
-| Deployment transaction | `0xe2590bb80b8d81067a1af092a76e5ee9ea22d9c277b0bf2da752813fc21f8a4d` (block 145,098) |
-| `createQuest` → `QuestCreated` | `0xd267e8a0610c73a4f21e24d0d69319307e52346dc65ad2e72ed280a26630f17c` (block 145,103) |
-| `completeQuest` → `QuestCompleted` | `0x11a6d7a86de919ad2b5da0c5098e3904cf23683733d53ff30b13c86d6af1c4b3` (block 145,104) |
-| `issueReward` → `RewardIssued` | `0x999f0cb2a1c04bce8edcd2b1ac37a3f98408162277428ada87b56b5fed7d32fb` (block 145,105) |
-| Contract (2026-10-22) | `PortalPing` at `0x6a8705e4621dd87a261b1c5f97b73871616537ec`, one `Ping(from, seq, note)` event; source in `contracts/examples/PortalPing.sol` |
-| Deployment transaction | `0xb6809eeee11d1b4a1a98113da824cfd763131028b4048608883ab3bdb8aee7b8` (block 152,078) |
-| `ping("Hello from PortalOps — live demo")` | `0x2e603ac3d0b6219098060152af1b5253e38b86bd2bcd654f49d3cfc36ef30cfb` (block 152,082) |
-
-The three events were read back with `eth_getLogs`, then captured, decoded and delivered by PortalOps itself. The contracts are written in
-Solidity; see [network compatibility](docs/architecture/network-compatibility.md) for how Portaldot's EVM layer works.
-
-## Documentation
-
-The full manual is in [docs/](docs/README.md): [quickstart](docs/guides/quickstart.md), [concepts](docs/guides/concepts.md) (events, finality,
-deliveries, replay), [receiving webhooks](docs/guides/webhooks.md) (Node, Python, Go, PHP), [contracts and examples](docs/guides/contracts-and-examples.md),
-the [TypeScript SDK](docs/guides/sdk.md), the [REST API reference](docs/reference/api.md), [configuration](docs/reference/environment.md),
-[architecture](docs/architecture/overview.md) and [troubleshooting](docs/guides/troubleshooting.md). The API reference, the environment
-reference and every link are checked by tests, so they cannot silently drift from the code.
-
-## Set up with Claude
-
-`packages/mcp` is an MCP server that lets Claude register your contract, create a signed webhook, send a test delivery, show events and replay
-failures. Secrets never enter the conversation: the API key stays in the server's environment and a webhook's signing secret is written
-straight to a local env file. See [docs/guides/claude-setup.md](docs/guides/claude-setup.md); `npm run mcp` starts it over stdio.
-
-## Architecture
 
 ```mermaid
 flowchart LR
   subgraph Chain
-    RPC[Portaldot V3.0 testnet<br/>EVM RPC, chain id 420420777]
+    EVM[EVM RPC<br/>pallet-revive, chain id 420420777]
+    NAT[Native RPC<br/>Contracts pallet, ink!]
   end
   subgraph PortalOps
     W[Worker<br/>ingest, decode, finality, delivery]
     S[(Store<br/>SQLite or PostgreSQL)]
-    A[API + dashboard<br/>sessions, API keys, GitHub sign-in]
+    A[API + dashboard<br/>sessions, API keys, 2FA, GitHub sign-in]
   end
-  RPC -->|logs, blocks, finalized head| W
+  EVM -->|logs, blocks, finalized head| W
+  NAT -->|ContractEmitted, finalized head| W
   W -->|events, deliveries, attempts| S
   A <--> S
   W -->|signed webhooks, retries, replay| R[Your app / built-in receiver]
@@ -108,42 +131,36 @@ flowchart LR
 
 The worker and the API share only the database. More in [docs/architecture/overview.md](docs/architecture/overview.md).
 
-## Example contracts
+## For the Portaldot ecosystem
 
-The guided setup's **Add contract** step has a gallery of ready-made contracts (Quest board, Token, Bounty board). Each one gives you
-its Solidity source, ABI, a deploy command, a description of every event with a sample payload, and a copy-paste webhook receiver.
-`npm run examples:build` recompiles them into `packages/examples/generated.json`; deploy one with
-`npm run contract:deploy -- --example token` (dry run) and add `--send` once the key in `.env` is funded.
-The same catalog is served at `GET /api/v1/examples` and `GET /api/v1/examples/:id`.
+PortalOps is MIT licensed and built to be reused, not only demoed.
 
-## Deploying
+- **Packages anyone can install:** `@portalops/sdk` (typed client, webhook signature verification) and `@portalops/mcp` (Claude tools).
+- **[Portaldot field notes](docs/architecture/network-compatibility.md):** what we learned about the testnet that is not in any announcement: pallet-revive account mapping and
+  funding, weight-based gas, what the RPC keeps and prunes, real finality, and that the native node is an archive node.
+- **Rust and Solidity examples** ready to deploy and watch: a quest board, token, bounty board, an Arena game and a Rust ping contract, each with a receiver snippet.
+- **[Arena Lab](https://portalops.onrender.com/arena):** teaches idempotent, finality-aware, signature-verifying event handling with graded challenges, so the next game on Portaldot starts from correct habits.
+- **Self-hostable:** one Docker image, SQLite or PostgreSQL, a Render blueprint ([docs/operations/live-deploy.md](docs/operations/live-deploy.md)). See [CONTRIBUTING.md](CONTRIBUTING.md).
 
-- **Live on the internet (Neon + Render):** [docs/operations/live-deploy.md](docs/operations/live-deploy.md). `npm run db:check` verifies your
-  `DATABASE_URL` first; `render.yaml` is the Blueprint; `scripts/start-all.mjs` runs the API and worker in one container.
-- **Your own host:** `docker compose up -d --build` runs the API (which also serves the web app) and the worker on a shared SQLite volume, or
-  add `-f docker-compose.postgres.yml` for PostgreSQL. See [docs/operations/deployment.md](docs/operations/deployment.md) (config, TLS proxy,
-  health/readiness, backups) and [docs/operations/demo-script.md](docs/operations/demo-script.md). The Docker files have not been run locally (no Docker here); CI builds and smoke-tests them.
+## Documentation
 
-## Event status
+The full manual is in [docs/](docs/README.md): [quickstart](docs/guides/quickstart.md), [tutorials](docs/tutorials/index.md), [concepts](docs/guides/concepts.md)
+(events, finality, deliveries, replay), [receiving webhooks](docs/guides/webhooks.md), [Rust (ink!) contracts](docs/guides/ink-contracts.md),
+[game development](docs/guides/game-development.md), the [TypeScript SDK](docs/guides/sdk.md), [Set up with Claude](docs/guides/claude-setup.md), the
+[REST API reference](docs/reference/api.md), [configuration](docs/reference/environment.md), [architecture](docs/architecture/overview.md),
+[security review](docs/security/review.md) and [troubleshooting](docs/guides/troubleshooting.md). The API reference, the environment reference and every
+link are checked by tests, so they cannot silently drift from the code.
 
-Each event carries an honest chain status: **included** (seen in a block) → **confirmed** (12+ blocks deep, a heuristic) →
-**finalized** (at or below the node's `finalized` block *and* its block hash verified canonical; terminal) — or **orphaned** if its
-block was reorganised away. `finalized` is only ever set from the network's own finality signal; if a node does not expose one,
-PortalOps never guesses.
+## Honest limits
 
-## Built-in test receiver
+- **Testnet software.** No real funds are involved and it has not had an external security audit ([what was checked](docs/security/review.md)).
+- **Free hosting** sleeps when idle; one instance watches one network. Account emails are only delivered when a Resend key is configured; AI
+  explanations only when an Anthropic key is configured. Both are off by default and everything else works without them.
+- **Native (ink!) decoding of a live contract** of ours is not shown yet: it needs a funded native account to deploy `contracts/ink/portal_ping_ink`.
+  The reader, finality and reorg handling are verified against the live chain and real metadata, as above.
+- **Not deployed by us:** the Token, Bounty and Arena examples.
+- Webhooks are at-least-once; PortalOps makes duplicates harmless (stable event ids) rather than pretending exactly-once is possible over HTTP.
 
-Create a webhook with **Use the built-in test receiver** and PortalOps hosts the endpoint for you: it verifies the signature,
-rejects stale timestamps, ignores duplicate event ids, and shows every request it got. Switch it to *fail with 500 / 400 / never
-answer* to try retries and replay with no backend. Needs `PORTALOPS_API_PUBLIC_URL` to be a URL the worker can reach.
+## License
 
-## Security
-
-See [docs/security/review.md](docs/security/review.md): findings, fixes, accepted risks and a production checklist.
-
-## Known gaps
-
-- Storage is SQLite (no Postgres/Docker was available); the schema is portable.
-- Our own demo contract is **not deployed yet** (needs a funded testnet account). Events shown today are real logs from other participants' contracts, stored undecoded.
-- No email verification / password reset / OAuth, or real AI-agent verification. 
-- A contract registered after a project's cursor exists is captured from the cursor forward (no per-contract backfill).
+[MIT](LICENSE).

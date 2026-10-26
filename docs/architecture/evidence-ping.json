@@ -1,0 +1,10 @@
+{
+  "contract": "PortalPing",
+  "address": "0x6a8705e4621dd87a261b1c5f97b73871616537ec",
+  "note": "Three ping(string) calls on the Portaldot V3.0 testnet. Each emitted Ping(address indexed from, uint256 indexed seq, string note). Checked by `npm run verify:evidence`.",
+  "transactions": [
+    { "hash": "0x2e603ac3d0b6219098060152af1b5253e38b86bd2bcd654f49d3cfc36ef30cfb", "block": 152082 },
+    { "hash": "0xb6a45130b20950a098eb81cf029fdb562f7be9c815b486e6a50752fa029ed2ee", "block": 152146 },
+    { "hash": "0xb57f0bb8f7d2a180a0627da178674207af65cad9aa1d3889a3993064a7991096", "block": 152148 }
+  ]
+}

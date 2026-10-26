@@ -114,7 +114,7 @@ run it against an in-memory fake chain that can mine, reorganise, prune and fina
 
 Implement `SqlDriver` (`packages/database/driver.ts`): `all`, `run`, `transaction` and `close`, with `?` placeholders. The two existing drivers are
 about 100 lines each; the whole store and the whole test suite run on top. Add a schema file for the new dialect and a branch in `openStore`.
-The suite runs on SQLite by default and on a real PostgreSQL with `npm run test:pg`: a new driver gets the same ~100 tests for free
+The suite runs on SQLite by default and on a real PostgreSQL with `npm run test:pg`: a new driver gets the same 170+ tests for free
 (see `packages/database/testing.ts`).
 
 ### A different delivery target

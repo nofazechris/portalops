@@ -47,7 +47,7 @@ export const DOC_SECTIONS = [
     title: "Architecture",
     items: [
       { path: "architecture/overview", title: "Architecture" },
-      { path: "architecture/network-compatibility", title: "Portaldot network notes" },
+      { path: "architecture/network-compatibility", title: "Portaldot field notes" },
     ],
   },
   {

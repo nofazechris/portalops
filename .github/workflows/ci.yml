@@ -91,3 +91,38 @@ jobs:
           test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8787/api/v1/ready)" = "503"
           docker logs pops
           docker rm -f pops
+
+  # The same suite on Windows: a reviewer is as likely to be on Windows as on Linux, and the repository has hit
+  # platform-only failures before (line endings in committed artifacts).
+  test-windows:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - name: Compiled contract artifacts reproduce byte for byte
+        shell: bash
+        run: |
+          npm run examples:build
+          npm run contract:compile
+          git diff --exit-code -- packages/examples/generated.json contracts/evm/artifacts
+
+  # Re-checks every on-chain claim against the public testnet RPC. It depends on a third-party endpoint, so a failure here is reported
+  # but does not block a merge.
+  evidence:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run verify:evidence
