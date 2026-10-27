@@ -292,7 +292,7 @@ export default function Landing() {
               </div>
             ))}
           </div>
-          <p className="proof-foot">PortalOps decoded these as <b>QuestCreated</b>, <b>QuestCompleted</b> and <b>RewardIssued</b> and delivered them as signed webhooks. Look them up on any Portaldot V3 testnet explorer.</p>
+          <p className="proof-foot">PortalOps decoded these as <b>QuestCreated</b>, <b>QuestCompleted</b> and <b>RewardIssued</b> and delivered them as signed webhooks. Look them up on any Portaldot V3 testnet explorer. The source of both contracts is <Link className="muted-link" href="/registry">verified in our public registry</Link>: compiled here and matched to the code on chain.</p>
         </Reveal>
       </section>
 

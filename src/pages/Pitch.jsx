@@ -79,7 +79,7 @@ const slides = [
             { v: <StageArt kind="recover" size={64} label="Recover" />, t: "Recover", d: "Retries with backoff when you are down. Replays any event later, without touching the chain." },
           ].map((s) => <div key={s.t} className="pt-stage">{s.v}<b>{s.t}</b><p>{s.d}</p></div>)}
         </div>
-        <div className="pt-chips"><span>Dashboard</span><span>No-signup playground</span><span>REST API</span><span>TypeScript SDK</span><span>Claude (MCP)</span></div>
+        <div className="pt-chips"><span>Dashboard</span><span>No-signup playground</span><span>Verified contracts</span><span>REST API</span><span>TypeScript SDK</span><span>Claude (MCP)</span></div>
       </>
     ),
   },
@@ -94,16 +94,16 @@ const slides = [
           <div className="pt-contract">
             <div className="pt-ck">PortalQuest · deployed by us</div>
             <code>{QUEST}</code>
-            <p>Block 145,098 · real events: <b>QuestCreated</b>, <b>QuestCompleted</b>, <b>RewardIssued</b></p>
+            <p>Block 145,098 · real events: <b>QuestCreated</b>, <b>QuestCompleted</b>, <b>RewardIssued</b> · source verified on chain</p>
           </div>
           <div className="pt-contract">
             <div className="pt-ck">PortalPing · deployed by us</div>
             <code>{PING}</code>
-            <p>Block 152,078 · live <b>Ping</b> events, captured and delivered on demand</p>
+            <p>Block 152,078 · live <b>Ping</b> events, sent from the playground on demand · source verified on chain</p>
           </div>
         </div>
         <div className="pt-flow"><span>captured</span>→<span>decoded</span>→<span>delivered ✓ signature verified</span>→<span className="bad">fails (500)</span>→<span>retried</span>→<span>replayed ✓</span></div>
-        <div className="pt-chips"><span>220+ tests, incl. real testnet logs</span><span>HMAC-signed</span><span>SSRF-safe</span><span>AES-256-GCM secrets</span><span>Reorg-aware, honest finality</span></div>
+        <div className="pt-chips"><span>250+ tests, incl. real testnet logs</span><span>Verified contract registry</span><span>HMAC-signed</span><span>SSRF-safe</span><span>AES-256-GCM secrets</span><span>Reorg-aware, honest finality</span></div>
       </>
     ),
   },
@@ -220,6 +220,7 @@ const slides = [
             <ul>
               <li>Every developer and every agent gets observability from day one, instead of rebuilding it.</li>
               <li>Faster building and safer contracts means more apps, and apps that last.</li>
+              <li>A public registry of verified contracts: source proven to be the code on chain, with its ABI and events open to everyone.</li>
               <li>A visible reason to build here: events are readable, reliable and secure by default.</li>
             </ul>
           </div>
@@ -243,7 +244,7 @@ const slides = [
         <Kicker>Roadmap</Kicker>
         <h2 className="pt-h2">The core is live. <Hl>Support turns it into the platform.</Hl></h2>
         <div className="pt-cols3">
-          <div className="pt-col now"><h3>Now · live</h3><ul><li>Watch, decode, deliver, recover</li><li>Dashboard, playground, REST API</li><li>Claude (MCP) setup</li><li>Live on the testnet, open source</li></ul></div>
+          <div className="pt-col now"><h3>Now · live</h3><ul><li>Watch, decode, deliver, recover</li><li>Dashboard, playground (real transactions), REST API</li><li>Verified contract registry</li><li>Claude (MCP) setup</li><li>Live on the testnet, open source</li></ul></div>
           <div className="pt-col next"><h3>Next</h3><ul><li>SDK and Claude tools on npm: done</li><li>Security alert rules</li><li>Agent triggers and audit trail</li><li>One-step deploy and watch</li></ul></div>
           <div className="pt-col later"><h3>Later</h3><ul><li>Live ink! proof on the testnet</li><li>Hosted multi-tenant service</li><li>More Portaldot networks and chains</li><li>Chat, email and queue targets</li></ul></div>
         </div>
