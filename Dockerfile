@@ -27,7 +27,7 @@ ENV NODE_ENV=production \
     PORTALOPS_DB_PATH=/data/portalops.sqlite
 WORKDIR /app
 
-# production dependencies only (no vite, typescript tooling, or solc)
+# production dependencies only (no vite or typescript tooling; solc stays: it verifies contract source)
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev --no-audit --no-fund && npm cache clean --force
 

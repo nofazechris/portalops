@@ -62,7 +62,7 @@ They are stored undecoded because that contract's metadata is not ours; decoding
 5. **Replay**: re-send any stored event with the same id after you fix your server; the chain is never touched.
 6. **Diagnose**: every failed delivery gets a rule-based cause, confidence and checklist; an optional AI explanation shows you exactly what it would send first.
 
-Around it: a public read-only explorer, a no-signup playground, **Arena Lab** (graded coding challenges plus a delivery simulator built on the same
+Around it: a public read-only explorer, a no-signup playground, a **verified contract registry** (submit Solidity source; it is compiled and proven to equal the code on chain, then everyone gets the ABI, named events and live activity), **Arena Lab** (graded coding challenges plus a delivery simulator built on the same
 retry rules), accounts with email verification, GitHub sign-in and two-factor sign-in, project API keys that expire, a documentation site and tutorials.
 
 ## Run it locally
@@ -145,7 +145,7 @@ PortalOps is MIT licensed and built to be reused, not only demoed.
 ## Documentation
 
 The full manual is in [docs/](docs/README.md): [quickstart](docs/guides/quickstart.md), [tutorials](docs/tutorials/index.md), [concepts](docs/guides/concepts.md)
-(events, finality, deliveries, replay), [receiving webhooks](docs/guides/webhooks.md), [Rust (ink!) contracts](docs/guides/ink-contracts.md),
+(events, finality, deliveries, replay), [receiving webhooks](docs/guides/webhooks.md), [Rust (ink!) contracts](docs/guides/ink-contracts.md), [verified contracts](docs/guides/verified-contracts.md),
 [game development](docs/guides/game-development.md), the [TypeScript SDK](docs/guides/sdk.md), [Set up with Claude](docs/guides/claude-setup.md), the
 [REST API reference](docs/reference/api.md), [configuration](docs/reference/environment.md), [architecture](docs/architecture/overview.md),
 [security review](docs/security/review.md) and [troubleshooting](docs/guides/troubleshooting.md). The API reference, the environment reference and every

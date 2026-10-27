@@ -98,6 +98,7 @@ export default function Landing() {
             <a className="top-link nav-ai" href="#ai"><Orb size={20} state="breathing" label="" />Set up with AI</a>
             <Link className="top-link" href="/arena">Arena Lab</Link>
             <Link className="top-link" href="/playground">Playground</Link>
+            <Link className="top-link" href="/registry">Registry</Link>
             <Link className="top-link" href="/docs">Docs</Link>
           </div>
         </div>
@@ -359,6 +360,7 @@ export default function Landing() {
             <a className="muted-link" href="#replay">Replay</a>
             <a className="muted-link" href="#proof">Proof</a>
             <Link className="muted-link" href="/playground">Playground</Link>
+            <Link className="muted-link" href="/registry">Verified contracts</Link>
             <Link className="muted-link" href="/arena">Arena Lab</Link>
           </div>
           <div className="foot-col">

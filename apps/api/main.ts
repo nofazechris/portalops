@@ -9,6 +9,7 @@ import { describeDatabase, openStore } from "../../packages/database/store.ts";
 import { parseKey } from "../../packages/database/secrets.ts";
 import { createApp, type NetworkProbe } from "./app.ts";
 import { createPingSender } from "../../packages/chain-adapters/pinger.ts";
+import { seedVerifiedContracts } from "../../packages/verification/seed.ts";
 import { listFeatured } from "../../packages/examples/catalog.ts";
 import { DEFAULT_AI_MODEL } from "../../packages/diagnostics/diagnose.ts";
 import { loadServiceEnv } from "../../packages/config/env.ts";
@@ -136,3 +137,7 @@ server.maxRequestsPerSocket = 1_000;
 setInterval(() => { store.purgeSessions().catch((e) => console.error("session purge failed:", e)); }, 3_600_000).unref();
 server.listen(PORT, HOST, () => console.log(`PortalOps API on http://${HOST}:${PORT} · ${RPC} · db ${describeDatabase(DATABASE)}${STATIC_DIR ? " · serving web app" : ""}`));
 installProcessDiagnostics("api", async () => { server.close(); await store.close(); });
+// The contracts PortalOps deployed itself are verified in the background, so the registry starts with proof and not with promises.
+seedVerifiedContracts(store, (a) => network.getCode(a))
+  .then((r) => { if (r.verified.length || r.failed.length) console.log(`Registry: verified ${r.verified.length}, could not verify ${r.failed.length}`); })
+  .catch((e) => console.error("registry seed failed:", e));

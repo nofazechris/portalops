@@ -5,6 +5,8 @@ deployed continuously from `main`.
 
 ## Unreleased
 
+- **Verified contract registry** (`/registry`): submit a contract's Solidity source and its address; PortalOps compiles it on a worker thread and stores it only if it matches the code on chain. Verified contracts get a public page with source, ABI and live activity, and events are decoded by name for anyone who watches them without pasting an ABI. Our two deployed contracts are verified at start-up.
+- **Playground ping**: send a real transaction from the page (free from a small demo wallet, or from your own) and watch it travel through capture, decoding, finality and delivery.
 - **Rust (ink!) contracts**: a native reader for `Contracts.ContractEmitted` events, decoded with the contract's metadata; register by SS58 address and
   metadata file. Verified against real testnet events.
 - **Security**: API keys expire (90 days by default); two-factor sign-in (TOTP with recovery codes); bounded parallel deliveries; optional database-backed

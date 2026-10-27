@@ -85,11 +85,20 @@ contact the outside (replay, test delivery, contract test). The SDK retries `GET
 ### GET /api/v1/examples/:id
 **Public.** One example with `description`, `eventDetails` (meaning, sample payload, typical use), `source`, `abi`, `bytecode`, `deployCommand`, a ready `handler` (Node.js receiver) and the `compiler` used. `404` for an unknown id.
 
+### POST /api/v1/registry/verify
+**Public, no signup.** Proves that a contract's source is what runs at an address. Body `{ address (0x + 40 hex), source (single-file Solidity, ≤ 100 KB, no imports), contractName?, evmVersion?, optimizerRuns? (a number, or null for optimizer off) }`. PortalOps compiles the source on a worker thread (40 s limit) and compares the result with `eth_getCode` at the address. Without settings it tries the usual ones (paris with the optimizer at 200 runs or off, then shanghai and cancun). On a match the contract is stored and `201` returns `{ verified: true, alreadyVerified: false, address, name, matchType, compiler, evmVersion, optimizerRuns, runtimeBytes, events, functions, verifiedAt }`; `matchType` is `full` (identical code) or `partial` (identical apart from the compiler metadata tail). An address that is already verified returns `200` with `alreadyVerified: true`. Errors: `404 no_code` (nothing deployed there), `422 verification_failed` (it did not compile, or the code differs; `details` says what was tried), `422 imports` / `too_large` / `bad_settings`, `429 rate_limited` (three submissions per IP per ten minutes), `503 busy` (the short verification queue is full), `502 rpc_unavailable`.
+
+### GET /api/v1/public/registry
+**Public.** The verified contracts, newest first: `{ total, items: [{ address, name, matchType, compiler, evmVersion, optimizerRuns, runtimeBytes, verifiedAt, events, functions, activity: { events, lastEventAt } }] }`. Query `limit` (default 50, max 200) and `offset`. `activity` counts the events PortalOps has captured from the contract across all projects, each log once.
+
+### GET /api/v1/public/registry/:address
+**Public.** One verified contract with its full `abi`, `source` and `activity: { events, lastEventAt, names }` (`names` counts events per name). `404` if it is not verified, `422` for a malformed address.
+
 ### GET /api/v1/playground
 **Public, no signup.** The shared sandbox: `{ projectId, network, pinned: [address…], maxContracts, contracts: […], events: […], receiver: [{ outcome, httpStatus, signatureOk, eventId, receivedAt }…] }`. No secrets are ever returned.
 
 ### POST /api/v1/playground/watch
-**Public, no signup.** Body `{ address (0x + 40 hex), example? }`. Adds a contract to the shared playground (rate-limited per IP; built-in receiver only; capped, with the example contracts always pinned). Returns the contract. `409 playground_full` when the sandbox is at its cap.
+**Public, no signup.** Body `{ address (0x + 40 hex), example? }`. Adds a contract to the shared playground (rate-limited per IP; built-in receiver only; capped, with the example contracts always pinned). Returns the contract (a contract verified in the registry is decoded automatically). `409 playground_full` when the sandbox is at its cap.
 
 ### POST /api/v1/playground/ping
 **Public, no signup.** Sends a **real transaction** to the Portaldot testnet for the visitor: `ping(note)` on the PortalPing contract, from a small dedicated demo wallet. Body `{ note? }` (cleaned to one printable line of at most 60 characters). Returns `{ transactionHash, from, contract, note }`. It can call that one function on that one contract and never sends value. Limited to one per visitor every 5 minutes and `PORTALOPS_DEMO_PINGS_PER_DAY` per day overall. `503 ping_unavailable` when the server has no demo wallet configured, `503 demo_wallet_empty` when it has run out of testnet funds, `429 rate_limited` / `daily_limit`, `502 ping_failed` when the testnet did not accept the transaction (no provider detail is forwarded). Visitors can also send the same call from their own wallet; `GET /playground` reports `ping: { sponsored, contract, sponsor, perDay }`.
@@ -187,7 +196,7 @@ Your projects (with an API key: just the key's project).
 ## Contracts
 
 ### POST /api/v1/projects/:projectId/contracts
-**Owner.** Body `{ "address" (0x + 40 hex), "name"?, "abi"? (array, ≤ 256 KiB), "startBlock"?, "deploymentTxHash"? }`. `201` with the contract. `409 contract_exists` if it is already registered. Without `abi`, events are stored undecoded.
+**Owner.** Body `{ "address" (0x + 40 hex), "name"?, "abi"? (array, ≤ 256 KiB), "startBlock"?, "deploymentTxHash"? }`. `201` with the contract. `409 contract_exists` if it is already registered. Without `abi`, an EVM contract that is verified in the registry gets its verified ABI and name; otherwise its events are stored undecoded.
 
 ### GET /api/v1/projects/:projectId/contracts
 **Read.** `[{ id, projectId, address, name, runtimeType, startBlock, deploymentTxHash, status, createdAt, hasAbi, eventCount, events: [names…] }]`. The ABI body is not returned; `events` lists the event names it declares.

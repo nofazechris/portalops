@@ -7,6 +7,7 @@ import Dashboard from "./pages/Dashboard.jsx";
 import Playground from "./pages/Playground.jsx";
 import Pitch from "./pages/Pitch.jsx";
 import Arena from "./pages/Arena.jsx";
+import Registry from "./pages/Registry.jsx";
 
 const routes = {
   "/": Landing,
@@ -16,6 +17,7 @@ const routes = {
   "/playground": Playground,
   "/pitch": Pitch,
   "/arena": Arena,
+  "/registry": Registry,
 };
 
 export default function App() {

@@ -1,7 +1,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { createHash, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
 import { z, ZodError } from "zod";
-import type { Store, ProjectRecord, ContractRecord, UserRecord } from "../../packages/database/store.ts";
+import type { Store, ProjectRecord, ContractRecord, UserRecord, VerifiedContractRecord } from "../../packages/database/store.ts";
 import { decryptSecret, encryptSecret, generateWebhookSecret } from "../../packages/database/secrets.ts";
 import { DEFAULT_RETRY_POLICY, type NormalizedEvent, type RetryPolicy, type WebhookEndpoint } from "../../packages/shared-types/index.ts";
 import { getExample, listExamples, listFeatured } from "../../packages/examples/catalog.ts";
@@ -17,6 +17,7 @@ import { SharedRateLimiter } from "./shared-limiter.ts";
 import { buildEvidence, diagnoseRules, explainWithModel } from "../../packages/diagnostics/diagnose.ts";
 import { cleanNote, type PingSender } from "../../packages/chain-adapters/pinger.ts";
 import { canonicalSs58 } from "../../packages/chain-adapters/native.ts";
+import { verifySource } from "../../packages/verification/verify.ts";
 import { inkEventNames, loadInkAbi, looksLikeInkMetadata } from "../../packages/event-engine/ink.ts";
 import { hashRecoveryCode, newRecoveryCodes, newTotpSecret, otpauthUri, verifyTotp } from "./totp.ts";
 
@@ -87,6 +88,8 @@ export interface AppDeps {
   rateLimits?: { auth?: Limiter; global?: Limiter; actions?: Limiter; keys?: Limiter };
   /** Keep rate-limit counters in the database so several API instances share them (default: in this process). */
   sharedRateLimits?: boolean;
+  /** The source verifier. Injected in tests so they need no compiler; defaults to the real one. */
+  verify?: typeof verifySource;
 }
 
 const ADDRESS = /^0x[0-9a-fA-F]{40}$/;
@@ -335,6 +338,58 @@ export function createApp(deps: AppDeps): (req: IncomingMessage, res: ServerResp
     };
   }, "none");
 
+  // ------------------------------------------------ verified contract registry (public, no signup)
+  // Anyone can submit Solidity source for a contract on the testnet. It is compiled here and the result is compared byte for byte with the
+  // code on chain; only a match is stored. A verified contract has a trustworthy ABI, so PortalOps decodes its events by name for everyone.
+  const verifyLimiter = makeLimiter("verify", 3, 10 * 60_000); // compiling is heavy: three submissions per IP per ten minutes
+  const verifySchema = z.object({
+    address: z.string().trim().regex(ADDRESS, "An address is 0x followed by 40 hex characters."),
+    source: z.string().min(10, "Paste the Solidity source.").max(100_000, "The source is larger than 100 KB."),
+    contractName: z.string().trim().regex(/^[A-Za-z_][A-Za-z0-9_]{0,99}$/, "Not a valid contract name.").optional(),
+    evmVersion: z.string().trim().max(20).optional(),
+    optimizerRuns: z.number().int().nullable().optional(),
+  });
+  const verifier = deps.verify ?? verifySource;
+  const registryItem = (v: VerifiedContractRecord) => ({
+    address: v.address, name: v.name, matchType: v.matchType, compiler: v.compiler, evmVersion: v.evmVersion, optimizerRuns: v.optimizerRuns, runtimeBytes: v.runtimeBytes, verifiedAt: v.verifiedAt,
+    events: (v.abi as { type?: string; name?: string }[]).filter((x) => x.type === "event" && x.name).map((x) => x.name as string),
+    functions: (v.abi as { type?: string; name?: string }[]).filter((x) => x.type === "function" && x.name).length,
+  });
+
+  router.add("POST", "/api/v1/registry/verify", async (ctx) => {
+    const wait = await verifyLimiter.hit("verify:" + ctx.ip);
+    if (wait) throw new ApiError(429, "rate_limited", `Verification is limited to three submissions per ten minutes. Try again in ${wait}s.`);
+    const body = parse(verifySchema, ctx.body);
+    const address = body.address.toLowerCase();
+    const existing = await store.getVerifiedContract(address);
+    if (existing?.matchType === "full") return { verified: true, alreadyVerified: true, ...registryItem(existing) };
+    const code = await network.getCode(address).catch(() => { throw new ApiError(502, "rpc_unavailable", "The Portaldot testnet could not be reached just now. Try again in a moment."); });
+    const r = await verifier({ source: body.source, contractName: body.contractName, evmVersion: body.evmVersion, optimizerRuns: body.optimizerRuns, onChainCode: code });
+    if (!r.ok) {
+      const status = r.reason === "busy" ? 503 : r.reason === "no_code" ? 404 : 422;
+      throw new ApiError(status, r.reason === "mismatch" || r.reason === "compile_error" ? "verification_failed" : r.reason, r.message, r.details?.map((d) => ({ path: r.reason, message: d })));
+    }
+    await store.saveVerifiedContract({ address, name: r.name, abi: r.abi, source: body.source, matchType: r.match, evmVersion: r.settings.evmVersion, optimizerRuns: r.settings.optimizerRuns, compiler: r.compiler, runtimeBytes: r.runtimeBytes });
+    await store.log("info", "registry", `Verified ${address} as ${r.name} (${r.match} match)`);
+    const saved = (await store.getVerifiedContract(address))!;
+    return { __status: 201, data: { verified: true, alreadyVerified: false, ...registryItem(saved) } };
+  }, "none");
+
+  router.add("GET", "/api/v1/public/registry", async (ctx) => {
+    const limit = Math.min(Math.max(Number(ctx.url.searchParams.get("limit") ?? 50) || 50, 1), 200);
+    const offset = Math.max(Number(ctx.url.searchParams.get("offset") ?? 0) || 0, 0);
+    const { items, total } = await store.listVerifiedContracts(limit, offset);
+    const withActivity = await Promise.all(items.map(async (v) => ({ ...registryItem(v), activity: await store.contractActivity(v.address).then((a) => ({ events: a.events, lastEventAt: a.lastEventAt })) })));
+    return { total, items: withActivity };
+  }, "none");
+
+  router.add("GET", "/api/v1/public/registry/:address", async (ctx) => {
+    if (!ADDRESS.test(ctx.params.address)) throw new ApiError(422, "validation_failed", "An address is 0x followed by 40 hex characters.");
+    const v = await store.getVerifiedContract(ctx.params.address);
+    if (!v) throw new ApiError(404, "not_found", "No verified contract at that address.");
+    return { ...registryItem(v), abi: v.abi, source: v.source, activity: await store.contractActivity(v.address) };
+  }, "none");
+
   // ---------------------------------------------------- public playground (no signup)
   // A shared sandbox: anyone can watch a contract and fire a SIGNED test delivery to the built-in receiver,
   // with no account. Hardened for public write: rate-limited per IP, hard-capped, built-in receiver only
@@ -409,7 +464,8 @@ export function createApp(deps: AppDeps): (req: IncomingMessage, res: ServerResp
     }
     const ex = body.example ? getExample(body.example) : null;
     if (body.example && !ex) throw new ApiError(422, "validation_failed", `Unknown example "${body.example}".`);
-    const c = await store.createContract({ projectId: project.id, address: body.address, abi: ex?.abi ?? null, startBlock: null });
+    const verified = ex ? null : await store.getVerifiedContract(body.address);
+    const c = await store.createContract({ projectId: project.id, address: body.address, name: verified?.name ?? null, abi: ex?.abi ?? verified?.abi ?? null, startBlock: null });
     if (!c) throw new ApiError(409, "contract_exists", "That contract is already being watched.");
     await store.log("info", "config", `Playground watch ${c.address}`, undefined, project.id);
     return { __status: 201, data: contractView(c) };
@@ -857,7 +913,9 @@ export function createApp(deps: AppDeps): (req: IncomingMessage, res: ServerResp
       if (!ADDRESS.test(body.address)) throw invalid("address", "Must be a 0x-prefixed 20-byte address.");
       if (body.abi && !Array.isArray(body.abi)) throw invalid("abi", "A Solidity ABI is a JSON array. For an ink! contract, choose the ink! type.");
     }
-    const c = await store.createContract({ projectId: p.id, address, name: body.name ?? null, abi: body.abi ?? null, startBlock: body.startBlock ?? null, deploymentTxHash: body.deploymentTxHash ?? null, runtimeType: body.type });
+    // No ABI given for an EVM contract that is verified in the registry: use the verified one, so its events are decoded without any setup.
+    const verified = body.type !== "ink" && !body.abi ? await store.getVerifiedContract(address) : null;
+    const c = await store.createContract({ projectId: p.id, address, name: body.name ?? verified?.name ?? null, abi: body.abi ?? verified?.abi ?? null, startBlock: body.startBlock ?? null, deploymentTxHash: body.deploymentTxHash ?? null, runtimeType: body.type });
     if (!c) throw new ApiError(409, "contract_exists", "This contract is already registered in the project.");
     await store.audit("contract.add", ctx.userId, p.id, { address: c.address });
     await store.log("info", "config", `Contract ${c.address} registered`, undefined, p.id);

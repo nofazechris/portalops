@@ -10,7 +10,7 @@ You need three things: the **address**, ideally the **ABI**, and optionally a **
    *Test contract* action (or `POST /contracts/:id/test`) checks that bytecode exists there: it never signs or sends anything.
 2. **ABI:** the JSON array from your compiler (`solc`, Hardhat `artifacts/…json`, Foundry `out/…json`: paste the whole file and PortalOps
    uses its `abi` field in the dashboard; through the API, send the array). With it, every log becomes a named event with named arguments.
-   Without it, logs are stored and delivered raw (`eventName: null`).
+   Without it, logs are stored and delivered raw (`eventName: null`). If the contract is [verified](verified-contracts.md), you can leave the ABI out: PortalOps uses the verified one.
 3. **Start block:** capture history from this block. Default: about the last 1,000 blocks. Set it to your deployment block to see everything
    from the beginning. The testnet only keeps recent blocks fetchable by number, but PortalOps reads history with log queries, which reach back further.
 

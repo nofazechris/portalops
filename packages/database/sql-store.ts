@@ -4,7 +4,7 @@ import type {
 } from "../shared-types/index.ts";
 import type { Row, SqlDriver } from "./driver.ts";
 import {
-  redact, type ApiKeyRecord, type AuthTokenKind, type AutomationRecord, type ContractRecord, type ProjectRecord, type UserRecord, type ReceiverMode, type ReceiverRecord, type ReceiverRequestRecord,
+  redact, type ApiKeyRecord, type AuthTokenKind, type AutomationRecord, type ContractRecord, type ProjectRecord, type UserRecord, type VerifiedContractRecord, type ReceiverMode, type ReceiverRecord, type ReceiverRequestRecord,
 } from "./records.ts";
 
 const uid = (prefix: string, len: number) => prefix + randomUUID().replaceAll("-", "").slice(0, len);
@@ -530,6 +530,44 @@ export class SqlStore {
   async contractEventCounts(projectId: string): Promise<Record<string, number>> {
     const rows = await this.all("SELECT contract_address AS a, COUNT(*) AS n FROM events WHERE project_id = ? GROUP BY contract_address", [projectId]);
     return Object.fromEntries(rows.map((r) => [r.a as string, Number(r.n)]));
+  }
+
+  // ------------------------------------------------------- verified contracts
+  private rowToVerified(r: Row): VerifiedContractRecord {
+    return { address: r.address as string, name: r.name as string, abi: JSON.parse(r.abi as string), source: r.source as string, matchType: r.match_type as "full" | "partial", evmVersion: r.evm_version as string, optimizerRuns: r.optimizer_runs === null ? null : Number(r.optimizer_runs), compiler: r.compiler as string, runtimeBytes: Number(r.runtime_bytes), verifiedAt: r.verified_at as string };
+  }
+
+  /** One verification per address. A full match replaces a partial one; nothing else replaces anything. Returns whether the row was written. */
+  async saveVerifiedContract(v: Omit<VerifiedContractRecord, "verifiedAt">): Promise<boolean> {
+    const address = v.address.toLowerCase();
+    const row = [address, v.name, JSON.stringify(v.abi), v.source, v.matchType, v.evmVersion, v.optimizerRuns, v.compiler, v.runtimeBytes, new Date().toISOString()];
+    const r = await this.run(this.ignore("INSERT OR IGNORE INTO verified_contracts (address, name, abi, source, match_type, evm_version, optimizer_runs, compiler, runtime_bytes, verified_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"), row);
+    if (r.changes === 1) return true;
+    if (v.matchType !== "full") return false;
+    return (await this.run("UPDATE verified_contracts SET name = ?, abi = ?, source = ?, match_type = 'full', evm_version = ?, optimizer_runs = ?, compiler = ?, runtime_bytes = ?, verified_at = ? WHERE address = ? AND match_type = 'partial'", [v.name, row[2], v.source, v.evmVersion, v.optimizerRuns, v.compiler, v.runtimeBytes, row[9], address])).changes === 1;
+  }
+
+  async getVerifiedContract(address: string): Promise<VerifiedContractRecord | null> {
+    const r = await this.get("SELECT * FROM verified_contracts WHERE address = ?", [address.toLowerCase()]);
+    return r ? this.rowToVerified(r) : null;
+  }
+
+  async listVerifiedContracts(limit = 50, offset = 0): Promise<{ items: VerifiedContractRecord[]; total: number }> {
+    const rows = await this.all("SELECT * FROM verified_contracts ORDER BY verified_at DESC, address LIMIT ? OFFSET ?", [Math.min(limit, 200), offset]);
+    const total = Number((await this.get("SELECT COUNT(*) AS n FROM verified_contracts"))!.n);
+    return { items: rows.map((r) => this.rowToVerified(r)), total };
+  }
+
+  /** What PortalOps has seen this contract do, across every project that watches it (counted once per log, not once per project). */
+  async contractActivity(address: string): Promise<{ events: number; lastEventAt: string | null; names: Record<string, number> }> {
+    const a = address.toLowerCase();
+    // a log is identified by its transaction and position; a project that also watches it has its own copy, which must not count twice
+    const rows = await this.all("SELECT event_name AS name, COUNT(*) AS n FROM (SELECT DISTINCT transaction_hash, event_index, event_name FROM events WHERE contract_address = ? AND finality_status != 'orphaned') x GROUP BY event_name", [a]);
+    const names: Record<string, number> = {};
+    let events = 0;
+    for (const r of rows) { const c = Number(r.n); events += c; names[(r.name as string | null) ?? "(undecoded)"] = c; }
+    const last = (await this.get("SELECT MAX(observed_at) AS last FROM events WHERE contract_address = ? AND finality_status != 'orphaned'", [a]))?.last as string | null | undefined;
+    return { events, lastEventAt: last ?? null, names };
   }
 
   // -------------------------------------------------------------- automations

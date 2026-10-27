@@ -224,3 +224,18 @@ CREATE TABLE IF NOT EXISTS rate_limits (
   hits       INTEGER NOT NULL,
   window_end INTEGER NOT NULL
 );
+
+-- Verified Contract Registry: Solidity source whose compiled code was proven to equal the code at the address on chain.
+-- Public by design (like a block explorer): one row per address, no owner needed to read it.
+CREATE TABLE IF NOT EXISTS verified_contracts (
+  address        TEXT PRIMARY KEY,              -- lower-case 0x…
+  name           TEXT NOT NULL,                 -- the contract's name in the source
+  abi            TEXT NOT NULL,                 -- JSON
+  source         TEXT NOT NULL,                 -- the single-file Solidity source
+  match_type     TEXT NOT NULL,                 -- full | partial (partial = identical code, different compiler metadata)
+  evm_version    TEXT NOT NULL,
+  optimizer_runs INTEGER,                       -- NULL = optimizer off
+  compiler       TEXT NOT NULL,
+  runtime_bytes  INTEGER NOT NULL,
+  verified_at    TEXT NOT NULL
+);

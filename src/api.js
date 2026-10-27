@@ -50,6 +50,10 @@ export const api = {
   playgroundPing: (note) => request("POST", "/playground/ping", { note }),
   playgroundTx: (hash) => request("GET", `/playground/tx/${hash}`),
 
+  registry: (limit = 100) => request("GET", `/public/registry${qs({ limit })}`),
+  registryOne: (address) => request("GET", `/public/registry/${address}`),
+  registryVerify: (body) => request("POST", "/registry/verify", body),
+
   me: () => request("GET", "/auth/me"),
   signup: (email, password) => request("POST", "/auth/signup", { email, password }),
   login: (email, password) => request("POST", "/auth/login", { email, password }),
