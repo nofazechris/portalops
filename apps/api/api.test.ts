@@ -769,7 +769,7 @@ test("examples: public catalog and detail; no auth needed, unknown ids are 404, 
   const c = new Client(h.base); // not signed in
   const list = await c.call("GET", "/api/v1/examples");
   assert.equal(list.status, 200);
-  assert.deepEqual(list.data.map((e: any) => e.id).sort(), ["arena", "bounty", "quest", "token"]);
+  assert.deepEqual(list.data.map((e: any) => e.id).sort(), ["arena", "bounty", "ping", "quest", "token"]);
   assert.ok(list.data.every((e: any) => e.events.length > 0 && !("abi" in e) && !("bytecode" in e)), "the list is light");
 
   const d = await c.call("GET", "/api/v1/examples/token");

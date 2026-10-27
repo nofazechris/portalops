@@ -3,6 +3,7 @@ import { Link } from "../router.jsx";
 import { api } from "../api.js";
 import { shortHash, timeAgo, useApi } from "../state.jsx";
 import Orb from "../orb.jsx";
+import PlaygroundPing from "./PlaygroundPing.jsx";
 import "./pages.css";
 import "./landing.css";
 import "./playground.css";
@@ -63,7 +64,7 @@ export default function Playground() {
         <span className="pg-tag"><Orb size={20} state="breathing" label="" /> Playground · no signup</span>
         <h1 className="lp-h1" style={{ fontSize: 46, margin: "16px 0 0", letterSpacing: "-0.03em" }}>Watch a contract. See it <span className="i" style={{ fontFamily: "var(--mono)", fontStyle: "normal", color: "var(--accent)" }}>work.</span></h1>
         <p style={{ fontSize: 17, color: "var(--fg-3)", maxWidth: 620, margin: "14px 0 0", lineHeight: 1.55 }}>
-          Paste any Portaldot V3.0 testnet contract, or pick one of ours. PortalOps decodes its events live — then send a <b style={{ color: "var(--fg)" }}>signed test delivery</b> and watch it arrive verified. No account needed.
+          Paste any Portaldot V3.0 testnet contract, or pick one of ours. PortalOps decodes its events live. Send a real transaction yourself, then send a <b style={{ color: "var(--fg)" }}>signed test delivery</b> and watch it arrive verified. No account needed.
         </p>
       </header>
 
@@ -82,6 +83,8 @@ export default function Playground() {
         </div>
         {msg && <div className={"pg-msg " + (msg.err ? "err" : "ok")}>{msg.text}</div>}
       </section>
+
+      <PlaygroundPing info={data?.ping} onProgress={pg.reload} />
 
       <section className="pg-grid">
         <div className="pg-col">

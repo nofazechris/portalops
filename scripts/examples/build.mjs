@@ -17,6 +17,7 @@ const FILES = [
   { id: "token", file: "contracts/examples/PortalToken.sol", name: "PortalToken" },
   { id: "bounty", file: "contracts/examples/PortalBounty.sol", name: "PortalBounty" },
   { id: "arena", file: "contracts/examples/PortalArena.sol", name: "PortalArena" },
+  { id: "ping", file: "contracts/examples/PortalPing.sol", name: "PortalPing" },
 ];
 
 const out = { compiler: { name: "solc-js", version: solc.version(), evmVersion: "paris", optimizerRuns: 200 }, contracts: {} };

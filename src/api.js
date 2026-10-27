@@ -47,6 +47,8 @@ export const api = {
   playground: () => request("GET", "/playground"),
   playgroundWatch: (address, example) => request("POST", "/playground/watch", { address, ...(example ? { example } : {}) }),
   playgroundTest: () => request("POST", "/playground/test-delivery", {}),
+  playgroundPing: (note) => request("POST", "/playground/ping", { note }),
+  playgroundTx: (hash) => request("GET", `/playground/tx/${hash}`),
 
   me: () => request("GET", "/auth/me"),
   signup: (email, password) => request("POST", "/auth/signup", { email, password }),

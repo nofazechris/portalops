@@ -97,6 +97,17 @@ const META: Record<string, Meta> = {
       { name: "BountyCancelled", meaning: "The poster cancelled an open bounty.", samplePayload: { bountyId: "1", poster: "0xPoster…" }, idea: "Close the listing." },
     ],
   },
+  ping: {
+    title: "Ping",
+    tagline: "Send a note, get an event. The smallest contract that shows PortalOps working.",
+    category: "Getting started",
+    description:
+      "One function, one event. Anyone can call ping with a note and the contract emits Ping with the caller, a running sequence number and the note. " +
+      "It is deployed on the Portaldot testnet (see the featured contracts), so you can send a real event from the playground and watch PortalOps capture and decode it.",
+    events: [
+      { name: "Ping", meaning: "Someone sent a ping with a note.", samplePayload: { from: "0xCaller…", seq: "7", note: "hello from the playground" }, idea: "Show a live feed, or trigger a welcome message." },
+    ],
+  },
   arena: {
     title: "Arena game",
     tagline: "Join, fight other players, earn XP, level up, find loot.",

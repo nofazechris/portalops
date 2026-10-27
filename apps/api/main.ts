@@ -8,6 +8,8 @@ import { createEmailSender } from "../../packages/email/index.ts";
 import { describeDatabase, openStore } from "../../packages/database/store.ts";
 import { parseKey } from "../../packages/database/secrets.ts";
 import { createApp, type NetworkProbe } from "./app.ts";
+import { createPingSender } from "../../packages/chain-adapters/pinger.ts";
+import { listFeatured } from "../../packages/examples/catalog.ts";
 import { DEFAULT_AI_MODEL } from "../../packages/diagnostics/diagnose.ts";
 import { loadServiceEnv } from "../../packages/config/env.ts";
 import { installProcessDiagnostics } from "../../packages/config/diagnostics.ts";
@@ -74,6 +76,19 @@ const network: NetworkProbe = {
 };
 let nativeChain: import("../../packages/chain-adapters/native.ts").NativeChain | null = null;
 
+// The playground's sponsor wallet (a dedicated, throwaway testnet key that can only call ping on PortalPing). Read once, then removed from the
+// environment so nothing else in this process can see it. A bad key disables the feature instead of stopping the server.
+let pinger: ReturnType<typeof createPingSender> | null = null;
+if (process.env.PORTALOPS_DEMO_SIGNER_PRIVATE_KEY) {
+  try {
+    const pingAddress = listFeatured().find((f) => f.example === "ping")?.address;
+    if (!pingAddress) throw new Error("no featured ping contract");
+    pinger = createPingSender({ privateKey: process.env.PORTALOPS_DEMO_SIGNER_PRIVATE_KEY.trim(), rpcUrl: RPC, chainId: CHAIN_ID, contract: pingAddress });
+    console.log(`Playground sponsor wallet ${pinger.address} (sends ping on ${pingAddress})`);
+  } catch (e) { console.error("PORTALOPS_DEMO_SIGNER_PRIVATE_KEY ignored:", e instanceof Error ? e.message : e); }
+  delete process.env.PORTALOPS_DEMO_SIGNER_PRIVATE_KEY;
+}
+
 const isHttps = PUBLIC_URL.startsWith("https://");
 const handler = createApp({
   store,
@@ -91,6 +106,8 @@ const handler = createApp({
     receiverBaseUrl: API_PUBLIC_URL,
     trustedProxyHops: TRUSTED_PROXY_HOPS,
     // Model-written explanations of failed deliveries: only when the operator provides an Anthropic key.
+    pinger,
+    demoPingsPerDay: Number(process.env.PORTALOPS_DEMO_PINGS_PER_DAY || 30),
     ai: process.env.ANTHROPIC_API_KEY ? { apiKey: process.env.ANTHROPIC_API_KEY, model: process.env.PORTALOPS_AI_MODEL || DEFAULT_AI_MODEL } : null,
     maxProjectsPerUser: 20,
     publicUrl: PUBLIC_URL,

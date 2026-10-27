@@ -47,7 +47,7 @@ export function accountFromEnv(name, { required = true } = {}) {
 
 export const walletFor = (account) => createWalletClient({ account, chain, transport: http(config.rpcUrl, { timeout: 30_000 }) });
 
-/** `--example quest|token|bounty|arena` picks one of the catalog contracts (packages/examples); the default is PortalQuest. */
+/** `--example quest|token|bounty|arena|ping` picks one of the catalog contracts (packages/examples); the default is PortalQuest. */
 export const exampleId = (() => {
   const i = process.argv.indexOf("--example");
   return i === -1 ? null : (process.argv[i + 1] || "").trim();

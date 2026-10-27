@@ -13,6 +13,7 @@ const SOURCE_FILES: Record<string, string> = {
   token: "contracts/examples/PortalToken.sol",
   bounty: "contracts/examples/PortalBounty.sol",
   arena: "contracts/examples/PortalArena.sol",
+  ping: "contracts/examples/PortalPing.sol",
 };
 
 test("examples: the committed artifacts are not stale (they were built from the Solidity on disk)", () => {

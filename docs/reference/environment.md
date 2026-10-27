@@ -61,6 +61,8 @@ The OAuth App's **Authorization callback URL** must be exactly `<PORTALOPS_PUBLI
 |---|---|---|
 | `PORTALOPS_POLL_MS` | `6000` | How often the worker polls for new blocks |
 | `PORTALOPS_NATIVE_MAX_LOOKBACK_BLOCKS` | `100000` | How far behind the head the native (ink!) reader may start. The public testnet node keeps old state, so a contract's start block is honoured; a pruning node only serves about the last 256 blocks and PortalOps skips (and logs) what it refuses. |
+| `PORTALOPS_DEMO_SIGNER_PRIVATE_KEY` | unset | A **dedicated throwaway testnet key** that lets the public playground send a real `ping` on a visitor's behalf (it can only call `ping(string)` on PortalPing, never sends value). Unset = visitors use their own wallet. Read once at start and removed from the environment; API process only. Fund it with a few tPOT. |
+| `PORTALOPS_DEMO_PINGS_PER_DAY` | `30` | The most sponsored pings per UTC day across all visitors (each visitor is also limited to one per 5 minutes). |
 | `ANTHROPIC_API_KEY` | unset | Turns on **AI explanations** of failed deliveries (Diagnostics → Explain with Claude). The model sees only the recorded evidence shown to the user first, never secrets or event payloads. Unset = rule-based diagnosis only. API process only. |
 | `PORTALOPS_AI_MODEL` | `claude-haiku-5-5` | Which Claude model writes the explanations. |
 | `PORTALDOT_NATIVE_RPC_URL` | `wss://test-node-v3.portaldot.dev` | The native (Substrate) node, read only for ink! contracts. Connected to on first use. |

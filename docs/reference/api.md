@@ -91,6 +91,12 @@ contact the outside (replay, test delivery, contract test). The SDK retries `GET
 ### POST /api/v1/playground/watch
 **Public, no signup.** Body `{ address (0x + 40 hex), example? }`. Adds a contract to the shared playground (rate-limited per IP; built-in receiver only; capped, with the example contracts always pinned). Returns the contract. `409 playground_full` when the sandbox is at its cap.
 
+### POST /api/v1/playground/ping
+**Public, no signup.** Sends a **real transaction** to the Portaldot testnet for the visitor: `ping(note)` on the PortalPing contract, from a small dedicated demo wallet. Body `{ note? }` (cleaned to one printable line of at most 60 characters). Returns `{ transactionHash, from, contract, note }`. It can call that one function on that one contract and never sends value. Limited to one per visitor every 5 minutes and `PORTALOPS_DEMO_PINGS_PER_DAY` per day overall. `503 ping_unavailable` when the server has no demo wallet configured, `503 demo_wallet_empty` when it has run out of testnet funds, `429 rate_limited` / `daily_limit`, `502 ping_failed` when the testnet did not accept the transaction (no provider detail is forwarded). Visitors can also send the same call from their own wallet; `GET /playground` reports `ping: { sponsored, contract, sponsor, perDay }`.
+
+### GET /api/v1/playground/tx/:hash
+**Public, no signup.** What PortalOps has stored for one transaction hash in the playground: `{ transactionHash, events: [...] }`, each event with its decoded payload, finality status and delivery status. Empty until the event has been captured (a few seconds after the transaction is included). `422` for a malformed hash.
+
 ### POST /api/v1/playground/test-delivery
 **Public, no signup.** Sends one signed test delivery to the playground's built-in receiver (rate-limited per IP). Returns `{ ok, status, errorCode, durationMs }`.
 

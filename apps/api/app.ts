@@ -15,6 +15,7 @@ import type { EmailSender } from "../../packages/email/index.ts";
 import { ApiError, clientIp, parseCookies, parseJsonBody, RateLimiter, readRaw, Router, sendJson, MAX_BODY_BYTES, type Ctx, type Limiter } from "./http.ts";
 import { SharedRateLimiter } from "./shared-limiter.ts";
 import { buildEvidence, diagnoseRules, explainWithModel } from "../../packages/diagnostics/diagnose.ts";
+import { cleanNote, type PingSender } from "../../packages/chain-adapters/pinger.ts";
 import { canonicalSs58 } from "../../packages/chain-adapters/native.ts";
 import { inkEventNames, loadInkAbi, looksLikeInkMetadata } from "../../packages/event-engine/ink.ts";
 import { hashRecoveryCode, newRecoveryCodes, newTotpSecret, otpauthUri, verifyTotp } from "./totp.ts";
@@ -41,6 +42,10 @@ export interface AiConfig { apiKey: string; model: string; /** Injected in tests
 export interface AppConfig {
   /** AI explanations for failed deliveries; null/absent = off (the rule-based diagnosis is always available). */
   ai?: AiConfig | null;
+  /** Lets the public playground send a real ping on a visitor's behalf (one contract, one function). Null/absent = visitors use their own wallet. */
+  pinger?: PingSender | null;
+  /** How many sponsored pings the playground sends per UTC day, across all visitors. Default 30. */
+  demoPingsPerDay?: number;
   networkId: string;
   networkLabel: string;
   chainId: number;
@@ -382,6 +387,7 @@ export function createApp(deps: AppDeps): (req: IncomingMessage, res: ServerResp
       projectId: project.id,
       network: config.networkLabel,
       pinned: [...pinnedAddresses()],
+      ping: { sponsored: !!config.pinger, contract: config.pinger?.contract ?? listFeatured().find((f) => f.example === "ping")?.address ?? null, sponsor: config.pinger?.address ?? null, perDay: config.demoPingsPerDay ?? 30 },
       maxContracts: PLAYGROUND_MAX_CONTRACTS,
       contracts,
       events: recent.items.map(eventView),
@@ -407,6 +413,47 @@ export function createApp(deps: AppDeps): (req: IncomingMessage, res: ServerResp
     if (!c) throw new ApiError(409, "contract_exists", "That contract is already being watched.");
     await store.log("info", "config", `Playground watch ${c.address}`, undefined, project.id);
     return { __status: 201, data: contractView(c) };
+  }, "none");
+
+  // ---- "make an event happen": send a REAL ping to the testnet from the page, then watch PortalOps capture it
+  const pgPingLimiter = makeLimiter("pgping", 1, 5 * 60_000); // one sponsored ping per visitor per 5 minutes
+  const pgPingSchema = z.object({ note: z.string().max(200).optional() });
+  const MIN_SPONSOR_BALANCE = 5n * 10n ** 18n; // below this the demo wallet is "out of funds" and visitors are sent to their own wallet
+  let sponsorBalance: { at: number; wei: bigint } | null = null;
+
+  router.add("POST", "/api/v1/playground/ping", async (ctx) => {
+    const pinger = config.pinger;
+    if (!pinger) throw new ApiError(503, "ping_unavailable", "This server does not send pings for visitors. Use your own wallet below, or call the contract yourself.");
+    await ensurePlayground(); // makes sure the contract is being watched before the event exists
+    const wait = await pgPingLimiter.hit("pgping:" + ctx.ip);
+    if (wait) throw new ApiError(429, "rate_limited", `One free ping per visitor every 5 minutes. Try again in ${Math.max(1, Math.ceil(wait / 60))} min, or use your own wallet.`);
+    const cap = config.demoPingsPerDay ?? 30;
+    const today = await store.hitRateLimit("demoping:" + now().toISOString().slice(0, 10), 86_400_000, now().getTime());
+    if (today.hits > cap) throw new ApiError(429, "daily_limit", `The demo wallet has sent its ${cap} free pings for today. Use your own wallet, or come back tomorrow.`);
+    if (!sponsorBalance || now().getTime() - sponsorBalance.at > 60_000) {
+      sponsorBalance = { at: now().getTime(), wei: await pinger.balanceWei().catch(() => 0n) };
+    }
+    if (sponsorBalance.wei < MIN_SPONSOR_BALANCE) throw new ApiError(503, "demo_wallet_empty", "The demo wallet is out of testnet funds right now. Use your own wallet below.");
+    const body = parse(pgPingSchema, ctx.body);
+    const note = cleanNote(body.note) || "hello from the PortalOps playground";
+    try {
+      const { hash } = await pinger.send(note);
+      await store.log("info", "playground", `Sponsored ping sent: ${hash}`);
+      return { transactionHash: hash, from: pinger.address, contract: pinger.contract, note };
+    } catch (e) {
+      await store.log("warn", "playground", `Sponsored ping failed: ${e instanceof Error ? e.message.split("\n")[0].slice(0, 160) : "unknown"}`);
+      throw new ApiError(502, "ping_failed", "The testnet did not accept the transaction right now. Try again in a moment, or use your own wallet.");
+    }
+  }, "none");
+
+  /** What PortalOps has stored for one transaction hash: the decoded event(s), their finality and whether they were delivered. */
+  router.add("GET", "/api/v1/playground/tx/:hash", async (ctx) => {
+    const { project } = await ensurePlayground();
+    if (!/^0x[0-9a-fA-F]{64}$/.test(ctx.params.hash)) throw new ApiError(422, "validation_failed", "A transaction hash is 0x followed by 64 hex characters.");
+    const hash = ctx.params.hash.toLowerCase();
+    const found = (await store.searchEvents({ projectId: project.id, search: hash, limit: 10 })).items.filter((e) => e.transactionHash === hash);
+    const status = await store.deliveryStatusByEvent(found.map((e) => e.id));
+    return { transactionHash: hash, events: found.map((e) => ({ ...eventView(e), delivery: status[e.id] ?? null })) };
   }, "none");
 
   router.add("POST", "/api/v1/playground/test-delivery", async (ctx) => {

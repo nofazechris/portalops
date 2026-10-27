@@ -18,6 +18,24 @@
     }
   },
   {
+    "id": "portalops-ping",
+    "title": "PortalOps Ping",
+    "origin": "ours",
+    "blurb": "A 454-byte contract we deployed on the Portaldot testnet: ping it with a note and it emits an event. The playground can send a real ping for you.",
+    "address": "0x6a8705e4621dd87a261b1c5f97b73871616537ec",
+    "example": "ping",
+    "startBlock": 152070,
+    "evidence": {
+      "deployTransactionHash": "0xb6809eeee11d1b4a1a98113da824cfd763131028b4048608883ab3bdb8aee7b8",
+      "deployBlock": 152078,
+      "transactions": [
+        { "label": "ping", "hash": "0x2e603ac3d0b6219098060152af1b5253e38b86bd2bcd654f49d3cfc36ef30cfb", "block": 152082 },
+        { "label": "ping", "hash": "0xb6a45130b20950a098eb81cf029fdb562f7be9c815b486e6a50752fa029ed2ee", "block": 152146 },
+        { "label": "ping", "hash": "0xb57f0bb8f7d2a180a0627da178674207af65cad9aa1d3889a3993064a7991096", "block": 152148 }
+      ]
+    }
+  },
+  {
     "id": "busy-token",
     "title": "A busy token on the testnet",
     "origin": "community",
