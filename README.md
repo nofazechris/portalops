@@ -53,6 +53,8 @@ The **Rust (ink!) reader** was also run against the real testnet: it captured re
 another team's ink! contract, marked them finalized from the node's own finalized head, and their extrinsic hashes were confirmed inside the blocks.
 They are stored undecoded because that contract's metadata is not ours; decoding is covered by tests against real ink! 5 metadata.
 
+**What this gives the Portaldot ecosystem, how to check every claim, the honest limits, and the questions we expect:** [For the Portaldot ecosystem](docs/guides/ecosystem.md).
+
 ## What it does
 
 1. **Watch**: register a contract (address plus ABI for Solidity, or SS58 address plus metadata for ink!) in the dashboard, API, SDK or by asking Claude.
@@ -64,6 +66,14 @@ They are stored undecoded because that contract's metadata is not ours; decoding
 
 Around it: a public read-only explorer, a no-signup playground, a **verified contract registry** (submit Solidity source; it is compiled and proven to equal the code on chain, then everyone gets the ABI, named events and live activity), **Arena Lab** (graded coding challenges plus a delivery simulator built on the same
 retry rules), accounts with email verification, GitHub sign-in and two-factor sign-in, project API keys that expire, a documentation site and tutorials.
+
+## How it fits together
+
+![PortalOps architecture: chain ingestion, webhook delivery, API and storage, user interfaces and developer integrations](docs/architecture/system-diagram.png)
+
+*Generated from this repository with [gitdiagram](https://gitdiagram.com/nofazechris/portalops). It shows the core path (chain, ingestion, finality, delivery, API,
+store, dashboard, SDK and Claude tools). It predates the Rust (ink!) reader and the verified contract registry; both are described in
+[the architecture overview](docs/architecture/overview.md).*
 
 ## Run it locally
 

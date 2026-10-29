@@ -9,6 +9,7 @@ export const DOC_SECTIONS = [
       { path: "guides/concepts", title: "Core concepts" },
       { path: "guides/dashboard-tour", title: "Dashboard tour" },
       { path: "guides/use-cases", title: "Use cases and recipes" },
+      { path: "guides/ecosystem", title: "For the Portaldot ecosystem" },
     ],
   },
   {
