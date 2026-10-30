@@ -1,0 +1,92 @@
+[
+ {
+  "start": 3.2,
+  "end": 5.03,
+  "text": "Every block tells a story."
+ },
+ {
+  "start": 7.2,
+  "end": 10.07,
+  "text": "Contracts emit events, every single block."
+ },
+ {
+  "start": 10.4,
+  "end": 11.71,
+  "text": "But most apps never hear them."
+ },
+ {
+  "start": 13.7,
+  "end": 17.1,
+  "text": "This is PortalOps. The event layer for Portaldot."
+ },
+ {
+  "start": 17.38,
+  "end": 21.13,
+  "text": "Watch. Decode. Confirm. Deliver. Replay."
+ },
+ {
+  "start": 21.9,
+  "end": 24.47,
+  "text": "Raw logs become named, typed events."
+ },
+ {
+  "start": 25.6,
+  "end": 27.15,
+  "text": "And nothing ever gets a guessed name."
+ },
+ {
+  "start": 28.3,
+  "end": 31.5,
+  "text": "Know exactly how final every event is."
+ },
+ {
+  "start": 31.75,
+  "end": 34.26,
+  "text": "Finalized, straight from the chain itself."
+ },
+ {
+  "start": 34.55,
+  "end": 35.99,
+  "text": "Every webhook is signed."
+ },
+ {
+  "start": 36.3,
+  "end": 38.96,
+  "text": "If your server fails, it retries."
+ },
+ {
+  "start": 39.55,
+  "end": 40.08,
+  "text": "Delivered."
+ },
+ {
+  "start": 40.9,
+  "end": 44.83,
+  "text": "Fixed your server? Replay it. The chain is never touched."
+ },
+ {
+  "start": 45.75,
+  "end": 48.27,
+  "text": "Don't trust us. Verify it yourself."
+ },
+ {
+  "start": 48.6,
+  "end": 51.49,
+  "text": "Every claim, checked against the public testnet."
+ },
+ {
+  "start": 52.45,
+  "end": 54.04,
+  "text": "Solidity and ink!"
+ },
+ {
+  "start": 54.2,
+  "end": 59.57,
+  "text": "An SDK, a dashboard, and Claude. One event layer for all of Portaldot."
+ },
+ {
+  "start": 61.65,
+  "end": 64.15,
+  "text": "PortalOps. Every event, delivered."
+ }
+]
