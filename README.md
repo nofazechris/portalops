@@ -15,15 +15,20 @@ Hackathon track: **Modular Cloud & Middleware**. Testnet only (EVM chain id `420
 
 > Smart contracts are brilliant at doing things, and terrible at telling anyone about it.
 
-**The problem.** Picture a game on Portaldot. A player finishes a quest, the contract pays out the reward, and then it does the one thing contracts do
-to say "that happened": it emits an event. Your server is supposed to hear that, and act: email the player, unlock the next level, update the leaderboard.
+**The problem.** Picture a game on Portaldot. A player finishes a quest, the contract pays out the reward, and then it does the one thing contracts do to say
+"that happened": it emits an event. Your server is supposed to hear that and act: email the player, unlock the next level, update the leaderboard.
 
 What the chain actually hands you is hex. When we looked at the testnet's public events (32 contracts, 225 events, blocks 91,528 to 145,105), **not one was
 readable** without the contract's ABI. And that is the easy part. Blocks get reorganised, so the chain can change its mind about what happened. Your server
 goes down at 3 a.m. and misses the event. The webhook fails and nobody retries it. Every team that builds on Portaldot ends up writing the same plumbing,
 slowly, differently, and with different bugs.
 
-**What we built.** PortalOps is that plumbing, built once, for Portaldot, and left open for everyone. It does five things, in this order:
+**The idea: a developer should never have to learn the plumbing.** Portaldot is going to be built by developers, and increasingly by the AI agents
+working beside them. Neither of them came here to learn how a chain reorganises, how finality works, or how to retry a webhook. They came to build a game,
+a payment flow, an agent. So PortalOps is the place they go to *start*: point it at your contract (or ask Claude to), say where the events should go, and
+the watching, decoding, confirming, delivering and recovering is done for you. You build on Portaldot. PortalOps understands Portaldot.
+
+**What it does, in five verbs.**
 
 1. **Watch** the contracts you point it at, Solidity and Rust.
 2. **Decode** raw logs into named events (`QuestCompleted`, not `0x70b9fa9d…`), and never invent a name it cannot prove.
@@ -31,12 +36,18 @@ slowly, differently, and with different bugs.
 4. **Deliver** it to your server as a signed webhook, with retries when you are down.
 5. **Replay** anything you missed, without touching the chain again.
 
+**Built for developers *and* agents.** A developer can do all of it from the dashboard, the REST API or the TypeScript SDK. An agent can do it in a
+sentence: with our Claude (MCP) server, "track my token contract and send transfers to my API" becomes a registered contract, a signed webhook and a
+test delivery, with Claude able to read the events, replay failures and diagnose a failed delivery afterwards. One rule we hold on purpose: **an agent
+never sees your private keys**, so deploying stays a command you run. The next step is making deploy-and-watch one motion, and letting an agent react
+to events as they land (see [what is live and what is next](#honest-limits)).
+
 **Why Portaldot, specifically.** Portaldot runs two contract engines on one chain: an EVM for Solidity, and ink! for Rust. They report events in different
 places, only about the last 256 blocks can be fetched by number, and deploying costs weight, not the gas you are used to. None of it is hard once you know.
 All of it is a bad afternoon if you do not. So we wrote down what the network really does ([field notes](docs/architecture/network-compatibility.md)), and
-built PortalOps around that, not around what a generic EVM chain would do.
+built PortalOps around that, so the next developer, or agent, does not have to find out the hard way.
 
-**Why we think it should exist.** Because the next apps on Portaldot are games, payments and AI agents, and all of them live on one question: *what just
+**Why we think it should exist.** Because the next apps on Portaldot are games, payments and agents, and all of them live on one question: *what just
 happened on the chain?* They should get the answer in minutes, not spend a week building an indexer. And because we would rather you did not take our word
 for any of it. Every EVM event has a **Verify against the chain** button, and it runs in your own browser against the public RPC. A public
 [registry of verified contracts](https://portalops.onrender.com/registry) proves that source code really is what runs at an address. One command
@@ -47,8 +58,8 @@ go onto the testnet, get captured, decoded, finalized and delivered as a signed 
 yourself.
 
 **What we will tell you before you ask.** It is testnet software on free hosting, with no outside users yet, and we have not deployed our own Rust
-contract live (it needs about 420 tPOT locked). The full list is under [Honest limits](#honest-limits). Our view is that a judge who finds a limit in our
-README before finding it in our demo trusts the rest of it more.
+contract live (it needs about 420 tPOT locked). One-step deploy and agent triggers are the roadmap, not today's product. The full list is under
+[Honest limits](#honest-limits). Our view is that a judge who finds a limit in our README before finding it in our demo trusts the rest of it more.
 
 ## Verify it yourself (5 minutes, no key, no trust needed)
 
@@ -212,6 +223,7 @@ link are checked by tests, so they cannot silently drift from the code.
 - **Native (ink!) decoding of a live contract** of ours is not shown yet: it needs a funded native account to deploy `contracts/ink/portal_ping_ink`.
   The reader, finality and reorg handling are verified against the live chain and real metadata, as above.
 - **Not deployed by us:** the Token, Bounty and Arena examples.
+- **Roadmap, not product:** one-step deploy-and-watch, events as triggers for an agent loop, an agent audit trail, and security alert rules. Today an agent (Claude) can register contracts, create webhooks, read events, replay and diagnose; deploying is a command you run yourself, on purpose, so no agent ever holds your keys.
 - Webhooks are at-least-once; PortalOps makes duplicates harmless (stable event ids) rather than pretending exactly-once is possible over HTTP.
 
 ## License
