@@ -50,6 +50,7 @@ proof that a contract's source is the code that really runs on chain.
 | The tests pass on a clean clone | `git clone https://github.com/nofazechris/portalops && cd portalops && npm ci && npm test` (250+ tests) |
 | Our contracts are on the testnet and emitted the events we say | `npm run verify:evidence` (24 read-only checks against the public RPC) |
 | The service really captured them | `npm run verify:evidence -- --live https://portalops.onrender.com` |
+| An event is real | open any event and click **Verify against the chain** (it runs in your browser, against the public RPC) |
 | The registry is real | open `/registry`, click a contract, compare its source with the code on chain |
 | Events travel end to end | open `/playground`, click **Send a free ping**, and watch the transaction get captured, decoded, finalized and delivered |
 
@@ -74,6 +75,12 @@ For Portaldot's EVM-on-Substrate plus ink! design it did not. PortalOps builds i
 
 **Is it only for Portaldot?**
 Yes, deliberately. It verifies the network's chain id and refuses to run against the wrong chain. Depth on one network beats a thin layer over many.
+
+**Why trust an indexer at all?**
+You do not have to. Every EVM event has a **Verify against the chain** button: your own browser asks the public Portaldot RPC for the transaction receipt and
+compares it with what we stored: same transaction, success status, block hash, contract, topics and data. A forged or altered event fails, a transaction that was
+reorganised away is reported as such, and a copyable `curl` command lets you check it without PortalOps or its page. (The API has the same check at
+`GET /events/:id/verify`.) Anchoring records on chain can show an indexer did not change history; checking against the chain shows the record is true.
 
 **What makes the numbers trustworthy?**
 Finality is read from the node's own finalized head, never guessed. Reorganised events are marked orphaned, not silently dropped. Every claim about our

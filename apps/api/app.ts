@@ -18,6 +18,8 @@ import { buildEvidence, diagnoseRules, explainWithModel } from "../../packages/d
 import { cleanNote, type PingSender } from "../../packages/chain-adapters/pinger.ts";
 import { canonicalSs58 } from "../../packages/chain-adapters/native.ts";
 import { verifySource } from "../../packages/verification/verify.ts";
+import { verifyEventAgainstChain } from "../../packages/event-engine/chain-check.ts";
+import { normalizeEvmLog } from "../../packages/event-engine/normalize.ts";
 import { inkEventNames, loadInkAbi, looksLikeInkMetadata } from "../../packages/event-engine/ink.ts";
 import { hashRecoveryCode, newRecoveryCodes, newTotpSecret, otpauthUri, verifyTotp } from "./totp.ts";
 
@@ -41,6 +43,10 @@ export interface NetworkProbe {
 export interface AiConfig { apiKey: string; model: string; /** Injected in tests. */ fetchImpl?: typeof fetch }
 
 export interface AppConfig {
+  /** The public EVM RPC the chain checks ask (and that visitors' browsers may ask directly). Absent = chain checks are off. */
+  rpcUrl?: string;
+  /** Injected in tests so chain checks never touch the network. */
+  chainFetch?: Parameters<typeof verifyEventAgainstChain>[1]["fetchImpl"];
   /** AI explanations for failed deliveries; null/absent = off (the rule-based diagnosis is always available). */
   ai?: AiConfig | null;
   /** Lets the public playground send a real ping on a visitor's behalf (one contract, one function). Null/absent = visitors use their own wallet. */
@@ -312,7 +318,7 @@ export function createApp(deps: AppDeps): (req: IncomingMessage, res: ServerResp
     return { ok: true, worker };
   }, "none");
 
-  router.add("GET", "/api/v1/networks", async () => [{ id: config.networkId, label: config.networkLabel, runtime: "evm", evmChainId: config.chainId }], "none");
+  router.add("GET", "/api/v1/networks", async () => [{ id: config.networkId, label: config.networkLabel, runtime: "evm", evmChainId: config.chainId, ...(config.rpcUrl ? { rpcUrl: config.rpcUrl } : {}) }], "none");
 
   // Example contracts for the setup wizard and docs: public, static, and safe to cache.
   router.add("GET", "/api/v1/examples", async () => listExamples(), "none");
@@ -974,6 +980,33 @@ export function createApp(deps: AppDeps): (req: IncomingMessage, res: ServerResp
     const owner = ctx.userId === p.ownerId;
     const deliveries = owner ? await Promise.all((await store.listDeliveries({ eventId: e.id })).map(async (d) => ({ ...d, attempts: await store.listAttempts(d.id) }))) : [];
     return { ...eventView(e), deliveries };
+  }, "optional");
+
+  // "Verify against the chain": ask the public RPC about the event's transaction and compare, field by field. The same check can run in a
+  // browser straight against the RPC (see /networks "rpcUrl"), which needs no trust in this server at all.
+  const chainCheckLimiter = makeLimiter("chaincheck", 30, 60_000);
+  router.add("GET", "/api/v1/events/:eventId/verify", async (ctx) => {
+    const e = await store.getEvent(ctx.params.eventId);
+    if (!e) throw notFound();
+    const p = await project(ctx, e.projectId, "read");
+    if (!config.rpcUrl) throw new ApiError(503, "unavailable", "Chain checks are not configured on this server.");
+    const wait = await chainCheckLimiter.hit("chaincheck:" + ctx.ip);
+    if (wait) throw new ApiError(429, "rate_limited", `Easy there: try again in ${wait}s.`);
+    const r = await verifyEventAgainstChain(e, { rpcUrl: config.rpcUrl, fetchImpl: config.chainFetch });
+    const checks = [...r.checks];
+    let verdict = r.verdict, summary = r.summary;
+    // Also re-decode the CHAIN's own log with the contract's ABI: the named fields we show must be what the chain's data really says.
+    if ((verdict === "verified") && e.decoded && r.chainLog) {
+      const abi = (await store.listContracts(p.id)).find((c) => c.runtimeType === "evm" && c.address.toLowerCase() === e.contractAddress.toLowerCase())?.abi;
+      if (Array.isArray(abi)) {
+        const again = normalizeEvmLog({ ...r.chainLog, transactionIndex: e.transactionIndex, removed: false }, { projectId: e.projectId, chainId: e.chainId, abis: new Map([[e.contractAddress.toLowerCase(), abi as never]]) });
+        const same = again.eventName === e.eventName && JSON.stringify(again.payload) === JSON.stringify(e.payload);
+        checks.push({ id: "decode", label: "Decoding the chain's own log gives the same name and fields", ok: same, detail: again.eventName ?? "not decodable" });
+        if (!same) { verdict = "mismatch"; summary = "The log is real, but the decoded fields PortalOps shows are not what the chain's data decodes to."; }
+      }
+    }
+    return { eventId: e.id, verdict, summary, checks, confirmations: r.confirmations, checkedAt: now().toISOString(), rpcUrl: config.rpcUrl,
+      checkYourself: `curl -s ${config.rpcUrl} -H 'content-type: application/json' -d '{"jsonrpc":"2.0","id":1,"method":"eth_getTransactionReceipt","params":["${e.transactionHash}"]}'` };
   }, "optional");
 
   router.add("POST", "/api/v1/events/:eventId/replay", async (ctx) => {

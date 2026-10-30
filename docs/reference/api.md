@@ -71,7 +71,7 @@ contact the outside (replay, test delivery, contract test). The SDK retries `GET
 **Public.** Readiness. `200` when the worker has reported within the last 120 s; otherwise `503 worker_unavailable` (`details.status` is `stale` or `never`). Point load-balancer checks here.
 
 ### GET /api/v1/networks
-**Public.** Supported networks: `[{ "id": "portaldot-v3-testnet", "label", "runtime": "evm", "evmChainId": 420420777 }]`.
+**Public.** Supported networks: `[{ "id": "portaldot-v3-testnet", "label", "runtime": "evm", "evmChainId": 420420777, "rpcUrl" }]`. `rpcUrl` is the public RPC the server reads, so a browser can check events against the chain itself (see "Verify against the chain"); it is left out when the server has none configured.
 
 ### GET /api/v1/public/status
 **Public.** `{ network, connection: "connected" | "disconnected" | "wrong_chain", headBlock, checkedAt, worker, demo }`. `headBlock` is `null` when the chain is unreachable: it is never invented.
@@ -226,6 +226,9 @@ Response `{ items, total, limit, offset }`; each item is an event (below) plus `
 | `transactionHash`, `transactionIndex`, `blockNumber`, `blockHash`, `eventIndex` | where it happened |
 | `observedAt` | when PortalOps first stored it |
 | `finalityStatus` | `included` → `confirmed` → `finalized`, or `orphaned` (see [Concepts](../guides/concepts.md#finality)) |
+
+### GET /api/v1/events/:eventId/verify
+**Read.** Verify against the chain. The server asks the public RPC for the event's transaction receipt and compares it with the stored event, field by field. Returns `{ eventId, verdict, summary, checks: [{ id, label, ok, detail? }], confirmations, checkedAt, rpcUrl, checkYourself }`. `verdict` is `verified` (the chain has this exact log: same transaction, success status, block hash, block number, contract, topics and data, and, for a decoded event, decoding the chain's own log gives the same name and fields), `mismatch` (something differs; `checks` names it), `not_found` (the chain does not know the transaction: it may have been reorganised away), `unavailable` (the RPC could not be reached: neither a pass nor a fail) or `not_applicable` (Rust ink! events cannot be checked yet). `checkYourself` is a `curl` command that fetches the same receipt without PortalOps. The dashboard and playground run the same comparison in the visitor's own browser, directly against the RPC. Rate limited per IP; `503` when the server has no RPC configured.
 
 ### GET /api/v1/events/:eventId
 **Read.** The event plus `deliveries`: every delivery to every webhook, each with its `attempts` (number, times, HTTP status, duration, sanitised response, error code). Deliveries are included for the owner only.

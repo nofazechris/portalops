@@ -16,6 +16,8 @@ COPY docs ./docs
 COPY public ./public
 # the landing page's evidence card imports the featured-contracts list from outside src/
 COPY packages/examples/featured.json ./packages/examples/featured.json
+# the event page's "verify against the chain" check runs in the browser and shares this dependency-free file with the server
+COPY packages/event-engine/chain-check.ts ./packages/event-engine/chain-check.ts
 RUN npm run build
 
 # ---- runtime ------------------------------------------------------------------------------------

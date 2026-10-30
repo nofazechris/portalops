@@ -4,6 +4,7 @@ import { shortHash, timeAgo, useApi, useSession } from "../state.jsx";
 import { CopyButton, DeliveryBadge, Empty, ErrorBox, FinalityBadge, Loading, NeedsProject, ReadOnlyNote, deliveryColor, deliveryLabel } from "../ui.jsx";
 import { eventSub, eventTitle } from "./Overview.jsx";
 import { DeliveryFlow, FinalityProgress } from "../viz.jsx";
+import VerifyOnChain from "../VerifyOnChain.jsx";
 
 const FILTERS = [
   { label: "All", params: {} },
@@ -134,6 +135,11 @@ export function EventDetail({ id, go }) {
         </div>
 
         <div className="stack" style={{ gap: 12 }}>
+          <div className="panel">
+            <h2 className="h2 sm">Is this real?</h2>
+            <div style={{ fontSize: 12.5, color: "var(--dim)", margin: "8px 0 12px", lineHeight: 1.5 }}>Do not take our word for it. Ask the chain.</div>
+            <VerifyOnChain event={e} />
+          </div>
           {!readOnly && (
             <div className="panel">
               <h2 className="h2 sm">Actions</h2>

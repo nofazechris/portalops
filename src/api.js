@@ -83,6 +83,8 @@ export const api = {
 
   events: (pid, params) => request("GET", `/projects/${pid}/events${qs(params)}`),
   event: (id) => request("GET", `/events/${id}`),
+  networks: () => request("GET", "/networks"),
+  verifyEvent: (id) => request("GET", `/events/${id}/verify`),
   replay: (eventId, endpointId) => request("POST", `/events/${eventId}/replay`, endpointId ? { endpointId } : {}),
   deliveries: (pid, params) => request("GET", `/projects/${pid}/deliveries${qs(params)}`),
 

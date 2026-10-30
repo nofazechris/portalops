@@ -63,6 +63,7 @@ They are stored undecoded because that contract's metadata is not ours; decoding
 4. **Deliver**: HMAC-SHA256 signed webhooks with exponential-backoff retries (bounded parallelism) and a full attempt history.
 5. **Replay**: re-send any stored event with the same id after you fix your server; the chain is never touched.
 6. **Diagnose**: every failed delivery gets a rule-based cause, confidence and checklist; an optional AI explanation shows you exactly what it would send first.
+7. **Verify**: any EVM event can be checked against the chain itself. The check runs in your browser against the public RPC (transaction, status, block hash, contract, topics, data), so you do not have to trust PortalOps.
 
 Around it: a public read-only explorer, a no-signup playground, a **verified contract registry** (submit Solidity source; it is compiled and proven to equal the code on chain, then everyone gets the ABI, named events and live activity), **Arena Lab** (graded coding challenges plus a delivery simulator built on the same
 retry rules), accounts with email verification, GitHub sign-in and two-factor sign-in, project API keys that expire, a documentation site and tutorials.

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { api } from "../api.js";
 import { hasWallet, sendPingFromWallet } from "../wallet.js";
 import { journeyComplete, pingJourney } from "./pingJourney.js";
+import VerifyOnChain from "../VerifyOnChain.jsx";
 
 const POLL_MS = 2000;
 const GIVE_UP_MS = 4 * 60_000;
@@ -92,6 +93,7 @@ export default function PlaygroundPing({ info, onProgress }) {
               <div><b>{s.title}</b>{s.detail ? <span>{s.detail}</span> : null}</div>
             </li>
           ))}
+          {run.events[0] && <li className="pg-journey-verify"><VerifyOnChain key={run.hash} event={run.events[0]} /></li>}
           <li className="pg-journey-foot">Sent via {run.via}. {steps[1].state === "done" ? "Finality can take a minute or two more: the page keeps watching." : "Blocks arrive about every 6 seconds."}</li>
         </ol>
       )}

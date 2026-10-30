@@ -19,22 +19,29 @@ const TYPES: Record<string, string> = {
   ".woff": "font/woff", ".woff2": "font/woff2", ".map": "application/json; charset=utf-8", ".pdf": "application/pdf",
 };
 
-export const CSP = [
-  "default-src 'self'", "script-src 'self'", "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com", "font-src https://fonts.gstatic.com",
-  "img-src 'self' data:", "connect-src 'self'", "base-uri 'none'", "form-action 'self'", "object-src 'none'", "frame-ancestors 'none'",
-].join("; ");
+/** The policy. `connectOrigins` are extra origins the page may call: only the public chain RPC, so a visitor's browser can check an event against the chain itself. */
+export function buildCsp(connectOrigins: string[] = []): string {
+  return [
+    "default-src 'self'", "script-src 'self'", "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com", "font-src https://fonts.gstatic.com",
+    ["connect-src 'self'", ...connectOrigins].join(" "), "img-src 'self' data:", "base-uri 'none'", "form-action 'self'", "object-src 'none'", "frame-ancestors 'none'",
+  ].join("; ");
+}
+export const CSP = buildCsp();
 
 export interface StaticOptions {
   root: string;
   /** Send Strict-Transport-Security (only when the site is really served over https). */
   hsts?: boolean;
+  /** Origins (https://host) the page may connect to besides itself. */
+  connectOrigins?: string[];
 }
 
 export function createStaticHandler(opts: StaticOptions): (req: IncomingMessage, res: ServerResponse) => Promise<boolean> {
   const root = resolve(opts.root);
+  const csp = buildCsp(opts.connectOrigins);
 
   const headers = (extra: Record<string, string | number>): Record<string, string | number> => ({
-    "content-security-policy": CSP,
+    "content-security-policy": csp,
     "x-content-type-options": "nosniff",
     "x-frame-options": "DENY",
     "referrer-policy": "no-referrer",

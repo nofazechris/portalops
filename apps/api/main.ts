@@ -99,6 +99,7 @@ const handler = createApp({
     networkId: NETWORK_ID,
     networkLabel: "Portaldot V3.0 Testnet",
     chainId: CHAIN_ID,
+    rpcUrl: RPC,
     encryptionKey: parseKey(process.env.WEBHOOK_ENCRYPTION_KEY),
     allowedOrigins: [PUBLIC_URL, "http://localhost:5173", "http://127.0.0.1:5173"],
     cookieSecure: isHttps,
@@ -121,7 +122,9 @@ const handler = createApp({
 // Optionally serve the built web app from this process (one container = whole product). Off unless PORTALOPS_STATIC_DIR is set.
 const STATIC_DIR = process.env.PORTALOPS_STATIC_DIR ? resolve(ROOT, process.env.PORTALOPS_STATIC_DIR) : null;
 if (STATIC_DIR && !existsSync(resolve(STATIC_DIR, "index.html"))) console.error(`Warning: PORTALOPS_STATIC_DIR=${STATIC_DIR} has no index.html (did you run \`npm run build\`?)`);
-const serveStatic = STATIC_DIR ? createStaticHandler({ root: STATIC_DIR, hsts: isHttps }) : null;
+// The page may call the public chain RPC directly (to check an event against the chain without trusting this server). Only that origin, only https.
+const chainOrigin = (url: string): string[] => { try { const u = new URL(url); return u.protocol === "https:" ? [u.origin] : []; } catch { return []; } };
+const serveStatic = STATIC_DIR ? createStaticHandler({ root: STATIC_DIR, hsts: isHttps, connectOrigins: chainOrigin(RPC) }) : null;
 const HOST = process.env.PORTALOPS_API_HOST || "127.0.0.1"; // containers set 0.0.0.0 and sit behind a TLS-terminating proxy
 
 const server = http.createServer({ maxHeaderSize: 16 * 1024 }, (req, res) => {

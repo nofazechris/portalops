@@ -7,7 +7,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { randomBytes } from "node:crypto";
-import { createStaticHandler } from "./static.ts";
+import { buildCsp, createStaticHandler } from "./static.ts";
 import { createApp } from "./app.ts";
 import { Store } from "../../packages/database/store.ts";
 import { RateLimiter } from "./http.ts";
@@ -148,4 +148,13 @@ test("health and readiness: liveness is independent of the worker; readiness ref
   await store.beat("worker", undefined, new Date(clock));
   assert.equal((await get("/api/v1/ready")).status, 200, "recovers as soon as it reports again");
   assert.equal((await get("/api/v1/public/status")).json.data.worker, "ok");
+});
+
+test("CSP: the page may only call itself, plus the one chain RPC origin when one is given", () => {
+  assert.match(buildCsp(), /connect-src 'self'(;|$)/);
+  assert.ok(!/https:/.test(buildCsp().split("; ").find((d) => d.startsWith("connect-src"))!), "nothing else by default");
+  const withRpc = buildCsp(["https://test-evm-rpc-v3.portaldot.dev"]);
+  assert.match(withRpc, /connect-src 'self' https:\/\/test-evm-rpc-v3\.portaldot\.dev(;|$)/);
+  assert.match(withRpc, /script-src 'self'(;|$)/, "scripts are still only our own");
+  assert.match(withRpc, /frame-ancestors 'none'/);
 });

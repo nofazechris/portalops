@@ -16,7 +16,8 @@ const csp = [
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "font-src https://fonts.gstatic.com",
   "img-src 'self' data:",
-  "connect-src 'self'",
+  // the page may also call the public Portaldot RPC itself, to check an event against the chain without trusting our server
+  "connect-src 'self' https://test-evm-rpc-v3.portaldot.dev",
   "base-uri 'none'",
   "form-action 'self'",
   "object-src 'none'",
