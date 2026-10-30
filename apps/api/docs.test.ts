@@ -119,3 +119,10 @@ test("docs site: the Docker build stage receives the markdown it bundles (otherw
   const ignore = read(".dockerignore").split(/\r?\n/).map((l) => l.trim());
   assert.ok(!ignore.includes("docs") && !ignore.includes("docs/") && !ignore.includes("/docs") && !ignore.includes("**/*.md"), ".dockerignore must not exclude docs/");
 });
+
+test("docs: the DoraHacks text stays within the limits it declares", () => {
+  const doc = read("docs/presentation/dorahacks.md").replace(/\r\n/g, "\n");
+  const blocks = [...doc.matchAll(/<!-- limit:(\d+) -->\n([\s\S]*?)\n<!-- \/limit -->/g)];
+  assert.equal(blocks.length, 3, "tagline, short and full description");
+  for (const [, limit, text] of blocks) assert.ok([...text].length <= Number(limit), `a block is ${[...text].length} characters, over its limit of ${limit}`);
+});
