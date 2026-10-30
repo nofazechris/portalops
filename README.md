@@ -23,9 +23,9 @@ readable** without the contract's ABI. And that is the easy part. Blocks get reo
 goes down at 3 a.m. and misses the event. The webhook fails and nobody retries it. Every team that builds on Portaldot ends up writing the same plumbing,
 slowly, differently, and with different bugs.
 
-**The idea: a developer should never have to learn the plumbing.** Portaldot is going to be built by developers, and increasingly by the AI agents
-working beside them. Neither of them came here to learn how a chain reorganises, how finality works, or how to retry a webhook. They came to build a game,
-a payment flow, an agent. So PortalOps is the place they go to *start*: point it at your contract (or ask Claude to), say where the events should go, and
+**The idea: a developer should never have to learn the plumbing.** Portaldot is built. The chain is there, and developers (and, more and more, the AI
+agents working beside them) are arriving to build *on* it: real-world assets, games, payment flows, agents. None of them came to learn how a chain
+reorganises, how finality works, or how to retry a webhook. They came to build their product. So PortalOps is the place they go to *start*: point it at your contract (or ask Claude to), say where the events should go, and
 the watching, decoding, confirming, delivering and recovering is done for you. You build on Portaldot. PortalOps understands Portaldot.
 
 **What it does, in five verbs.**
@@ -47,7 +47,7 @@ places, only about the last 256 blocks can be fetched by number, and deploying c
 All of it is a bad afternoon if you do not. So we wrote down what the network really does ([field notes](docs/architecture/network-compatibility.md)), and
 built PortalOps around that, so the next developer, or agent, does not have to find out the hard way.
 
-**Why we think it should exist.** Because the next apps on Portaldot are games, payments and agents, and all of them live on one question: *what just
+**Why we think it should exist.** Because the apps people are coming to build on Portaldot (real-world assets, games, payments, agents) all live on one question: *what just
 happened on the chain?* They should get the answer in minutes, not spend a week building an indexer. And because we would rather you did not take our word
 for any of it. Every EVM event has a **Verify against the chain** button, and it runs in your own browser against the public RPC. A public
 [registry of verified contracts](https://portalops.onrender.com/registry) proves that source code really is what runs at an address. One command

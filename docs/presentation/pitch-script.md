@@ -47,7 +47,7 @@ transaction and checks every field against what we stored. Green means the chain
 
 "Portaldot runs two contract engines on one chain. Solidity and Rust report their events in different places, and there are quirks that cost a new team
 a week. We wrote them down, we built around them, and we put a registry of verified contracts in public, so source code is proven to be what runs at an
-address. The next apps here will be games, payments and agents. All of them live on one question: *what just happened?* We'd like every one of them to
+address. People are coming to Portaldot to build real-world assets, games, payments and agents. All of them live on one question: *what just happened?* We'd like every one of them to
 get the answer in minutes."
 
 **2:50 — The honest close (10 s).**
