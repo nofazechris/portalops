@@ -82,10 +82,18 @@ position, separate from the EVM reader, so the two never disturb each other.
   the log. `PORTALOPS_NATIVE_MAX_LOOKBACK_BLOCKS` (default 100,000) is the furthest behind the head a read may start.
 - **One RPC.** It uses `PORTALDOT_NATIVE_RPC_URL` (default `wss://test-node-v3.portaldot.dev`), connected to on first use and reconnected
   after a failure. If the native node is down, EVM ingestion for the same project carries on.
+- **Building needs an older Rust.** `cargo-contract` 5.0.3 (the version for ink! 5) fails on Rust 1.95 with "panic_immediate_abort is now a real
+  panic strategy", because that Rust removed a flag it relies on. Rust 1.85 works: `rustup toolchain install 1.85.0 -c rust-src -t wasm32-unknown-unknown`,
+  then `rustup override set 1.85.0` inside the contract's folder. Built that way, `portal_ping_ink` is 7.0 KB optimised and its interface (constructor,
+  three messages, two events) is the same as the committed metadata.
+- **Deploying is priced by the byte.** The Contracts pallet holds a refundable deposit of 0.06 tPOT per byte of code (`depositPerByte`, 14 decimals)
+  plus 0.15 tPOT per stored item. By that price `portal_ping_ink` needs about **420 tPOT** locked to deploy (7.0 KB). A dry run with a 22 tPOT account
+  was refused with `Contracts::StorageDepositNotEnoughFunds`. This is an estimate from the chain's constants, not a completed deployment. A leaner
+  contract (fewer messages, no string handling) costs proportionally less.
 - **Not in the playground.** The public playground watches Solidity contracts only.
 - **Verified how.** The decoder is tested against real ink! 5 metadata (events with signature topics, integer, account and string
   arguments), and the reader against reorganisations, finality and skipped blocks. On the live testnet it was run over real history:
   two `ContractEmitted` events emitted by an ink! contract in blocks 130828 and 130847 were captured through the same code the worker uses,
   stored as native events, marked `finalized` from the node's own finalized head, and their extrinsic hashes were confirmed inside the
   real blocks. They are stored raw (undecoded) because that contract's metadata is not ours. Decoding a live deployment of
-  `portal_ping_ink` needs it deployed from a funded native account, which is yours to do (see above).
+  `portal_ping_ink` needs it deployed from a native account holding about 420 tPOT (see above). We have **not** done that, so we do not claim a live decode of our own ink! contract.

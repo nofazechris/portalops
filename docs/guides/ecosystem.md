@@ -62,6 +62,7 @@ We would rather you hear these from us.
 - **One small instance.** The hosted demo is a single service on a free plan. It is a demonstration, not a production service level.
 - **The Rust (ink!) reader sees recent blocks only** (about the last 240) because the native node's block lookup is limited. Older ink! events need a
   start block inside that window.
+- **Our own Rust contract is built and tested, but not deployed live.** Deploying it needs about 420 tPOT locked (0.06 tPOT per byte of code), which we did not have. The reader is verified against real testnet events from another team's contract, and decoding against real ink! 5 metadata.
 - **The registry takes single-file Solidity** (no imports; flatten first) and verifies EVM contracts. Rust contracts describe themselves through
   their metadata file instead.
 - **Verification means "same code"**, not "safe code". A match proves the source is what runs; it says nothing about whether the source is good.

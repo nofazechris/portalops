@@ -35,6 +35,7 @@ nothing. Native balances use 14 decimals and the EVM view 18 (`nativeToEthRatio 
 - **Contract code carries a refundable deposit** of about 0.06 tPOT per byte (`depositPerByte`). A 2 KB contract is therefore expensive on a
   small balance; a lean contract is cheap. Measured: `PortalQuest` (2,162 bytes of runtime code) used `5.23e15` gas; `PortalPing` (454 bytes, one event)
   cost roughly 50 tPOT to deploy and call; a 2.3 KB game contract needed a maximum of about 196 tPOT.
+- **ink! deployments are priced the same way, and a 7 KB contract needs about 420 tPOT locked** (0.06 tPOT per byte of code). A funded EVM account does not help: ink! contracts are deployed from a native (`5…`) account, and an `0x…` wallet cannot send to one. See [Rust (ink!) contracts](../guides/ink-contracts.md).
 - Run the deploy script as a dry run first: `npm run contract:deploy -- --example arena` prints balance, estimate and the maximum cost and sends nothing.
 
 ## 4. What the EVM RPC does and does not keep
