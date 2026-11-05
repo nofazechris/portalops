@@ -74,7 +74,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Build image
         run: docker build -t portalops:ci .
-      - name: Smoke test: the container starts, serves the app and reports health
+      - name: "Smoke test: the container starts, serves the app and reports health"
         run: |
           docker run -d --name pops -p 8787:8787 \
             -e WEBHOOK_ENCRYPTION_KEY=$(node -e "console.log(require('crypto').randomBytes(32).toString('hex'))") \

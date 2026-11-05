@@ -153,7 +153,7 @@ diagram (the landing page's flow card works), then to a clock/blinking "server o
 
 ## Part 3: Video B, the full walkthrough (8 to 10 minutes)
 
-> The detailed, chaptered 9-minute script now lives in [Video B: the full developer walkthrough](walkthrough-script.md). The outline below is the earlier draft.
+> The detailed, chaptered 9-minute script now lives in [Video B: the full developer walkthrough](walkthrough-script.md). The outline below is the earlier, shorter version.
 
 Goal: someone who has never used PortalOps can follow along and finish with a delivered event. Say what you are about to click **before** you click.
 

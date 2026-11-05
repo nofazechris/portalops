@@ -126,3 +126,24 @@ test("docs: the DoraHacks text stays within the limits it declares", () => {
   assert.equal(blocks.length, 3, "tagline, short and full description");
   for (const [, limit, text] of blocks) assert.ok([...text].length <= Number(limit), `a block is ${[...text].length} characters, over its limit of ${limit}`);
 });
+
+// GitHub refuses a workflow file that is not valid YAML, and the whole run then "fails" without starting a single job. The easiest way to write
+// invalid YAML by hand is an unquoted value that contains a colon followed by a space (for example a step name like `Smoke test: the app starts`).
+export function unquotedColonValues(yaml: string): string[] {
+  const bad: string[] = [];
+  yaml.replace(/\r\n/g, "\n").split("\n").forEach((line, i) => {
+    const m = /^\s*(?:- )?[A-Za-z_][\w.-]*:\s+(.+)$/.exec(line);
+    if (!m) return;
+    const value = m[1].replace(/\s+#.*$/, ""); // a trailing comment is not part of the value
+    if (/^["'|>\[{&*!]/.test(value)) return; // quoted, a block scalar, a flow collection, an anchor or a tag
+    if (/:\s/.test(value)) bad.push(`line ${i + 1}: ${line.trim()}`);
+  });
+  return bad;
+}
+
+test("CI: every workflow file avoids unquoted ': ' in values (otherwise GitHub rejects it and no job starts)", () => {
+  assert.deepEqual(unquotedColonValues("steps:\n  - name: Smoke test: the app starts\n"), ["line 2: - name: Smoke test: the app starts"], "the check catches the mistake that broke CI");
+  assert.deepEqual(unquotedColonValues('steps:\n  - name: "Smoke test: the app starts"\n  - run: echo hi # note: fine\n'), []);
+  const dir = resolve(ROOT, ".github/workflows");
+  for (const f of readdirSync(dir).filter((n) => /\.ya?ml$/.test(n))) assert.deepEqual(unquotedColonValues(readFileSync(join(dir, f), "utf8")), [], `${f} has an unquoted ': ' in a value`);
+});
