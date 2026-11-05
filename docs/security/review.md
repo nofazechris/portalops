@@ -50,7 +50,7 @@ known gaps" below, but they have not had the adversarial pass the original findi
 
 | Item | Why it is acceptable now / what would fix it |
 |---|---|
-| `npm audit`: `solc → tmp` (high, symlink write). | Dev-time compiler only, used through the JS API (`solc.compile`), never its CLI; not shipped. No upstream fix yet. |
+| `npm audit`: `solc → tmp` (high, symlink write). | `solc` is a production dependency (it verifies submitted contract source), used only through the JS API (`solc.compile`) on a worker thread, never its CLI. The advisory is in `tmp`, which only the CLI uses; `solc` pins `tmp` exactly, so `package.json` overrides it to the patched 0.2.7. `npm audit --omit=dev` reports 0 vulnerabilities. |
 | Signup reveals whether an email exists (409). | Inherent without email verification. Email verification and password reset are **not implemented** (no mail provider). |
 | A per-email login limiter lets an attacker briefly lock a specific victim out (≈1 min windows). | Short, self-healing. A per-account lockout with notification is the production answer. |
 | Two-factor sign-in covers email-and-password accounts only. | It is TOTP (authenticator app) with one-time recovery codes. GitHub sign-in is protected by the user's GitHub two-factor settings instead; passkeys/WebAuthn are not implemented. |

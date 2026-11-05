@@ -36,7 +36,7 @@ jobs:
       - name: Build SDK
         run: npm run sdk:build
       - name: Dependency audit (production dependencies)
-        # The dev-only `solc → tmp` advisory is documented in docs/security/review.md and excluded by --omit=dev.
+        # `solc` is a production dependency (contract verification); its `tmp` advisory is handled by an override, see docs/security/review.md.
         run: npm audit --omit=dev --audit-level=high
 
   test-postgres:
