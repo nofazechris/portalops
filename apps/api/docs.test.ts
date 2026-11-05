@@ -147,3 +147,22 @@ test("CI: every workflow file avoids unquoted ': ' in values (otherwise GitHub r
   const dir = resolve(ROOT, ".github/workflows");
   for (const f of readdirSync(dir).filter((n) => /\.ya?ml$/.test(n))) assert.deepEqual(unquotedColonValues(readFileSync(join(dir, f), "utf8")), [], `${f} has an unquoted ': ' in a value`);
 });
+
+// The architecture diagram and the layout list are the first things a reviewer compares with the code. They are text, so they can be checked:
+// every repository path they name must exist, so a renamed or removed file fails here instead of in a review.
+test("architecture docs: every repository path the README and the overview name exists", () => {
+  for (const file of ["README.md", "docs/architecture/overview.md"]) {
+    const missing = new Set<string>();
+    for (const m of read(file).matchAll(/(?<![\w/.:@-])((?:apps|packages|contracts|scripts|src|docs)\/[A-Za-z0-9_./-]*[A-Za-z0-9_])/g)) {
+      const p = m[1].replace(/[.,;:]+$/, "");
+      if (!existsSync(resolve(ROOT, p))) missing.add(p);
+    }
+    assert.deepEqual([...missing], [], `${file} names paths that do not exist`);
+  }
+});
+
+test("architecture docs: the diagram names the files that really implement each step", () => {
+  const readme = read("README.md");
+  const block = /```mermaid\n(flowchart LR[\s\S]*?)```/.exec(readme)?.[1] ?? "";
+  assert.ok(block.includes("ingest-native.ts") && block.includes("chain-check.ts") && block.includes("verification/verify.ts"), "the diagram covers the native reader, the chain check and the verifier");
+});

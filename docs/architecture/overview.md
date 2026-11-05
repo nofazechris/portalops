@@ -8,36 +8,73 @@ extended without touching the rest.
 
 ```mermaid
 flowchart LR
-  subgraph Chain
-    RPC[Portaldot EVM RPC]
+  subgraph chain["Portaldot V3.0 testnet"]
+    EVM["EVM RPC<br/>pallet-revive, chain id 420420777"]
+    NAT["Native RPC<br/>Contracts pallet, ink!"]
   end
-  subgraph "PortalOps"
-    direction TB
-    W[Worker<br/>ingest + finality + delivery loop]
-    S[(Store<br/>SQLite or PostgreSQL)]
-    A[API + web app<br/>REST, sessions, API keys]
+
+  subgraph adapters["packages/chain-adapters"]
+    ADE["evm.ts<br/>logs, blocks, finalized head"]
+    ADN["native.ts<br/>ContractEmitted, finalized head"]
   end
-  subgraph Consumers
-    R[Your receiver]
-    D[Dashboard]
-    SDK[TypeScript SDK]
-    MCP[Claude / MCP server]
+
+  subgraph worker["apps/worker"]
+    ING["ingest.ts<br/>EVM logs"]
+    INGN["ingest-native.ts<br/>ink! events"]
+    FIN["finality.ts<br/>included, confirmed, finalized, orphaned"]
+    RUN["packages/webhook-engine/runner.ts<br/>sign, send, retry, replay"]
   end
-  RPC -->|logs, blocks, finalized head| W
-  W -->|events, deliveries, attempts| S
-  A <--> S
-  W -->|signed webhooks| R
-  D --> A
-  SDK --> A
+
+  NORM["packages/event-engine<br/>normalize.ts and ink.ts<br/>logs into named events"]
+  DB[("packages/database/sql-store.ts<br/>SQLite or PostgreSQL")]
+  RCV["Your app or<br/>the built-in receiver"]
+
+  EVM --> ADE --> ING --> NORM
+  NAT --> ADN --> INGN --> NORM
+  NORM --> DB
+  FIN --> DB
+  RUN <--> DB
+  RUN -->|signed webhooks, retries, replay| RCV
+
+  subgraph api["apps/api/app.ts"]
+    REST["REST API<br/>sessions, API keys, 2FA, rate limits"]
+  end
+  REST <--> DB
+
+  subgraph clients["Clients"]
+    UI["src/<br/>dashboard, playground, registry,<br/>Arena Lab, docs"]
+    SDK["packages/sdk"]
+    MCP["packages/mcp<br/>Claude tools"]
+  end
+  UI --> REST
+  SDK --> REST
   MCP --> SDK
+
+  subgraph ondemand["Asked for on request"]
+    DIAG["packages/diagnostics/diagnose.ts<br/>why a delivery failed"]
+    VER["packages/verification/verify.ts<br/>submitted source vs code at an address"]
+    CHK["packages/event-engine/chain-check.ts<br/>a stored event vs the chain's own receipt"]
+    PING["packages/chain-adapters/pinger.ts<br/>the playground's real ping"]
+  end
+  CHAIN2["The same EVM RPC"]
+  REST --> DIAG
+  REST --> VER
+  REST --> CHK
+  REST --> PING
+  UI -->|runs in the browser, straight to the RPC| CHK
+  VER -->|eth_getCode| CHAIN2
+  CHK -->|eth_getTransactionReceipt| CHAIN2
+  PING -->|a real transaction| CHAIN2
 ```
 
 | Process / package | Responsibility |
 |---|---|
 | `apps/worker` | Polls the chain, decodes logs, stores events, promotes finality, runs the delivery loop. Exactly one per database |
 | `apps/api` | REST API, auth, ownership rules, rate limits, the built-in test receiver, and static serving of the web app |
-| `packages/chain-adapters` | The `ChainAdapter` interface implementation for EVM JSON-RPC |
-| `packages/event-engine` | Turns a raw log into a normalised, JSON-safe event with a deterministic id |
+| `packages/chain-adapters` | The `ChainAdapter` implementations: EVM JSON-RPC (`evm.ts`) and the native ink! reader (`native.ts`), plus the sender behind the playground ping (`pinger.ts`) |
+| `packages/event-engine` | Turns a raw log into a normalised, JSON-safe event with a deterministic id (`normalize.ts` for EVM, `ink.ts` for ink!), and checks a stored event against the chain's own receipt (`chain-check.ts`) |
+| `packages/verification` | Compiles submitted Solidity source on a worker thread and compares it with the code at an address (the verified contract registry) |
+| `packages/diagnostics` | Rule-based explanation of why a delivery failed, with an optional model-written one |
 | `packages/webhook-engine` | Delivery state machine: signing, sending, retry planning, SSRF guard, replay |
 | `packages/database` | The store: all SQL written once, behind a driver interface (SQLite and PostgreSQL) |
 | `packages/sdk` | Typed API client and webhook verification |
@@ -114,7 +151,7 @@ run it against an in-memory fake chain that can mine, reorganise, prune and fina
 
 Implement `SqlDriver` (`packages/database/driver.ts`): `all`, `run`, `transaction` and `close`, with `?` placeholders. The two existing drivers are
 about 100 lines each; the whole store and the whole test suite run on top. Add a schema file for the new dialect and a branch in `openStore`.
-The suite runs on SQLite by default and on a real PostgreSQL with `npm run test:pg`: a new driver gets the same 170+ tests for free
+The suite runs on SQLite by default and on a real PostgreSQL with `npm run test:pg`: a new driver gets the same 200+ tests for free
 (see `packages/database/testing.ts`).
 
 ### A different delivery target

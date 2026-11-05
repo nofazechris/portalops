@@ -120,11 +120,68 @@ retry rules), accounts with email verification, GitHub sign-in and two-factor si
 
 ## How it fits together
 
-![PortalOps architecture: chain ingestion, webhook delivery, API and storage, user interfaces and developer integrations](docs/architecture/system-diagram.png)
+```mermaid
+flowchart LR
+  subgraph chain["Portaldot V3.0 testnet"]
+    EVM["EVM RPC<br/>pallet-revive, chain id 420420777"]
+    NAT["Native RPC<br/>Contracts pallet, ink!"]
+  end
 
-*Generated from this repository with [gitdiagram](https://gitdiagram.com/nofazechris/portalops). It shows the core path (chain, ingestion, finality, delivery, API,
-store, dashboard, SDK and Claude tools). It predates the Rust (ink!) reader and the verified contract registry; both are described in
-[the architecture overview](docs/architecture/overview.md).*
+  subgraph adapters["packages/chain-adapters"]
+    ADE["evm.ts<br/>logs, blocks, finalized head"]
+    ADN["native.ts<br/>ContractEmitted, finalized head"]
+  end
+
+  subgraph worker["apps/worker"]
+    ING["ingest.ts<br/>EVM logs"]
+    INGN["ingest-native.ts<br/>ink! events"]
+    FIN["finality.ts<br/>included, confirmed, finalized, orphaned"]
+    RUN["packages/webhook-engine/runner.ts<br/>sign, send, retry, replay"]
+  end
+
+  NORM["packages/event-engine<br/>normalize.ts and ink.ts<br/>logs into named events"]
+  DB[("packages/database/sql-store.ts<br/>SQLite or PostgreSQL")]
+  RCV["Your app or<br/>the built-in receiver"]
+
+  EVM --> ADE --> ING --> NORM
+  NAT --> ADN --> INGN --> NORM
+  NORM --> DB
+  FIN --> DB
+  RUN <--> DB
+  RUN -->|signed webhooks, retries, replay| RCV
+
+  subgraph api["apps/api/app.ts"]
+    REST["REST API<br/>sessions, API keys, 2FA, rate limits"]
+  end
+  REST <--> DB
+
+  subgraph clients["Clients"]
+    UI["src/<br/>dashboard, playground, registry,<br/>Arena Lab, docs"]
+    SDK["packages/sdk"]
+    MCP["packages/mcp<br/>Claude tools"]
+  end
+  UI --> REST
+  SDK --> REST
+  MCP --> SDK
+
+  subgraph ondemand["Asked for on request"]
+    DIAG["packages/diagnostics/diagnose.ts<br/>why a delivery failed"]
+    VER["packages/verification/verify.ts<br/>submitted source vs code at an address"]
+    CHK["packages/event-engine/chain-check.ts<br/>a stored event vs the chain's own receipt"]
+    PING["packages/chain-adapters/pinger.ts<br/>the playground's real ping"]
+  end
+  CHAIN2["The same EVM RPC"]
+  REST --> DIAG
+  REST --> VER
+  REST --> CHK
+  REST --> PING
+  UI -->|runs in the browser, straight to the RPC| CHK
+  VER -->|eth_getCode| CHAIN2
+  CHK -->|eth_getTransactionReceipt| CHAIN2
+  PING -->|a real transaction| CHAIN2
+```
+
+The pipeline from chain to database runs left to right; the boxes at the top are what the API asks for on request. Every file named in the diagram exists, and a test keeps it that way. The worker and the API share only the database. More in [docs/architecture/overview.md](docs/architecture/overview.md).
 
 ## Run it locally
 
@@ -161,36 +218,13 @@ Open http://localhost:5173. Without an account you get a read-only public explor
 apps/api        REST API (node:http, zod, cookie sessions, rate limits, two-factor)
 apps/worker     EVM and native (ink!) ingestion loops + bounded webhook delivery
 packages/       database (SQLite or PostgreSQL), event-engine, webhook-engine, chain-adapters (EVM, native), diagnostics,
-                examples, sdk (npm), mcp (npm), email, config, shared-types
+                verification (contract source vs on-chain code), examples, sdk (npm), mcp (npm), email, config, shared-types
 contracts/      Solidity examples (evm/, examples/) and the Rust ink! example (ink/)
 examples/       webhook receiver with failure injection
 scripts/        deploy, preflight, evidence verification, security scan, ...
 src/            React app (landing, docs, auth, dashboard, playground, Arena Lab)
 docs/           the manual: guides, tutorials, API reference, architecture, security review, operations
 ```
-
-```mermaid
-flowchart LR
-  subgraph Chain
-    EVM[EVM RPC<br/>pallet-revive, chain id 420420777]
-    NAT[Native RPC<br/>Contracts pallet, ink!]
-  end
-  subgraph PortalOps
-    W[Worker<br/>ingest, decode, finality, delivery]
-    S[(Store<br/>SQLite or PostgreSQL)]
-    A[API + dashboard<br/>sessions, API keys, 2FA, GitHub sign-in]
-  end
-  EVM -->|logs, blocks, finalized head| W
-  NAT -->|ContractEmitted, finalized head| W
-  W -->|events, deliveries, attempts| S
-  A <--> S
-  W -->|signed webhooks, retries, replay| R[Your app / built-in receiver]
-  D[Dashboard] --> A
-  SDK[TypeScript SDK] --> A
-  MCP[Claude via MCP] --> SDK
-```
-
-The worker and the API share only the database. More in [docs/architecture/overview.md](docs/architecture/overview.md).
 
 ## For the Portaldot ecosystem
 
