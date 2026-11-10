@@ -66,7 +66,13 @@ const tokenFrom = (link: string | null, kind: "verify" | "reset") => {
   assert.ok(m, `link looks like ${PUBLIC}/auth#${kind}=…  (got ${link})`);
   return m![1];
 };
-const until = async (cond: () => boolean, ms = 2000) => { const t = Date.now(); while (!cond() && Date.now() - t < ms) await new Promise((r) => setTimeout(r, 10)); };
+// Account emails are sent in the background after the response, so tests wait for them. The wait returns the moment the condition holds; the generous limit only matters
+// when the machine is busy (the whole suite runs in parallel), and a timeout fails loudly here instead of as a confusing assertion later.
+const until = async (cond: () => boolean, ms = 10_000) => {
+  const t = Date.now();
+  while (!cond() && Date.now() - t < ms) await new Promise((r) => setTimeout(r, 10));
+  assert.ok(cond(), `the condition was still false after ${ms} ms`);
+};
 
 // ------------------------------------------------------------------------------------------------ email verification
 test("signup: a verification email with a fragment link is sent, the account starts unverified, and the link works exactly once", async (t) => {

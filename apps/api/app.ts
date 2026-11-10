@@ -246,6 +246,9 @@ export function createApp(deps: AppDeps): (req: IncomingMessage, res: ServerResp
   const hashReceiverToken = (t: string) => createHash("sha256").update(t).digest("hex");
   const publicEndpoint = async (e: WebhookEndpoint) => ({ id: e.id, projectId: e.projectId, url: e.url, description: e.description, enabled: e.enabled, eventFilter: e.eventFilter, retryPolicy: e.retryPolicy, createdAt: e.createdAt, builtinReceiver: !!await store.getReceiverByEndpoint(e.id) });
 
+  /** Fresh ids for one test delivery: the body and the headers must agree, and no two tests may share an id (or the receiver reports the second as a duplicate). */
+  const newTestIds = () => { const r = randomUUID().replaceAll("-", ""); return { eventId: "evt_test_" + r.slice(0, 16), deliveryId: "dlv_test_" + r.slice(16, 32) }; };
+
   const eventView = (e: NormalizedEvent) => ({
     id: e.id, projectId: e.projectId, network: e.network, source: e.source, contractAddress: e.contractAddress,
     eventName: e.eventName, decoded: e.decoded, payload: e.payload, topics: e.topics, data: e.data,
@@ -525,9 +528,11 @@ export function createApp(deps: AppDeps): (req: IncomingMessage, res: ServerResp
     const found = await store.getEndpointWithSecret(endpoint.id);
     if (!found) throw new ApiError(503, "unavailable", "The playground receiver is not ready.");
     const secret = decryptSecret(found.encryptedSecret, config.encryptionKey);
-    const payload = JSON.stringify({ id: "evt_test_" + randomUUID().replaceAll("-", "").slice(0, 16), type: "webhook.test", network: config.networkId, data: { message: "PortalOps playground test delivery. Not a blockchain event." } });
+    // The receiver de-duplicates on the event-id HEADER, so every test needs its own id there too (the playground receiver is shared by all visitors).
+    const testId = newTestIds();
+    const payload = JSON.stringify({ id: testId.eventId, type: "webhook.test", network: config.networkId, data: { message: "PortalOps playground test delivery. Not a blockchain event." } });
     const { timestamp, header } = signHeader(secret, payload, now());
-    const r = await sendWebhook(endpoint.url, payload, { "portalops-signature": header, "portalops-timestamp": String(timestamp), "portalops-event-id": "test", "portalops-delivery-id": "test", "portalops-attempt": "1" }, { timeoutMs: endpoint.retryPolicy.timeoutMs, guard });
+    const r = await sendWebhook(endpoint.url, payload, { "portalops-signature": header, "portalops-timestamp": String(timestamp), "portalops-event-id": testId.eventId, "portalops-delivery-id": testId.deliveryId, "portalops-attempt": "1" }, { timeoutMs: endpoint.retryPolicy.timeoutMs, guard });
     return { ok: r.status !== null && r.status >= 200 && r.status < 300, status: r.status, errorCode: r.errorCode, durationMs: r.durationMs };
   }, "none");
 
@@ -1129,9 +1134,10 @@ export function createApp(deps: AppDeps): (req: IncomingMessage, res: ServerResp
     if (wait) throw new ApiError(429, "rate_limited", `Try again in ${wait}s.`);
     const found = (await store.getEndpointWithSecret(endpoint.id))!;
     const secret = decryptSecret(found.encryptedSecret, config.encryptionKey);
-    const body = JSON.stringify({ id: "evt_test_" + randomUUID().replaceAll("-", "").slice(0, 16), type: "webhook.test", network: config.networkId, data: { message: "PortalOps test delivery. This is not a blockchain event." } });
+    const testId = newTestIds();
+    const body = JSON.stringify({ id: testId.eventId, type: "webhook.test", network: config.networkId, data: { message: "PortalOps test delivery. This is not a blockchain event." } });
     const { timestamp, header } = signHeader(secret, body, now());
-    const r = await sendWebhook(endpoint.url, body, { "portalops-signature": header, "portalops-timestamp": String(timestamp), "portalops-event-id": "test", "portalops-delivery-id": "test", "portalops-attempt": "1" }, { timeoutMs: endpoint.retryPolicy.timeoutMs, guard });
+    const r = await sendWebhook(endpoint.url, body, { "portalops-signature": header, "portalops-timestamp": String(timestamp), "portalops-event-id": testId.eventId, "portalops-delivery-id": testId.deliveryId, "portalops-attempt": "1" }, { timeoutMs: endpoint.retryPolicy.timeoutMs, guard });
     await store.log(r.status !== null && r.status < 300 ? "info" : "warn", "webhook", `Test delivery to ${endpoint.id}: ${r.status ?? r.errorCode}`, { durationMs: r.durationMs }, p.id);
     return { ok: r.status !== null && r.status >= 200 && r.status < 300, status: r.status, errorCode: r.errorCode, durationMs: r.durationMs, response: r.sanitisedResponse };
   });
